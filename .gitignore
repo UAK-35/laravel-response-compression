@@ -1,7 +1,7 @@
 .DS_Store
 .vscode
 .idea
-/build/
+build
 /.phpunit.result.cache
 /.phpunit.cache
 /.php-cs-fixer.cache
