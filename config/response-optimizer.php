@@ -10,7 +10,7 @@ return [
         'enabled' => env('RESPONSE_OPTIMIZER_COMPRESSION_ENABLED', true),
 
         /**
-         * The compression algorithm to use. Can be either 'gzip' or 'brotli'.
+         * The compression algorithm to use. Can be either 'gzip' or 'br'.
          */
         'algorithm' => env('RESPONSE_OPTIMIZER_COMPRESSION_ALGORITHM', 'gzip'),
 
