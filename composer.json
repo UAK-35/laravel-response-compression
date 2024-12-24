@@ -1,0 +1,74 @@
+{
+    "name": "chr15k/laravel-response-optimizer",
+    "description": "Optimize your Laravel responses for performance",
+    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "chr15k",
+        "optimize",
+        "encoding",
+        "performance",
+        "php"
+    ],
+    "authors": [
+        {
+            "name": "Christopher Keller",
+            "email": "ctk8501@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.3.0",
+        "ext-zlib": "*",
+        "illuminate/http": "^11.0",
+        "illuminate/support": "^11.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.18.1",
+        "orchestra/testbench": "^9.8",
+        "pestphp/pest": "^3.7",
+        "pestphp/pest-plugin-type-coverage": "^3.1",
+        "phpstan/phpstan": "^1.12.7",
+        "rector/rector": "^1.2.8",
+        "symfony/var-dumper": "^7.1.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Chr15k\\ResponseOptimizer\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Chr15k\\ResponseOptimizer\\Tests\\": "tests"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "preferred-install": "dist",
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Chr15k\\ResponseOptimizer\\ResponseOptimizerServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "refacto": "rector",
+        "lint": "pint",
+        "test:refacto": "rector --dry-run",
+        "test:lint": "pint --test",
+        "test:types": "phpstan analyse --ansi",
+        "test:unit": "pest --colors=always --coverage --parallel --min=100",
+        "test": [
+            "@test:refacto",
+            "@test:lint",
+            "@test:types",
+            "@test:unit"
+        ]
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
