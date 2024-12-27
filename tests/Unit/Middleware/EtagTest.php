@@ -193,3 +193,27 @@ it('should use the configured ETag hashing algorithm', function (): void {
 
     expect($response->headers->get('ETag'))->toBe(sha1('Hello, World!'));
 });
+
+it('should use the default ETag hashing algorithm if the configured one is invalid', function (): void {
+    config(['response-optimizer.cache.etag.algorithm' => 'invalid-algorithm']);
+
+    $request = Request::create('/test', 'GET');
+    $response = new Response('Hello, World!', 200);
+
+    $middleware = new Etag;
+    $response = $middleware->handle($request, fn (): Response => $response);
+
+    expect($response->headers->get('ETag'))->toBe(md5('Hello, World!'));
+});
+
+it('should use the default ETag hashing algorithm if the configured one is not supported', function (): void {
+    config(['response-optimizer.cache.etag.algorithm' => 'crc32']);
+
+    $request = Request::create('/test', 'GET');
+    $response = new Response('Hello, World!', 200);
+
+    $middleware = new Etag;
+    $response = $middleware->handle($request, fn (): Response => $response);
+
+    expect($response->headers->get('ETag'))->toBe(md5('Hello, World!'));
+});
