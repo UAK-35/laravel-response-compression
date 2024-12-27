@@ -11,6 +11,7 @@ final class Etag
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
+
         if ($this->isReadOperation($request)) {
             return $this->handleIfNoneMatch($request, $response);
         }
