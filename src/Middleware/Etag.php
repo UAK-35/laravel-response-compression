@@ -6,40 +6,81 @@ use Closure;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class Etag
+final class Etag
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // Get the response for the request
         $response = $next($request);
+        if ($this->isReadOperation($request)) {
+            return $this->handleIfNoneMatch($request, $response);
+        }
 
-        // Only apply ETag for successful GET or HEAD requests
-        if (! $this->shouldApplyETag($request, $response)) {
+        if ($this->isWriteOperation($request)) {
+            return $this->handleIfMatch($request, $response);
+        }
+
+        return $response;
+    }
+
+    /**
+     * Determine if the request is a read operation.
+     */
+    private function isReadOperation(Request $request): bool
+    {
+        return in_array(strtoupper($request->getMethod()), ['GET', 'HEAD']);
+    }
+
+    /**
+     * Determine if the request is a write operation.
+     */
+    private function isWriteOperation(Request $request): bool
+    {
+        return in_array(strtoupper($request->getMethod()), ['PUT', 'PATCH', 'DELETE']);
+    }
+
+    /**
+     * Handle If-None-Match for read operations.
+     */
+    private function handleIfNoneMatch(Request $request, Response $response): Response
+    {
+        if (! $response->isSuccessful()) {
             return $response;
         }
 
-        // Generate the ETag based on the response content
         $etag = $this->generateETag($response);
 
-        // Check if the ETag matches the client request
         if ($request->headers->get('If-None-Match') === $etag) {
             return response('', Response::HTTP_NOT_MODIFIED, ['ETag' => $etag]);
         }
 
-        // Attach the ETag to the response
         $response->headers->set('ETag', $etag);
 
         return $response;
     }
 
     /**
-     * Determine if the ETag should be applied to the response.
+     * Handle If-Match for write operations.
+     *
+     * The If-Match header is used with PUT requests to prevent overwriting
+     * a resource that has changed since the client last retrieved it.
+     *
+     * If the resource's ETag does not match the one provided in the If-Match
+     * header, the server responds with a 412 Precondition Failed.
      */
-    private function shouldApplyETag(Request $request, Response $response): bool
+    private function handleIfMatch(Request $request, Response $response): Response
     {
-        // Apply ETag only for GET and HEAD requests with successful responses
-        return in_array(strtoupper($request->getMethod()), ['GET', 'HEAD'])
-            && $response->isSuccessful();
+        $clientETag = $request->headers->get('If-Match');
+        $currentETag = $this->generateETag($response);
+
+        if ($clientETag !== null && $clientETag !== $currentETag) {
+            return response(
+                'Precondition Failed',
+                Response::HTTP_PRECONDITION_FAILED,
+                ['ETag' => $currentETag]
+            );
+        }
+
+        return $response;
     }
 
     /**
