@@ -2,7 +2,7 @@
 
 namespace Chr15k\ResponseOptimizer\Support;
 
-class Enc
+final readonly class Enc
 {
     public static function isGzipEncoded(string $content): bool
     {
