@@ -1,6 +1,7 @@
 <?php
 
 use Chr15k\ResponseOptimizer\Encoders\GzipEncoder;
+use Chr15k\ResponseOptimizer\Support\Enc;
 use Symfony\Component\HttpFoundation\Response;
 
 it('should compress text response', function (): void {
@@ -11,5 +12,5 @@ it('should compress text response', function (): void {
 
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->getContent())->not()->toBe(getLongContent())
-        ->and(isGzipEncoded($result->getContent()))->toBeTrue();
+        ->and(Enc::isGzipEncoded($result->getContent()))->toBeTrue();
 });

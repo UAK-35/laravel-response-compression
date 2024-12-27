@@ -2,6 +2,24 @@
 
 return [
 
+    'cache' => [
+
+        'control' => [
+
+            /**
+             * Enable or disable the cache control.
+             */
+            'enabled' => env('RESPONSE_OPTIMIZER_CACHE_ENABLED', true),
+
+            /**
+             * The cache control directive.
+             */
+            'directive' => env('RESPONSE_OPTIMIZER_CACHE_CONTROL_DIRECTIVE', 'public, max-age=31536000'),
+
+        ],
+
+    ],
+
     'compression' => [
 
         /**

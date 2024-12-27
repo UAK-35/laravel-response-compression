@@ -9,7 +9,7 @@ final class GzipEncoder implements Encoder
 {
     public function handle(Response $response): Response
     {
-        $compressed = gzencode((string) $response->getContent(), $this->getGzipLevel());
+        $compressed = gzencode((string) $response->getContent(), $this->level());
 
         if ($compressed) {
             $response->setContent($compressed);
@@ -24,7 +24,7 @@ final class GzipEncoder implements Encoder
         return $response;
     }
 
-    private function getGzipLevel(): int
+    public function level(): int
     {
         $level = config('response-optimizer.compression.gzip.level');
 

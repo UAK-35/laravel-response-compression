@@ -1,5 +1,6 @@
 <?php
 
+use Chr15k\ResponseOptimizer\Support\Enc;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -15,7 +16,7 @@ it('should compress text response', function (): void {
 
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->getContent())->not()->toBe(getLongContent())
-        ->and(isGzipEncoded($result->getContent()))->toBeTrue();
+        ->and(Enc::isGzipEncoded($result->getContent()))->toBeTrue();
 });
 
 it('should compress json response', function (): void {
@@ -26,7 +27,7 @@ it('should compress json response', function (): void {
 
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->getContent())->not()->toBe('{"test":"test"}')
-        ->and(isGzipEncoded($result->getContent()))->toBeTrue();
+        ->and(Enc::isGzipEncoded($result->getContent()))->toBeTrue();
 });
 
 it('should not compress json response without encoding header', function (): void {
@@ -41,7 +42,7 @@ it('should not compress json response without encoding header', function (): voi
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->headers->get('Content-Encoding'))->toBeNull()
         ->and($result->getContent())->toBe(json_encode($content))
-        ->and(isGzipEncoded($result->getContent()))->toBeFalse();
+        ->and(Enc::isGzipEncoded($result->getContent()))->toBeFalse();
 });
 
 it('should not compress response without gzip header', function (): void {
@@ -54,7 +55,7 @@ it('should not compress response without gzip header', function (): void {
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->headers->get('Content-Encoding'))->toBeNull()
         ->and($result->getContent())->toBe(getLongContent())
-        ->and(isGzipEncoded($result->getContent()))->toBeFalse();
+        ->and(Enc::isGzipEncoded($result->getContent()))->toBeFalse();
 });
 
 it('should not compress streamed response', function (): void {
@@ -66,7 +67,7 @@ it('should not compress streamed response', function (): void {
 
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->headers->get('Content-Encoding'))->toBeNull()
-        ->and(isGzipEncoded($result->getContent()))->toBeFalse();
+        ->and(Enc::isGzipEncoded($result->getContent()))->toBeFalse();
 });
 
 it('should not compress if response is binary file', function (): void {
@@ -79,7 +80,7 @@ it('should not compress if response is binary file', function (): void {
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->headers->get('Content-Encoding'))->toBeNull()
         ->and($result->getFile()->getContent())->toBe('test')
-        ->and(isGzipEncoded($result->getContent()))->toBeFalse();
+        ->and(Enc::isGzipEncoded($result->getContent()))->toBeFalse();
 });
 
 it('should not compress if response is not successful', function (): void {
@@ -92,7 +93,7 @@ it('should not compress if response is not successful', function (): void {
     expect($result->getStatusCode())->toBe(Response::HTTP_INTERNAL_SERVER_ERROR)
         ->and($result->headers->get('Content-Encoding'))->toBeNull()
         ->and($result->getContent())->toBe('error')
-        ->and(isGzipEncoded($result->getContent()))->toBeFalse();
+        ->and(Enc::isGzipEncoded($result->getContent()))->toBeFalse();
 });
 
 it('should not compress if the content is below the configured minimum length', function (): void {
@@ -105,7 +106,7 @@ it('should not compress if the content is below the configured minimum length', 
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->headers->get('Content-Encoding'))->toBeNull()
         ->and($result->getContent())->toBe(getShortContent())
-        ->and(isGzipEncoded($result->getContent()))->toBeFalse();
+        ->and(Enc::isGzipEncoded($result->getContent()))->toBeFalse();
 });
 
 it('should brotli compress text response', function (): void {
@@ -119,7 +120,7 @@ it('should brotli compress text response', function (): void {
 
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->getContent())->not()->toBe(getLongContent())
-        ->and(isBrotliEncoded($result->getContent()))->toBeTrue();
+        ->and(Enc::isBrotliEncoded($result->getContent()))->toBeTrue();
 });
 
 it('should brotli compress json response', function (): void {
@@ -133,5 +134,5 @@ it('should brotli compress json response', function (): void {
 
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->getContent())->not()->toBe('{"test":"test"}')
-        ->and(isBrotliEncoded($result->getContent()))->toBeTrue();
+        ->and(Enc::isBrotliEncoded($result->getContent()))->toBeTrue();
 });

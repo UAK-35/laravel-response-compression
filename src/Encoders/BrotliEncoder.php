@@ -11,7 +11,7 @@ final class BrotliEncoder implements Encoder
     {
         if (extension_loaded('brotli') && is_callable('brotli_compress')) {
 
-            $compressed = brotli_compress((string) $response->getContent(), $this->getBrotliLevel());
+            $compressed = brotli_compress((string) $response->getContent(), $this->level());
 
             if ($compressed) {
                 $response->setContent($compressed);
@@ -27,7 +27,7 @@ final class BrotliEncoder implements Encoder
         return $response;
     }
 
-    private function getBrotliLevel(): int
+    public function level(): int
     {
         $level = config('response-optimizer.compression.brotli.level');
 

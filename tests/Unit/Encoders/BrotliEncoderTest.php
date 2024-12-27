@@ -1,6 +1,7 @@
 <?php
 
 use Chr15k\ResponseOptimizer\Encoders\BrotliEncoder;
+use Chr15k\ResponseOptimizer\Support\Enc;
 use Symfony\Component\HttpFoundation\Response;
 
 it('should compress text response', function (): void {
@@ -13,5 +14,5 @@ it('should compress text response', function (): void {
         ->and($result->headers->get('Vary'))->toBe('Accept-Encoding')
         ->and($result->headers->get('Content-Length'))->toBeGreaterThan(0)
         ->and($result->getContent())->toBeString()
-        ->and(isBrotliEncoded($result->getContent()))->toBeTrue();
+        ->and(Enc::isBrotliEncoded($result->getContent()))->toBeTrue();
 });

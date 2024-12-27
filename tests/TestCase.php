@@ -15,6 +15,9 @@ class TestCase extends Orchestra
         $app['config']->set('response-optimizer.compression.algorithm', 'gzip');
         $app['config']->set('response-optimizer.compression.min_length', 1024);
         $app['config']->set('response-optimizer.compression.gzip.level', 5);
+
+        $app['config']->set('response-optimizer.cache.enabled', true);
+        $app['config']->set('response-optimizer.cache.control.directive', 'public, max-age=31536000');
     }
 
     protected function getPackageProviders($app)
