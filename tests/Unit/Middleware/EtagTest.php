@@ -169,3 +169,27 @@ it('should respond with a 412 Precondition Failed status code if the ETag does n
     expect($response->getStatusCode())->toBe(412);
     expect($response->headers->get('ETag'))->toBe(md5('Hello, World!'));
 });
+
+it('should not apply Etag if disabled in the configuration', function (): void {
+    config(['response-optimizer.cache.etag.enabled' => false]);
+
+    $request = Request::create('/test', 'GET');
+    $response = new Response('Hello, World!', 200);
+
+    $middleware = new Etag;
+    $response = $middleware->handle($request, fn (): Response => $response);
+
+    expect($response->headers->has('ETag'))->toBeFalse();
+});
+
+it('should use the configured ETag hashing algorithm', function (): void {
+    config(['response-optimizer.cache.etag.algorithm' => 'sha1']);
+
+    $request = Request::create('/test', 'GET');
+    $response = new Response('Hello, World!', 200);
+
+    $middleware = new Etag;
+    $response = $middleware->handle($request, fn (): Response => $response);
+
+    expect($response->headers->get('ETag'))->toBe(sha1('Hello, World!'));
+});

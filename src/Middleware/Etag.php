@@ -12,6 +12,10 @@ final class Etag
     {
         $response = $next($request);
 
+        if (! $this->enabled()) {
+            return $response;
+        }
+
         if ($this->isReadOperation($request)) {
             return $this->handleIfNoneMatch($request, $response);
         }
@@ -21,6 +25,14 @@ final class Etag
         }
 
         return $response;
+    }
+
+    private function enabled(): bool
+    {
+        return filter_var(
+            config('response-optimizer.cache.etag.enabled'),
+            FILTER_VALIDATE_BOOLEAN
+        );
     }
 
     /**
@@ -51,7 +63,7 @@ final class Etag
         $etag = $this->generateETag($response);
 
         if ($request->headers->get('If-None-Match') === $etag) {
-            return response('', Response::HTTP_NOT_MODIFIED, ['ETag' => $etag]);
+            return new Response('', Response::HTTP_NOT_MODIFIED, ['ETag' => $etag]);
         }
 
         $response->headers->set('ETag', $etag);
@@ -74,8 +86,8 @@ final class Etag
         $currentETag = $this->generateETag($response);
 
         if ($clientETag !== null && $clientETag !== $currentETag) {
-            return response(
-                'Precondition Failed',
+            return new Response(
+                Response::$statusTexts[Response::HTTP_PRECONDITION_FAILED],
                 Response::HTTP_PRECONDITION_FAILED,
                 ['ETag' => $currentETag]
             );
@@ -89,6 +101,18 @@ final class Etag
      */
     private function generateETag(Response $response): string
     {
-        return md5((string) $response->getContent());
+        return $this->algorithm()($response->getContent());
+    }
+
+    /**
+     * Get the ETag hashing algorithm.
+     */
+    private function algorithm(): callable
+    {
+        return match (config('response-optimizer.cache.etag.algorithm')) {
+            'md5' => fn (string $content): string => md5($content),
+            'sha1' => fn (string $content): string => sha1($content),
+            default => fn (string $content): string => md5($content),
+        };
     }
 }
