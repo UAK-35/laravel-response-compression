@@ -37,7 +37,7 @@ Applies Gzip or Brotli compression to HTTP responses based on client support. Th
 
 Ideal For: Large JSON responses, static files, or data-intensive endpoints.
 
-### 2. HTML Minification Middleware
+### 2. HTML Minification Middleware
 
 Minifies HTML responses by removing unnecessary whitespace and formatting to reduce payload size.
 
