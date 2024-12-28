@@ -35,7 +35,7 @@ This package provides the following middleware:
 
 Applies Gzip or Brotli compression to HTTP responses based on client support. This reduces the size of the response payload and enhances load times.
 
-Ideal For: Large JSON responses, static files, or data-intensive endpoints.
+**Ideal For**: Large JSON responses, static files, or data-intensive endpoints.
 
 ### 2. HTML Minification Middleware
 
