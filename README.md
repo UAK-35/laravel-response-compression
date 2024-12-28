@@ -1,16 +1,11 @@
 # Laravel Response Optimizer
 
-Enhance your Laravel application's performance by optimizing HTTP responses with middleware for ETags, compression, and cache control.
+Boost your Laravel application's performance by optimizing HTTP responses with middleware for compression and HTML minification.
 
-## Introduction
+## Key Features
 
-Laravel Response Optimizer is a powerful package that leverages middleware to improve the delivery and efficiency of your application's HTTP responses. By implementing key optimizations like ETags, compression, and cache control headers, it reduces bandwidth usage and improves the client-side experience.
-
-### Key Features
-
--   **ETags**: Enables efficient caching and validation of responses.
--   **Compression**: Reduces the size of response payloads using Gzip or Brotli compression.
--   **Cache Control**: Adds headers to manage response caching effectively.
+**Compression**: Shrink response payloads using Gzip or Brotli compression.
+**HTML Minification**: Reduce the size of HTML responses by eliminating unnecessary whitespace and formatting.
 
 These optimizations work seamlessly with your existing Laravel application, requiring minimal setup.
 
@@ -34,33 +29,23 @@ php artisan vendor:publish --provider="Chr15k\ResponseOptimizer\ResponseOptimize
 
 ## Middleware Overview
 
-The package includes the following middleware:
+This package provides the following middleware:
 
-### 1. ETag Middleware
+### 1. Compression Middleware
 
-Generates ETag headers for HTTP responses to enable efficient client-side caching. Clients can use the If-None-Match header to determine if the resource has changed, reducing bandwidth usage.
+Applies Gzip or Brotli compression to HTTP responses based on client support. This reduces the size of the response payload and enhances load times.
 
--   Use Case: Ideal for APIs and static content where responses may remain unchanged for multiple requests.
+Ideal For: Large JSON responses, static files, or data-intensive endpoints.
 
-### 2. Compression Middleware
+### 2. HTML Minification Middleware
 
-Compresses HTTP responses using Gzip or Brotli, depending on the client's capabilities. This significantly reduces the size of response payloads, improving load times.
-
--   Use Case: Perfect for large JSON responses, static content, or any data-heavy endpoints.
-
-### 3. Cache Control Middleware
-
-Adds Cache-Control headers to responses, instructing clients and proxies on how to cache responses.
-
--   Use Case: Ensures predictable caching behavior for dynamic and static content.
+Minifies HTML responses by removing unnecessary whitespace and formatting to reduce payload size.
 
 ---
 
 ## Setup
 
 ### Register Middleware
-
-To enable the middleware, register it in app/Http/Kernel.php:
 
 #### Global Middleware
 
@@ -73,9 +58,8 @@ Apply the middleware globally to all requests:
     ...
     $middleware->web(append: [
         ...
-        \Chr15k\ResponseOptimizer\Middleware\ETag::class,
+        \Chr15k\ResponseOptimizer\Middleware\MinifyHtml::class,
         \Chr15k\ResponseOptimizer\Middleware\CompressResponse::class,
-        \Chr15k\ResponseOptimizer\Middleware\CacheControl::class,
     ]);
 })
 ```
@@ -111,5 +95,3 @@ Contributions are welcome! Submit a pull request or open an issue to discuss new
 ## License
 
 The MIT License (MIT). Please see [License File](https://github.com/chr15k/laravel-response-optimizer/blob/main/LICENSE) for more information.
-
----

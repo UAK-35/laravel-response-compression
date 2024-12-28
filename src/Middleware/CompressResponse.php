@@ -12,6 +12,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class CompressResponse
 {
+    /**
+     * Handle an incoming request.
+     */
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
@@ -27,6 +30,9 @@ final class CompressResponse
         };
     }
 
+    /**
+     * Check if the response should be compressed.
+     */
     private function shouldCompress(Request $request, Response $response): bool
     {
         return $this->enabled()
@@ -34,6 +40,9 @@ final class CompressResponse
             && $this->validateResponse($response);
     }
 
+    /**
+     * Validate the response content.
+     */
     private function validateResponse(Response $response): bool
     {
         $content = $response->getContent();
@@ -44,11 +53,17 @@ final class CompressResponse
             && $this->validateResponseType($response);
     }
 
+    /**
+     * Validate the response type.
+     */
     private function validateResponseType(Response $response): bool
     {
         return ! $response instanceof BinaryFileResponse && ! $response instanceof StreamedResponse;
     }
 
+    /**
+     * Validate the request.
+     */
     private function validateRequest(Request $request): bool
     {
         return in_array(
@@ -57,6 +72,9 @@ final class CompressResponse
         );
     }
 
+    /**
+     * Check if compression is enabled.
+     */
     private function enabled(): bool
     {
         return filter_var(

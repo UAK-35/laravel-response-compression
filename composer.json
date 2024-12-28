@@ -20,7 +20,8 @@
         "php": "^8.3.0",
         "ext-zlib": "*",
         "illuminate/http": "^11.0",
-        "illuminate/support": "^11.0"
+        "illuminate/support": "^11.0",
+        "voku/html-min": "^4.5"
     },
     "require-dev": {
         "laravel/pint": "^1.18.1",

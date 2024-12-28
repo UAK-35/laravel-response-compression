@@ -56,3 +56,8 @@ function getLongContent(): string
 {
     return str_repeat('Hello World', 1000);
 }
+
+function getShortHtmlContent(): string
+{
+    return '<html><head><title>Test</title></head><body><p>Test</p></body></html>';
+}

@@ -2,35 +2,18 @@
 
 return [
 
-    'cache' => [
+    'minify' => [
 
-        'etag' => [
+        /**
+         * Enable or disable the HTML minification.
+         */
+        'enabled' => env('RESPONSE_OPTIMIZER_MINIFY_HTML_ENABLED', true),
 
-            /**
-             * Enable or disable the ETag generation.
-             */
-            'enabled' => env('RESPONSE_OPTIMIZER_CACHE_ETAG_ENABLED', true),
-
-            /**
-             * The ETag hashing algorithm to use. Can be either 'crc32', 'md5' or 'sha1'.
-             */
-            'algorithm' => env('RESPONSE_OPTIMIZER_CACHE_ETAG_ALGORITHM', 'md5'),
-
-        ],
-
-        'control' => [
-
-            /**
-             * Enable or disable the cache control.
-             */
-            'enabled' => env('RESPONSE_OPTIMIZER_CACHE_CONTROL_ENABLED', true),
-
-            /**
-             * The cache control directive.
-             */
-            'directive' => env('RESPONSE_OPTIMIZER_CACHE_CONTROL_DIRECTIVE', 'public, max-age=604800'),
-
-        ],
+        /**
+         * The minimum size of the HTML content to be minified.
+         * Default is 5 KB.
+         */
+        'min_size' => env('RESPONSE_OPTIMIZER_MINIFY_HTML_MIN_SIZE', 5120),
 
     ],
 
