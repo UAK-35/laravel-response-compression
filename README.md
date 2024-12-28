@@ -4,10 +4,13 @@ Boost your Laravel application's performance by optimizing HTTP responses with m
 
 ## Key Features
 
-**Compression**: Shrink response payloads using Gzip or Brotli compression.
-**HTML Minification**: Reduce the size of HTML responses by eliminating unnecessary whitespace and formatting.
+#### Compression
 
-These optimizations work seamlessly with your existing Laravel application, requiring minimal setup.
+Shrink response payloads using Gzip or Brotli compression.
+
+#### HTML Minification
+
+Reduce the size of HTML responses by eliminating unnecessary whitespace and formatting.
 
 ---
 
@@ -31,13 +34,13 @@ php artisan vendor:publish --provider="Chr15k\ResponseOptimizer\ResponseOptimize
 
 This package provides the following middleware:
 
-### 1. Compression Middleware
+#### 1. Compression Middleware
 
 Applies Gzip or Brotli compression to HTTP responses based on client support. This reduces the size of the response payload and enhances load times.
 
 **Ideal For**: Large JSON responses, static files, or data-intensive endpoints.
 
-### 2. HTML Minification Middleware
+#### 2. HTML Minification Middleware
 
 Minifies HTML responses by removing unnecessary whitespace and formatting to reduce payload size.
 
