@@ -26,9 +26,13 @@ This package provides the following middleware:
 
 #### Compression Middleware
 
-Applies Gzip or Brotli compression to HTTP responses based on client support. This reduces the size of the response payload and enhances load times.
+Applies **Gzip** or **Brotli** compression to HTTP responses based on client support. This reduces the size of the response payload and enhances load times.
 
 **Ideal For**: Large JSON responses, static files, or data-intensive endpoints.
+
+> [!INFO]
+> To use Brotli effectively, ensure that the Brotli PHP extension is properly installed.
+> https://pecl.php.net/package/brotli
 
 > [!WARNING]
 > When using Brotli, a client-side decoding error may occur with non-secure connections, as modern browsers generally support Brotli compression only over HTTPS.
