@@ -1,6 +1,6 @@
 {
     "name": "chr15k/laravel-response-compression",
-    "description": "Optimize your Laravel responses for performance",
+    "description": "Laravel response compression middleware",
     "license": "MIT",
     "keywords": [
         "laravel",

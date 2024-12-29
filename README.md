@@ -1,5 +1,7 @@
 # Laravel Response Compression
 
+[![Latest Stable Version](https://poser.pugx.org/chr15k/laravel-response-compression/v)](https://packagist.org/packages/chr15k/laravel-response-compression) [![Total Downloads](https://poser.pugx.org/chr15k/laravel-response-compression/downloads)](https://packagist.org/packages/chr15k/laravel-response-compression) [![Latest Unstable Version](https://poser.pugx.org/chr15k/laravel-response-compression/v/unstable)](https://packagist.org/packages/chr15k/laravel-response-compression) [![License](https://poser.pugx.org/chr15k/laravel-response-compression/license)](https://packagist.org/packages/chr15k/laravel-response-compression) [![PHP Version Require](https://poser.pugx.org/chr15k/laravel-response-compression/require/php)](https://packagist.org/packages/chr15k/laravel-response-compression)
+
 Boost your Laravel application's performance by optimizing HTTP responses with middleware for compression.
 
 ---
