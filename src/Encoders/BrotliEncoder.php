@@ -1,8 +1,8 @@
 <?php
 
-namespace Chr15k\ResponseOptimizer\Encoders;
+namespace Chr15k\ResponseCompression\Encoders;
 
-use Chr15k\ResponseOptimizer\Contracts\Encoder;
+use Chr15k\ResponseCompression\Contracts\Encoder;
 use Symfony\Component\HttpFoundation\Response;
 
 final class BrotliEncoder implements Encoder
@@ -29,7 +29,7 @@ final class BrotliEncoder implements Encoder
 
     public function level(): int
     {
-        $level = config('response-optimizer.compression.brotli.level');
+        $level = config('response-compression.brotli.level');
 
         return is_int($level) && $level >= 0 && $level <= 11 ? $level : 5;
     }

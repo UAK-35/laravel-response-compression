@@ -1,16 +1,6 @@
-# Laravel Response Optimizer
+# Laravel Response Compression
 
-Boost your Laravel application's performance by optimizing HTTP responses with middleware for compression and HTML minification.
-
-## Key Features
-
-#### Compression
-
-Shrink response payloads using Gzip or Brotli compression.
-
-#### HTML Minification
-
-Reduce the size of HTML responses by eliminating unnecessary whitespace and formatting.
+Boost your Laravel application's performance by optimizing HTTP responses with middleware for compression.
 
 ---
 
@@ -19,13 +9,13 @@ Reduce the size of HTML responses by eliminating unnecessary whitespace and form
 Install the package via Composer:
 
 ```bash
-composer require chr15k/laravel-response-optimizer
+composer require chr15k/laravel-response-compression
 ```
 
 Publish the configuration file:
 
 ```bash
-php artisan vendor:publish --provider="Chr15k\ResponseOptimizer\ResponseOptimizerServiceProvider"
+php artisan vendor:publish --provider="Chr15k\ResponseCompression\ResponseCompressionServiceProvider"
 ```
 
 ---
@@ -39,10 +29,6 @@ This package provides the following middleware:
 Applies Gzip or Brotli compression to HTTP responses based on client support. This reduces the size of the response payload and enhances load times.
 
 **Ideal For**: Large JSON responses, static files, or data-intensive endpoints.
-
-#### 2. HTML Minification Middleware
-
-Minifies HTML responses by removing unnecessary whitespace and formatting to reduce payload size.
 
 ---
 
@@ -61,8 +47,7 @@ Apply the middleware globally to all requests:
     ...
     $middleware->web(append: [
         ...
-        \Chr15k\ResponseOptimizer\Middleware\MinifyHtml::class,
-        \Chr15k\ResponseOptimizer\Middleware\CompressResponse::class,
+        \Chr15k\ResponseCompression\Middleware\CompressResponse::class,
     ]);
 })
 ```
@@ -72,7 +57,7 @@ Apply the middleware globally to all requests:
 Alternatively, register it as route middleware for selective application:
 
 ```php
-use Chr15k\ResponseOptimizer\Middleware\CompressResponse;
+use Chr15k\ResponseCompression\Middleware\CompressResponse;
 
 Route::get('/profile', function () {
     // ...
@@ -97,4 +82,4 @@ Contributions are welcome! Submit a pull request or open an issue to discuss new
 
 ## License
 
-The MIT License (MIT). Please see [License File](https://github.com/chr15k/laravel-response-optimizer/blob/main/LICENSE) for more information.
+The MIT License (MIT). Please see [License File](https://github.com/chr15k/laravel-response-compression/blob/main/LICENSE) for more information.

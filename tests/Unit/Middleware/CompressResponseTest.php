@@ -1,6 +1,6 @@
 <?php
 
-use Chr15k\ResponseOptimizer\Support\Enc;
+use Chr15k\ResponseCompression\Support\Enc;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -111,7 +111,7 @@ it('should not compress if the content is below the configured minimum length', 
 
 it('should brotli compress text response', function (): void {
 
-    config()->set('response-optimizer.compression.algorithm', 'br');
+    config()->set('response-compression.algorithm', 'br');
 
     $result = runCompressResponseMiddleware(
         Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'br']),
@@ -125,7 +125,7 @@ it('should brotli compress text response', function (): void {
 
 it('should brotli compress json response', function (): void {
 
-    config()->set('response-optimizer.compression.algorithm', 'br');
+    config()->set('response-compression.algorithm', 'br');
 
     $result = runCompressResponseMiddleware(
         Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'br']),
@@ -135,4 +135,18 @@ it('should brotli compress json response', function (): void {
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->getContent())->not()->toBe('{"test":"test"}')
         ->and(Enc::isBrotliEncoded($result->getContent()))->toBeTrue();
+});
+
+it('should not affect pre-compressed content', function (): void {
+
+    $content = gzencode(getLongContent());
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response($content, 200, ['Content-Type' => 'text/plain', 'Content-Encoding' => 'gzip'])
+    );
+
+    expect($result->getStatusCode())->toBe(Response::HTTP_OK)
+        ->and($result->getContent())->toBe($content)
+        ->and(Enc::isGzipEncoded($result->getContent()))->toBeTrue();
 });

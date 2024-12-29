@@ -1,9 +1,9 @@
 <?php
 
-namespace Chr15k\ResponseOptimizer\Middleware;
+namespace Chr15k\ResponseCompression\Middleware;
 
-use Chr15k\ResponseOptimizer\Encoders\BrotliEncoder;
-use Chr15k\ResponseOptimizer\Encoders\GzipEncoder;
+use Chr15k\ResponseCompression\Encoders\BrotliEncoder;
+use Chr15k\ResponseCompression\Encoders\GzipEncoder;
 use Closure;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -23,7 +23,7 @@ final class CompressResponse
             return $response;
         }
 
-        return match (config('response-optimizer.compression.algorithm')) {
+        return match (config('response-compression.algorithm')) {
             'gzip' => $response = app(GzipEncoder::class)->handle($response),
             'br' => $response = app(BrotliEncoder::class)->handle($response),
             default => $response,
@@ -49,7 +49,7 @@ final class CompressResponse
 
         return $response->isSuccessful()
             && is_string($content)
-            && strlen($content) > config('response-optimizer.compression.min_length')
+            && strlen($content) > config('response-compression.min_length')
             && $this->validateResponseType($response);
     }
 
@@ -67,7 +67,7 @@ final class CompressResponse
     private function validateRequest(Request $request): bool
     {
         return in_array(
-            config('response-optimizer.compression.algorithm'),
+            config('response-compression.algorithm'),
             $request->getEncodings()
         );
     }
@@ -78,7 +78,7 @@ final class CompressResponse
     private function enabled(): bool
     {
         return filter_var(
-            config('response-optimizer.compression.enabled'),
+            config('response-compression.enabled'),
             FILTER_VALIDATE_BOOLEAN
         );
     }

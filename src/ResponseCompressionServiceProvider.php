@@ -1,12 +1,12 @@
 <?php
 
-namespace Chr15k\ResponseOptimizer;
+namespace Chr15k\ResponseCompression;
 
 use Illuminate\Support\ServiceProvider;
 
-class ResponseOptimizerServiceProvider extends ServiceProvider
+class ResponseCompressionServiceProvider extends ServiceProvider
 {
-    public static string $abstract = 'response-optimizer';
+    public static string $abstract = 'response-compression';
 
     public function getConfigPath(): string
     {

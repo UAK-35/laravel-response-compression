@@ -1,6 +1,6 @@
 <?php
 
-use Chr15k\ResponseOptimizer\Support\Enc;
+use Chr15k\ResponseCompression\Support\Enc;
 
 it('is gzip encoded', function (): void {
 

@@ -1,8 +1,8 @@
 <?php
 
-namespace Chr15k\ResponseOptimizer\Encoders;
+namespace Chr15k\ResponseCompression\Encoders;
 
-use Chr15k\ResponseOptimizer\Contracts\Encoder;
+use Chr15k\ResponseCompression\Contracts\Encoder;
 use Symfony\Component\HttpFoundation\Response;
 
 final class GzipEncoder implements Encoder
@@ -26,7 +26,7 @@ final class GzipEncoder implements Encoder
 
     public function level(): int
     {
-        $level = config('response-optimizer.compression.gzip.level');
+        $level = config('response-compression.gzip.level');
 
         return is_int($level) && $level >= -1 && $level <= 9 ? $level : 5;
     }

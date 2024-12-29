@@ -1,7 +1,7 @@
 <?php
 
-use Chr15k\ResponseOptimizer\Middleware\CompressResponse;
-use Chr15k\ResponseOptimizer\Tests\TestCase;
+use Chr15k\ResponseCompression\Middleware\CompressResponse;
+use Chr15k\ResponseCompression\Tests\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 

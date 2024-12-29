@@ -1,6 +1,6 @@
 <?php
 
-namespace Chr15k\ResponseOptimizer\Contracts;
+namespace Chr15k\ResponseCompression\Contracts;
 
 use Symfony\Component\HttpFoundation\Response;
 

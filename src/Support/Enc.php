@@ -1,6 +1,6 @@
 <?php
 
-namespace Chr15k\ResponseOptimizer\Support;
+namespace Chr15k\ResponseCompression\Support;
 
 final readonly class Enc
 {

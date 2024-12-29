@@ -1,7 +1,7 @@
 <?php
 
-use Chr15k\ResponseOptimizer\Encoders\BrotliEncoder;
-use Chr15k\ResponseOptimizer\Support\Enc;
+use Chr15k\ResponseCompression\Encoders\BrotliEncoder;
+use Chr15k\ResponseCompression\Support\Enc;
 use Symfony\Component\HttpFoundation\Response;
 
 it('should compress text response', function (): void {
