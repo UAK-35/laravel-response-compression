@@ -30,7 +30,7 @@ Applies **Gzip** or **Brotli** compression to HTTP responses based on client sup
 
 **Ideal For**: Large JSON responses, static files, or data-intensive endpoints.
 
-> [!INFO]
+> [!NOTE]
 > To use Brotli effectively, ensure that the Brotli PHP extension is properly installed.
 > https://pecl.php.net/package/brotli
 
