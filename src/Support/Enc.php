@@ -1,6 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Chr15k\ResponseCompression\Support;
+
+use Error;
+use Exception;
 
 final readonly class Enc
 {
@@ -19,7 +24,7 @@ final readonly class Enc
             $uncompressed = brotli_uncompress($data);
 
             return ! in_array($uncompressed, ['', '0'], true) && $uncompressed !== false;
-        } catch (\Exception|\Error) {
+        } catch (Exception|Error) {
             return false;
         }
     }

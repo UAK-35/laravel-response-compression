@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Chr15k\ResponseCompression\Encoders;
 
 use Chr15k\ResponseCompression\Contracts\Encoder;

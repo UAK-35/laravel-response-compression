@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Chr15k\ResponseCompression\Encoders\GzipEncoder;
 use Chr15k\ResponseCompression\Support\Enc;
 use Symfony\Component\HttpFoundation\Response;

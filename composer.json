@@ -56,7 +56,12 @@
         }
     },
     "scripts": {
-        "refacto": "rector",
+        "refactor": "rector",
+        "tidy": [
+            "@lint",
+            "@refactor",
+            "@lint"
+        ],
         "lint": "pint",
         "test:refacto": "rector --dry-run",
         "test:lint": "pint --test",

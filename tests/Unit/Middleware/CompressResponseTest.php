@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Chr15k\ResponseCompression\Support\Enc;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -16,7 +18,7 @@ it('should compress text response', function (): void {
 
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->getContent())->not()->toBe(getLongContent())
-        ->and(Enc::isGzipEncoded($result->getContent()))->toBeTrue();
+        ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeTrue();
 });
 
 it('should compress json response', function (): void {
@@ -27,7 +29,7 @@ it('should compress json response', function (): void {
 
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->getContent())->not()->toBe('{"test":"test"}')
-        ->and(Enc::isGzipEncoded($result->getContent()))->toBeTrue();
+        ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeTrue();
 });
 
 it('should not compress json response without encoding header', function (): void {
@@ -42,7 +44,7 @@ it('should not compress json response without encoding header', function (): voi
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->headers->get('Content-Encoding'))->toBeNull()
         ->and($result->getContent())->toBe(json_encode($content))
-        ->and(Enc::isGzipEncoded($result->getContent()))->toBeFalse();
+        ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeFalse();
 });
 
 it('should not compress response without gzip header', function (): void {
@@ -55,7 +57,7 @@ it('should not compress response without gzip header', function (): void {
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->headers->get('Content-Encoding'))->toBeNull()
         ->and($result->getContent())->toBe(getLongContent())
-        ->and(Enc::isGzipEncoded($result->getContent()))->toBeFalse();
+        ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeFalse();
 });
 
 it('should not compress streamed response', function (): void {
@@ -67,7 +69,7 @@ it('should not compress streamed response', function (): void {
 
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->headers->get('Content-Encoding'))->toBeNull()
-        ->and(Enc::isGzipEncoded($result->getContent()))->toBeFalse();
+        ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeFalse();
 });
 
 it('should not compress if response is binary file', function (): void {
@@ -80,7 +82,7 @@ it('should not compress if response is binary file', function (): void {
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->headers->get('Content-Encoding'))->toBeNull()
         ->and($result->getFile()->getContent())->toBe('test')
-        ->and(Enc::isGzipEncoded($result->getContent()))->toBeFalse();
+        ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeFalse();
 });
 
 it('should not compress if response is not successful', function (): void {
@@ -93,7 +95,7 @@ it('should not compress if response is not successful', function (): void {
     expect($result->getStatusCode())->toBe(Response::HTTP_INTERNAL_SERVER_ERROR)
         ->and($result->headers->get('Content-Encoding'))->toBeNull()
         ->and($result->getContent())->toBe('error')
-        ->and(Enc::isGzipEncoded($result->getContent()))->toBeFalse();
+        ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeFalse();
 });
 
 it('should not compress if the content is below the configured minimum length', function (): void {
@@ -106,7 +108,7 @@ it('should not compress if the content is below the configured minimum length', 
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->headers->get('Content-Encoding'))->toBeNull()
         ->and($result->getContent())->toBe(getShortContent())
-        ->and(Enc::isGzipEncoded($result->getContent()))->toBeFalse();
+        ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeFalse();
 });
 
 it('should brotli compress text response', function (): void {
@@ -148,5 +150,5 @@ it('should not affect pre-compressed content', function (): void {
 
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->getContent())->toBe($content)
-        ->and(Enc::isGzipEncoded($result->getContent()))->toBeTrue();
+        ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeTrue();
 });
