@@ -10,9 +10,9 @@ return [
     'enabled' => env('RESPONSE_COMPRESSION_ENABLED', true),
 
     /**
-     * The compression algorithm to use. Can be either 'gzip' or 'br'.
+     * The compression algorithm to use. Can be either 'gzip', 'br' or 'zstd'.
      */
-    'algorithm' => env('RESPONSE_COMPRESSION_ALGORITHM', 'gzip'),
+    'algorithm' => env('RESPONSE_COMPRESSION_ALGORITHM', 'br'),
 
     /**
      * The minimum length of the response content to be compressed.
@@ -39,6 +39,17 @@ return [
          * @see https://www.php.net/manual/en/function.brotli-compress.php
          */
         'level' => env('RESPONSE_COMPRESSION_BROTLI_LEVEL', 5),
+    ],
+
+    'zstd' => [
+        /**
+         * The level of compression. Can be given as 0 for no compression up to 22
+         * for maximum compression. If not given, the default compression level will
+         * be the default compression level of the zstd library.
+         *
+         * @see https://github.com/kjdev/php-ext-zstd
+         */
+        'level' => env('RESPONSE_COMPRESSION_ZSTD_LEVEL', 3),
     ],
 
 ];

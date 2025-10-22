@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Chr15k\ResponseCompression\Tests;
+namespace Uak35\ResponseCompression\Tests;
 
-use Chr15k\ResponseCompression\ResponseCompressionServiceProvider;
+use Uak35\ResponseCompression\ResponseCompressionServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 class TestCase extends Orchestra

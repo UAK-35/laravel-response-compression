@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Chr15k\ResponseCompression\Contracts;
+namespace Uak35\ResponseCompression\Contracts;
 
 use Symfony\Component\HttpFoundation\Response;
 

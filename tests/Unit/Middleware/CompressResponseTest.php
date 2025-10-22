@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Chr15k\ResponseCompression\Support\Enc;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Uak35\ResponseCompression\Support\Enc;
 
 it('should compress text response', function (): void {
 
@@ -151,4 +151,30 @@ it('should not affect pre-compressed content', function (): void {
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
         ->and($result->getContent())->toBe($content)
         ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeTrue();
+});
+
+it('should zstd compress text response', function (): void {
+    config()->set('response-compression.algorithm', 'zstd');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'zstd']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->getStatusCode())->toBe(Response::HTTP_OK)
+        ->and($result->getContent())->not()->toBe(getLongContent())
+        ->and(Enc::isZstdEncoded($result->getContent()))->toBeTrue();
+});
+
+it('should zstd compress json response', function (): void {
+    config()->set('response-compression.algorithm', 'zstd');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'zstd']),
+        new JsonResponse([getShortContent() => getLongContent()]),
+    );
+
+    expect($result->getStatusCode())->toBe(Response::HTTP_OK)
+        ->and($result->getContent())->not()->toBe('{"test":"test"}')
+        ->and(Enc::isZstdEncoded($result->getContent()))->toBeTrue();
 });

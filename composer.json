@@ -1,10 +1,38 @@
 {
-    "name": "chr15k/laravel-response-compression",
+    "name": "uak35/laravel-response-compression",
     "description": "Laravel response compression middleware",
+    "type": "library",
+    "require": {
+        "php": "^8.3.0",
+        "ext-zlib": "*",
+        "ext-brotli": "*",
+        "ext-zstd": "*",
+        "illuminate/http": "12.*",
+        "illuminate/support": "12.*"
+    },
+    "require-dev": {
+        "laravel/pint": "1.*",
+        "orchestra/testbench": "10.*",
+        "pestphp/pest-plugin-laravel": "4.*",
+        "pestphp/pest-plugin-type-coverage": "4.*",
+        "phpstan/phpstan": "2.*",
+        "rector/rector": "2.*",
+        "symfony/var-dumper": "7.*"
+    },
     "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Uak35\\LaravelResponseCompression\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Uak35\\ResponseCompression\\Tests\\": "tests"
+        }
+    },
     "keywords": [
         "laravel",
-        "chr15k",
+        "Uak35",
         "optimize",
         "encoding",
         "performance",
@@ -12,35 +40,12 @@
     ],
     "authors": [
         {
-            "name": "Christopher Keller",
-            "email": "ctk8501@gmail.com"
+            "name": "Umar Ali Khan",
+            "email": "uak282006@gmail.com"
         }
     ],
-    "require": {
-        "php": "^8.2.0",
-        "ext-zlib": "*",
-        "illuminate/http": "^11.0|^12.0",
-        "illuminate/support": "^11.0|^12.0"
-    },
-    "require-dev": {
-        "laravel/pint": "^1.18.1",
-        "orchestra/testbench": "^9.8|^10.0",
-        "pestphp/pest": "^3.7",
-        "pestphp/pest-plugin-type-coverage": "^3.1",
-        "phpstan/phpstan": "^1.12.7",
-        "rector/rector": "^1.2.8",
-        "symfony/var-dumper": "^7.1.6"
-    },
-    "autoload": {
-        "psr-4": {
-            "Chr15k\\ResponseCompression\\": "src"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Chr15k\\ResponseCompression\\Tests\\": "tests"
-        }
-    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
     "config": {
         "sort-packages": true,
         "preferred-install": "dist",
@@ -51,7 +56,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Chr15k\\ResponseCompression\\ResponseCompressionServiceProvider"
+                "Uak35\\ResponseCompression\\ResponseCompressionServiceProvider"
             ]
         }
     },
@@ -65,15 +70,13 @@
         "lint": "pint",
         "test:refacto": "rector --dry-run",
         "test:lint": "pint --test",
-        "test:types": "phpstan analyse --ansi",
-        "test:unit": "pest --colors=always --coverage --parallel --min=100",
+        "test:types": "./vendor/bin/phpstan analyse --ansi",
+        "test:unit": "./vendor/bin/pest --colors=always --coverage --parallel --min=100",
         "test": [
             "@test:refacto",
             "@test:lint",
             "@test:types",
             "@test:unit"
         ]
-    },
-    "minimum-stability": "dev",
-    "prefer-stable": true
+    }
 }

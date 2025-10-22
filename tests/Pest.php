@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Chr15k\ResponseCompression\Middleware\CompressResponse;
-use Chr15k\ResponseCompression\Tests\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Uak35\ResponseCompression\Middleware\CompressResponse;
+use Uak35\ResponseCompression\Tests\TestCase;
 
 /*
 |--------------------------------------------------------------------------

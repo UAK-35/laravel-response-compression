@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Chr15k\ResponseCompression\Support\Enc;
+use Uak35\ResponseCompression\Support\Enc;
 
 it('is gzip encoded', function (): void {
 
@@ -51,4 +51,18 @@ it('is not deflate encoded', function (): void {
     $content = 'Hello World';
 
     expect(Enc::isDeflateEncoded($content))->toBeFalse();
+});
+
+it('is zstd encoded', function (): void {
+
+    $content = zstd_compress('Hello World', 3);
+
+    expect(Enc::isZstdEncoded($content))->toBeTrue();
+});
+
+it('is not zstd encoded', function (): void {
+
+    $content = 'Hello World';
+
+    expect(Enc::isZstdEncoded($content))->toBeFalse();
 });

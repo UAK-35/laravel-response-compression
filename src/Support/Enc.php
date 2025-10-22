@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Chr15k\ResponseCompression\Support;
+namespace Uak35\ResponseCompression\Support;
 
 use Error;
 use Exception;
@@ -32,6 +32,13 @@ final readonly class Enc
     public static function isDeflateEncoded(string $content): bool
     {
         $decompressed = @gzinflate($content);
+
+        return $decompressed !== false;
+    }
+
+    public static function isZstdEncoded(string $content): bool
+    {
+        $decompressed = @zstd_uncompress($content);
 
         return $decompressed !== false;
     }

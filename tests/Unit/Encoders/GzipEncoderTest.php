@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Chr15k\ResponseCompression\Encoders\GzipEncoder;
-use Chr15k\ResponseCompression\Support\Enc;
 use Symfony\Component\HttpFoundation\Response;
+use Uak35\ResponseCompression\Encoders\GzipEncoder;
+use Uak35\ResponseCompression\Support\Enc;
 
 it('should compress text response', function (): void {
 

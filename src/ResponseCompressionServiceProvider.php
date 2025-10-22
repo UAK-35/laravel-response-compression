@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Chr15k\ResponseCompression;
+namespace Uak35\ResponseCompression;
 
 use Illuminate\Support\ServiceProvider;
 
@@ -15,6 +15,7 @@ final class ResponseCompressionServiceProvider extends ServiceProvider
         return sprintf('%s/../config/%s.php', __DIR__, self::$abstract);
     }
 
+    #[\Override]
     public function register(): void
     {
         $this->mergeConfigFrom($this->getConfigPath(), self::$abstract);

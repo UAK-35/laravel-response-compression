@@ -11,3 +11,4 @@ build
 /vendor/
 *.swp
 *.swo
+composer[0-9].json

@@ -2,22 +2,28 @@
 
 declare(strict_types=1);
 
-namespace Chr15k\ResponseCompression\Middleware;
+namespace Uak35\ResponseCompression\Middleware;
 
-use Chr15k\ResponseCompression\Encoders\BrotliEncoder;
-use Chr15k\ResponseCompression\Encoders\GzipEncoder;
 use Closure;
+use Exception;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Request as SymfonyRequest;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Uak35\ResponseCompression\Encoders\BrotliEncoder;
+use Uak35\ResponseCompression\Encoders\GzipEncoder;
+use Uak35\ResponseCompression\Encoders\ZstdEncoder;
 
 final class CompressResponse
 {
     /**
      * Handle an incoming request.
+     * @param SymfonyRequest $request
+     * @param Closure $next
+     * @return Response
+     * @throws Exception
      */
-    public function handle(Request $request, Closure $next): Response
+    public function handle(SymfonyRequest $request, Closure $next): Response
     {
         $response = $next($request);
 
@@ -26,8 +32,9 @@ final class CompressResponse
         }
 
         return match (config('response-compression.algorithm')) {
-            'gzip' => $response = app(GzipEncoder::class)->handle($response),
-            'br' => $response = app(BrotliEncoder::class)->handle($response),
+            'gzip' => app(GzipEncoder::class)->handle($response),
+            'br' => app(BrotliEncoder::class)->handle($response),
+            'zstd' => app(ZstdEncoder::class)->handle($response),
             default => $response,
         };
     }
@@ -35,7 +42,7 @@ final class CompressResponse
     /**
      * Check if the response should be compressed.
      */
-    private function shouldCompress(Request $request, Response $response): bool
+    private function shouldCompress(SymfonyRequest $request, Response $response): bool
     {
         return $this->enabled()
             && $this->validateRequest($request)
@@ -66,7 +73,7 @@ final class CompressResponse
     /**
      * Validate the request.
      */
-    private function validateRequest(Request $request): bool
+    private function validateRequest(SymfonyRequest $request): bool
     {
         return in_array(
             config('response-compression.algorithm'),

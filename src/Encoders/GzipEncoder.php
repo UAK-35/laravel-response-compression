@@ -2,13 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Chr15k\ResponseCompression\Encoders;
+namespace Uak35\ResponseCompression\Encoders;
 
-use Chr15k\ResponseCompression\Contracts\Encoder;
 use Symfony\Component\HttpFoundation\Response;
+use Uak35\ResponseCompression\Contracts\Encoder;
 
 final class GzipEncoder implements Encoder
 {
+    /**
+     * @param Response $response
+     * @return Response
+     */
     public function handle(Response $response): Response
     {
         $compressed = gzencode((string) $response->getContent(), $this->level());
