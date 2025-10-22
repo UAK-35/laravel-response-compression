@@ -67,7 +67,7 @@ return [
         ],
     ],
 
-    'try_multiple_encodings' => env('RESPONSE_COMPRESSION_TRY_MULTIPLE_ENCDINGS', false),
+    'try_multiple_encodings' => env('RESPONSE_COMPRESSION_TRY_MULTIPLE_ENCODINGS', false),
 
     'multiple_encodings_order' => env('RESPONSE_COMPRESSION_MULTIPLE_ENCODINGS_ORDER', 'br,zstd,gzip'),
 

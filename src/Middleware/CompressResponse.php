@@ -135,11 +135,16 @@ final class CompressResponse
         $requestHasThisEncoding = in_array($compressionAlgorithm, $request->getEncodings());
         $requestUserAgent = $request->headers->get('user-agent');
 
-        $userAgentHasThisPrefix = array_reduce(
-            config('response-compression.' . $compressionAlgorithm . '.non_supporting_user_agent_prefixes'),
-            fn(bool $hasPrefix, string $prefix) => $hasPrefix || str_starts_with($requestUserAgent, $prefix),
-            false
-        );
+        $nonSupportingUserAgentPrefixes = config('response-compression.' . $compressionAlgorithm . '.non_supporting_user_agent_prefixes');
+        if (!empty($nonSupportingUserAgentPrefixes)) {
+            $userAgentHasThisPrefix = array_reduce(
+                $nonSupportingUserAgentPrefixes,
+                fn(bool $hasPrefix, string $prefix) => $hasPrefix || str_starts_with($requestUserAgent, $prefix),
+                false
+            );
+        } else {
+            $userAgentHasThisPrefix = false;
+        }
 
         return $requestHasThisEncoding && !$userAgentHasThisPrefix;
     }

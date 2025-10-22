@@ -12,7 +12,7 @@ it('should compress text response', function (): void {
         new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
     );
 
-    expect($result->headers->get('Content-Encoding'))->toBe('br')
+    expect($result->headers->get('Content-Encoding'))->toBe('zstd')
         ->and($result->headers->get('Vary'))->toBe('Accept-Encoding')
         ->and($result->headers->get('Content-Length'))->toBeGreaterThan(0)
         ->and($result->getContent())->toBeString()

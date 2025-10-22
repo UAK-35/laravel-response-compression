@@ -28,7 +28,7 @@ This package provides the following middleware:
 
 #### Compression Middleware
 
-Applies **Gzip** or **Brotli** compression to HTTP responses based on client support. This reduces the size of the response payload and enhances load times.
+Applies **Gzip**, **Brotli**, or **Zstd** compression to HTTP responses based on client support. This reduces the size of the response payload and enhances load times.
 
 **Ideal For**: Large JSON responses, static files, or data-intensive endpoints.
 
@@ -117,6 +117,13 @@ Route::get('/profile', function () {
      * @see https://www.php.net/manual/en/function.brotli-compress.php
      */
     'level' => env('RESPONSE_COMPRESSION_BROTLI_LEVEL', 5),
+
+    'non_supporting_user_agent_prefixes' => [
+        'ELB-HealthChecker/',
+        'PostmanRuntime/',
+        'axios/',
+        'Dart/',
+    ],
 ],
 
 'zstd' => [
@@ -128,7 +135,19 @@ Route::get('/profile', function () {
      * @see https://github.com/kjdev/php-ext-zstd
      */
     'level' => env('RESPONSE_COMPRESSION_ZSTD_LEVEL', 3),
-]
+
+    'non_supporting_user_agent_prefixes' => [
+        'ELB-HealthChecker/',
+        'PostmanRuntime/',
+        'axios/',
+        'Dart/',
+        'IntelliJ HTTP Client/',
+    ],
+],
+
+'try_multiple_encodings' => env('RESPONSE_COMPRESSION_TRY_MULTIPLE_ENCODINGS', false),
+
+'multiple_encodings_order' => env('RESPONSE_COMPRESSION_MULTIPLE_ENCODINGS_ORDER', 'br,zstd,gzip')
 
 ```
 
