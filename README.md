@@ -1,6 +1,6 @@
 # Laravel Response Compression
 
-[![Latest Stable Version](https://poser.pugx.org/chr15k/laravel-response-compression/v)](https://packagist.org/packages/chr15k/laravel-response-compression) [![Total Downloads](https://poser.pugx.org/chr15k/laravel-response-compression/downloads)](https://packagist.org/packages/chr15k/laravel-response-compression) [![Latest Unstable Version](https://poser.pugx.org/chr15k/laravel-response-compression/v/unstable)](https://packagist.org/packages/chr15k/laravel-response-compression) [![License](https://poser.pugx.org/chr15k/laravel-response-compression/license)](https://packagist.org/packages/chr15k/laravel-response-compression) [![PHP Version Require](https://poser.pugx.org/chr15k/laravel-response-compression/require/php)](https://packagist.org/packages/chr15k/laravel-response-compression)
+[![Latest Stable Version](https://poser.pugx.org/uak35/laravel-response-compression/v)](https://packagist.org/packages/uak35/laravel-response-compression) [![Total Downloads](https://poser.pugx.org/uak35/laravel-response-compression/downloads)](https://packagist.org/packages/uak35/laravel-response-compression) [![Latest Unstable Version](https://poser.pugx.org/uak35/laravel-response-compression/v/unstable)](https://packagist.org/packages/uak35/laravel-response-compression) [![License](https://poser.pugx.org/uak35/laravel-response-compression/license)](https://packagist.org/packages/uak35/laravel-response-compression) [![PHP Version Require](https://poser.pugx.org/uak35/laravel-response-compression/require/php)](https://packagist.org/packages/uak35/laravel-response-compression)
 
 Boost your Laravel application's performance by optimizing HTTP responses with middleware for compression.
 
@@ -11,13 +11,13 @@ Boost your Laravel application's performance by optimizing HTTP responses with m
 Install the package via Composer:
 
 ```bash
-composer require chr15k/laravel-response-compression
+composer require uak35/laravel-response-compression
 ```
 
 Publish the configuration file:
 
 ```bash
-php artisan vendor:publish --provider="UAK35\ResponseCompression\ResponseCompressionServiceProvider"
+php artisan vendor:publish --provider="Uak35\ResponseCompression\ResponseCompressionServiceProvider"
 ```
 
 ---
@@ -38,6 +38,10 @@ Applies **Gzip** or **Brotli** compression to HTTP responses based on client sup
 
 > [!WARNING]
 > When using Brotli, a client-side decoding error may occur with non-secure connections, as modern browsers generally support Brotli compression only over HTTPS.
+
+> [!NOTE]
+> To use Zstandard (ZSTD) effectively, ensure that the ZSTD PHP extension is properly installed.
+> https://pecl.php.net/package/zstd
 
 ---
 
@@ -113,7 +117,19 @@ Route::get('/profile', function () {
      * @see https://www.php.net/manual/en/function.brotli-compress.php
      */
     'level' => env('RESPONSE_COMPRESSION_BROTLI_LEVEL', 5),
+],
+
+'zstd' => [
+    /**
+     * The level of compression. Can be given as 0 for no compression up to 22
+     * for maximum compression. If not given, the default compression level will
+     * be the default compression level of the zstd library.
+     *
+     * @see https://github.com/kjdev/php-ext-zstd
+     */
+    'level' => env('RESPONSE_COMPRESSION_ZSTD_LEVEL', 3),
 ]
+
 ```
 
 ---
@@ -134,4 +150,4 @@ Contributions are welcome! Submit a pull request or open an issue to discuss new
 
 ## License
 
-The MIT License (MIT). Please see [License File](https://github.com/chr15k/laravel-response-compression/blob/main/LICENSE) for more information.
+The MIT License (MIT). Please see [License File](https://github.com/uak35/laravel-response-compression/blob/main/LICENSE) for more information.
