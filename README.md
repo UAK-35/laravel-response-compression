@@ -17,7 +17,7 @@ composer require chr15k/laravel-response-compression
 Publish the configuration file:
 
 ```bash
-php artisan vendor:publish --provider="Chr15k\ResponseCompression\ResponseCompressionServiceProvider"
+php artisan vendor:publish --provider="UAK35\ResponseCompression\ResponseCompressionServiceProvider"
 ```
 
 ---
@@ -56,7 +56,7 @@ Apply the middleware globally to all requests:
     ...
     $middleware->web(append: [
         ...
-        \Chr15k\ResponseCompression\Middleware\CompressResponse::class,
+        \UAK35\ResponseCompression\Middleware\CompressResponse::class,
     ]);
 })
 ```
@@ -66,7 +66,7 @@ Apply the middleware globally to all requests:
 Alternatively, register it as route middleware for selective application:
 
 ```php
-use Chr15k\ResponseCompression\Middleware\CompressResponse;
+use UAK35\ResponseCompression\Middleware\CompressResponse;
 
 Route::get('/profile', function () {
     // ...
