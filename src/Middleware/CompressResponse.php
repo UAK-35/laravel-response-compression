@@ -27,16 +27,32 @@ final class CompressResponse
     {
         $response = $next($request);
 
-        if (! $this->shouldCompress($request, $response)) {
-            return $response;
+        if (!$this->tryMultipleEncodings()) {
+            if (! $this->shouldCompress($request, $response)) {
+                return $response;
+            }
+
+            return match (config('response-compression.algorithm')) {
+                'gzip' => app(GzipEncoder::class)->handle($response),
+                'br' => app(BrotliEncoder::class)->handle($response),
+                'zstd' => app(ZstdEncoder::class)->handle($response),
+                default => $response,
+            };
         }
 
-        return match (config('response-compression.algorithm')) {
-            'gzip' => app(GzipEncoder::class)->handle($response),
-            'br' => app(BrotliEncoder::class)->handle($response),
-            'zstd' => app(ZstdEncoder::class)->handle($response),
-            default => $response,
-        };
+        $multipleEncodings = explode(',', config('response-compression.multiple_encodings_order'));
+        foreach ($multipleEncodings as $encoding) {
+            if ($this->shouldCompressForAlgo($encoding, $request, $response)) {
+                $response = match ($encoding) {
+                    'gzip' => app(GzipEncoder::class)->handle($response),
+                    'br' => app(BrotliEncoder::class)->handle($response),
+                    'zstd' => app(ZstdEncoder::class)->handle($response),
+                    default => $response,
+                };
+            }
+        }
+
+        return $response;
     }
 
     /**
@@ -75,10 +91,8 @@ final class CompressResponse
      */
     private function validateRequest(SymfonyRequest $request): bool
     {
-        return in_array(
-            config('response-compression.algorithm'),
-            $request->getEncodings()
-        );
+        $compressionAlgorithm = config('response-compression.algorithm');
+        return $this->validateRequestForAlgo($compressionAlgorithm, $request);
     }
 
     /**
@@ -90,5 +104,43 @@ final class CompressResponse
             config('response-compression.enabled'),
             FILTER_VALIDATE_BOOLEAN
         );
+    }
+
+    /**
+     * Check if multiple encodings should be tried.
+     */
+    private function tryMultipleEncodings(): bool
+    {
+        return filter_var(
+            config('response-compression.try_multiple_encodings'),
+            FILTER_VALIDATE_BOOLEAN
+        );
+    }
+
+    private function shouldCompressForAlgo(string $compressionAlgorithm, SymfonyRequest $request, Response $response): bool
+    {
+        return $this->enabled()
+            && $this->validateRequestForAlgo($compressionAlgorithm, $request)
+            && $this->validateResponse($response);
+    }
+
+
+    /**
+     * @param mixed $compressionAlgorithm
+     * @param SymfonyRequest $request
+     * @return bool
+     */
+    public function validateRequestForAlgo(mixed $compressionAlgorithm, SymfonyRequest $request): bool
+    {
+        $requestHasThisEncoding = in_array($compressionAlgorithm, $request->getEncodings());
+        $requestUserAgent = $request->headers->get('user-agent');
+
+        $userAgentHasThisPrefix = array_reduce(
+            config('response-compression.' . $compressionAlgorithm . '.non_supporting_user_agent_prefixes'),
+            fn(bool $hasPrefix, string $prefix) => $hasPrefix || str_starts_with($requestUserAgent, $prefix),
+            false
+        );
+
+        return $requestHasThisEncoding && !$userAgentHasThisPrefix;
     }
 }

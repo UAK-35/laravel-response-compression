@@ -39,6 +39,13 @@ return [
          * @see https://www.php.net/manual/en/function.brotli-compress.php
          */
         'level' => env('RESPONSE_COMPRESSION_BROTLI_LEVEL', 5),
+
+        'non_supporting_user_agent_prefixes' => [
+            'ELB-HealthChecker/',
+            'PostmanRuntime/',
+            'axios/',
+            'Dart/',
+        ],
     ],
 
     'zstd' => [
@@ -50,6 +57,18 @@ return [
          * @see https://github.com/kjdev/php-ext-zstd
          */
         'level' => env('RESPONSE_COMPRESSION_ZSTD_LEVEL', 3),
+
+        'non_supporting_user_agent_prefixes' => [
+            'ELB-HealthChecker/',
+            'PostmanRuntime/',
+            'axios/',
+            'Dart/',
+            'IntelliJ HTTP Client/',
+        ],
     ],
+
+    'try_multiple_encodings' => env('RESPONSE_COMPRESSION_TRY_MULTIPLE_ENCDINGS', false),
+
+    'multiple_encodings_order' => env('RESPONSE_COMPRESSION_MULTIPLE_ENCODINGS_ORDER', 'br,zstd,gzip'),
 
 ];

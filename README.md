@@ -60,7 +60,7 @@ Apply the middleware globally to all requests:
     ...
     $middleware->web(append: [
         ...
-        \UAK35\ResponseCompression\Middleware\CompressResponse::class,
+        \Uak35\ResponseCompression\Middleware\CompressResponse::class,
     ]);
 })
 ```
@@ -70,7 +70,7 @@ Apply the middleware globally to all requests:
 Alternatively, register it as route middleware for selective application:
 
 ```php
-use UAK35\ResponseCompression\Middleware\CompressResponse;
+use Uak35\ResponseCompression\Middleware\CompressResponse;
 
 Route::get('/profile', function () {
     // ...
