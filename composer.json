@@ -22,7 +22,7 @@
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "Uak35\\LaravelResponseCompression\\": "src/"
+            "Uak35\\ResponseCompression\\": "src/"
         }
     },
     "autoload-dev": {
