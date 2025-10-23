@@ -60,8 +60,10 @@ final class CompressResponse
      */
     private function shouldCompress(SymfonyRequest $request, Response $response): bool
     {
-        return $this->enabled()
-            && $this->validateRequest($request)
+        if (!$this->enabled()) {
+            return false;
+        }
+        return $this->validateRequest($request)
             && $this->validateResponse($response);
     }
 
@@ -119,8 +121,10 @@ final class CompressResponse
 
     private function shouldCompressForAlgo(string $compressionAlgorithm, SymfonyRequest $request, Response $response): bool
     {
-        return $this->enabled()
-            && $this->validateRequestForAlgo($compressionAlgorithm, $request)
+        if (!$this->enabled()) {
+            return false;
+        }
+        return $this->validateRequestForAlgo($compressionAlgorithm, $request)
             && $this->validateResponse($response);
     }
 
