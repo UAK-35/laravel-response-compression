@@ -136,20 +136,32 @@ final class CompressResponse
      */
     public function validateRequestForAlgo(mixed $compressionAlgorithm, SymfonyRequest $request): bool
     {
-        $requestHasThisEncoding = in_array($compressionAlgorithm, $request->getEncodings());
+        $requestEncodings = $request->getEncodings();
+        $requestHasThisEncoding = (count($requestEncodings) === 0 || in_array('*', $requestEncodings))
+            || in_array($compressionAlgorithm, $requestEncodings);
         $requestUserAgent = $request->headers->get('user-agent');
 
+        //Log::info('validateRequestForAlgo', [
+        //    'requestEncodings' => $requestEncodings,
+        //    'compressionAlgorithm' => $compressionAlgorithm,
+        //    'requestHasThisEncoding' => $requestHasThisEncoding,
+        //    'requestUserAgent' => $requestUserAgent,
+        //]);
         $nonSupportingUserAgentPrefixes = config('response-compression.' . $compressionAlgorithm . '.non_supporting_user_agent_prefixes');
         if (!empty($nonSupportingUserAgentPrefixes)) {
             $userAgentHasThisPrefix = array_reduce(
                 $nonSupportingUserAgentPrefixes,
-                fn(bool $hasPrefix, string $prefix) => $hasPrefix || str_starts_with($requestUserAgent, $prefix),
+                fn(bool $hasPrefix, string $prefix) => $hasPrefix || !empty($requestUserAgent) && str_starts_with($requestUserAgent, $prefix),
                 false
             );
         } else {
             $userAgentHasThisPrefix = false;
         }
 
+        //Log::info('validateRequestForAlgo', [
+        //    'requestHasThisEncoding' => $requestHasThisEncoding,
+        //    'userAgentHasThisPrefix' => $userAgentHasThisPrefix,
+        //]);
         return $requestHasThisEncoding && !$userAgentHasThisPrefix;
     }
 }

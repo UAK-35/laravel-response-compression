@@ -17,7 +17,7 @@ return [
     /**
      * The minimum length of the response content to be compressed.
      */
-    'min_length' => env('RESPONSE_COMPRESSION_MIN_LENGTH', 1024),
+    'min_length' => env('RESPONSE_COMPRESSION_MIN_LENGTH', 2048),
 
     'gzip' => [
         /**
