@@ -7,17 +7,17 @@
         "ext-zlib": "*",
         "ext-brotli": "*",
         "ext-zstd": "*",
-        "illuminate/http": "12.*",
-        "illuminate/support": "12.*"
+        "illuminate/http": "^12.4.1|^13.0",
+        "illuminate/support": "^12.4.1|^13.0"
     },
     "require-dev": {
         "laravel/pint": "1.*",
-        "orchestra/testbench": "10.*",
+        "orchestra/testbench": "^10.6.0|^11.0",
         "pestphp/pest-plugin-laravel": "4.*",
         "pestphp/pest-plugin-type-coverage": "4.*",
         "phpstan/phpstan": "2.*",
         "rector/rector": "2.*",
-        "symfony/var-dumper": "7.*"
+        "symfony/var-dumper": "^7.3.4|^8.0"
     },
     "license": "MIT",
     "autoload": {
