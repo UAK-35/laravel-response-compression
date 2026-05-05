@@ -6,6 +6,7 @@ namespace Uak35\ResponseCompression\Middleware;
 
 use Closure;
 use Exception;
+use Illuminate\Support\Facades\App;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Request as SymfonyRequest;
 use Symfony\Component\HttpFoundation\Response;
@@ -102,10 +103,17 @@ final class CompressResponse
      */
     private function enabled(): bool
     {
-        return filter_var(
+        $compressionEnabledGenerally = filter_var(
             config('response-compression.enabled'),
             FILTER_VALIDATE_BOOLEAN
         );
+        if (App::environment('testing') || app()->runningUnitTests()) {
+            return $compressionEnabledGenerally && filter_var(
+                config('response-compression.enabled_for_testing'),
+                FILTER_VALIDATE_BOOLEAN
+            );
+        }
+        return $compressionEnabledGenerally;
     }
 
     /**
@@ -151,7 +159,7 @@ final class CompressResponse
         if (!empty($nonSupportingUserAgentPrefixes)) {
             $userAgentHasThisPrefix = array_reduce(
                 $nonSupportingUserAgentPrefixes,
-                fn(bool $hasPrefix, string $prefix) => $hasPrefix || !empty($requestUserAgent) && str_starts_with($requestUserAgent, $prefix),
+                fn(bool $hasPrefix, string $prefix) => $hasPrefix || (!empty($requestUserAgent) && str_starts_with($requestUserAgent, $prefix)),
                 false
             );
         } else {

@@ -10,7 +10,12 @@ return [
     'enabled' => env('RESPONSE_COMPRESSION_ENABLED', true),
 
     /**
-     * The compression algorithm to use. Can be either 'gzip', 'br' or 'zstd'.
+     * Enable or disable the response compression during testing.
+     */
+    'enabled_for_testing' => env('RESPONSE_COMPRESSION_ENABLED_FOR_TESTING', false),
+
+    /**
+     * The compression algorithm to use. Can be either 'gzip', 'br' or 'zstd' if br or zstd extension is installed and enabled.
      */
     'algorithm' => env('RESPONSE_COMPRESSION_ALGORITHM', 'br'),
 

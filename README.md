@@ -88,7 +88,12 @@ Route::get('/profile', function () {
 'enabled' => env('RESPONSE_COMPRESSION_ENABLED', true),
 
 /**
- * The compression algorithm to use. Can be either 'gzip' or 'br'.
+ * Enable or disable the response compression during testing.
+ */
+'enabled_for_testing' => env('RESPONSE_COMPRESSION_ENABLED_FOR_TESTING', true),
+
+/**
+ * The compression algorithm to use. Can be either 'gzip' or 'br' or 'zstd' if br or zstd extension is installed and enabled.
  */
 'algorithm' => env('RESPONSE_COMPRESSION_ALGORITHM', 'gzip'),
 

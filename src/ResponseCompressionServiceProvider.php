@@ -25,8 +25,8 @@ final class ResponseCompressionServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                $this->getConfigPath() => config_path(self::$abstract.'.php'),
-            ], self::$abstract.'-config');
+                $this->getConfigPath() => config_path(self::$abstract . '.php'),
+            ], self::$abstract . '-config');
         }
     }
 }
