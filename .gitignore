@@ -12,3 +12,5 @@ build
 *.swp
 *.swo
 composer[0-9].json
+/composer.phar
+/hs_err_pid*.log

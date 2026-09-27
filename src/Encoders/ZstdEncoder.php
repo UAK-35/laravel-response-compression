@@ -6,16 +6,13 @@ namespace Uak35\ResponseCompression\Encoders;
 
 use Symfony\Component\HttpFoundation\Response;
 use Uak35\ResponseCompression\Contracts\Encoder;
+use Uak35\ResponseCompression\Support\Config;
 
 final class ZstdEncoder implements Encoder
 {
-    /**
-     * @param Response $response
-     * @return Response
-     */
     public function handle(Response $response): Response
     {
-        if (extension_loaded('zstd') && is_callable('zstd_compress')) {
+        if (extension_loaded('zstd')) {
 
             $compressed = zstd_compress((string) $response->getContent(), $this->level());
 
@@ -33,10 +30,13 @@ final class ZstdEncoder implements Encoder
         return $response;
     }
 
+    /**
+     * The configured level, or the documented default of 3 when the value is outside the
+     * range `zstd_compress()` accepts. A level that cannot be read at all is refused
+     * rather than defaulted — see Uak35\ResponseCompression\Support\Config.
+     */
     public function level(): int
     {
-        $level = config('response-compression.zstd.level');
-
-        return is_int($level) && $level >= 1 && $level <= 22 ? $level : 3;
+        return Config::intInRange('response-compression.zstd.level', 1, 22, 3);
     }
 }

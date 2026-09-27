@@ -1,8 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    The four `failOn` attributes are the difference between a suite that passes and a
+    suite that is clean. By default PHPUnit reports a warning, a notice, a deprecation
+    and a risky test - a test that printed something, or that ran no assertion - and then
+    exits 0 anyway, so all four of them can accumulate in the output of every build and
+    still be called green. Turning them on is what makes the gate's `tests` check mean
+    "nothing was reported", rather than "nothing failed".
+-->
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.0/phpunit.xsd"
     colors="true"
-    cacheDirectory=".phpunit.cache">
+    cacheDirectory=".phpunit.cache"
+    failOnDeprecation="true"
+    failOnNotice="true"
+    failOnRisky="true"
+    failOnWarning="true">
     <source>
         <include>
             <directory suffix=".php">./src</directory>

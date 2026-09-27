@@ -1,8 +1,26 @@
 # Path-based git attributes
 # https://www.kernel.org/pub/software/scm/git/docs/gitattributes.html
 
+# Line endings: LF in the repository, and whatever the platform wants in a working tree.
+# Without this, whether a CRLF file is committed as CRLF depends on each contributor's
+# core.autocrlf — `true` on the machine this package is written on, unset elsewhere. No
+# `eol=` is set, so a Windows checkout still gets the CRLF that CHANGELOG.md and README.md
+# are edited with, and every blob in this repository is already LF.
+* text=auto
+
 # Ignore all test and documentation with "export-ignore".
 /.gitattributes     export-ignore
 /.gitignore         export-ignore
 /tests              export-ignore
 /.editorconfig      export-ignore
+
+# Runbooks for whoever cuts the release, not for whoever installs the package. The
+# docs/ records are left in: they explain why the middleware behaves as it does, which
+# is worth having beside the code.
+/RELEASING.md       export-ignore
+/PUSHING.md         export-ignore
+
+# Development tooling: these drive this repository's own gate and releases, and reach for
+# tools that are require-dev, so an installer has nothing to run them against.
+/bin/checks.php     export-ignore
+/bin/release.php    export-ignore

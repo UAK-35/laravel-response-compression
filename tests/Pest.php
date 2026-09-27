@@ -63,3 +63,12 @@ function getShortHtmlContent(): string
 {
     return '<html><head><title>Test</title></head><body><p>Test</p></body></html>';
 }
+
+/**
+ * The package root, for the tests that read a file the package ships rather than a
+ * fixture — the README and the config it publishes.
+ */
+function packageRoot(): string
+{
+    return dirname(__DIR__);
+}

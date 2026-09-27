@@ -25,7 +25,11 @@ final readonly class Enc
 
             return ! in_array($uncompressed, ['', '0'], true) && $uncompressed !== false;
         } catch (Exception|Error) {
+            // @codeCoverageIgnoreStart
+            // Only reachable when ext-brotli is missing, which CI cannot reproduce:
+            // composer.json requires the extension and the workflow installs it.
             return false;
+            // @codeCoverageIgnoreEnd
         }
     }
 

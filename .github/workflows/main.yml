@@ -3,6 +3,10 @@ name: PHP Composer
 on:
   push:
     branches: [ "main" ]
+    # A tag is what Packagist publishes, and `branches` alone excludes tag refs: without this
+    # every published version — release or prerelease — would carry no CI record at all. The
+    # workflow also reads this file with `yaml-lint`, so a broken trigger fails the gate.
+    tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
 
@@ -14,30 +18,83 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      # One entry, not three: composer.json requires php ^8.4, so an 8.2 or 8.3
+      # leg could never get past `composer install`. Add newer releases here as
+      # they ship.
+      matrix:
+        php: [ "8.4" ]
+
+    name: PHP ${{ matrix.php }}
+
     steps:
     - uses: actions/checkout@v4
+      with:
+        # Full history: `bin/release.php` counts a prerelease lane from the tags, and Composer
+        # guesses the root package version from them too, which a shallow clone gets wrong.
+        fetch-depth: 0
+
+    - name: Pin the root package version
+      # Branch builds only. `dev-` plus the ref name is how a branch is spelled as a version,
+      # and a slash is not valid in one. On a tag build the ref name is the tag, so the same
+      # line would pin `dev-v0.1.0-alpha1` — a string Composer accepts and which means nothing.
+      # Left unset there, the guess answers with the tag, which a prerelease tag can do because
+      # a prerelease tag is a version Composer can read.
+      if: github.ref_type != 'tag'
+      run: |
+        BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+        echo "COMPOSER_ROOT_VERSION=dev-${BRANCH//\//-}" >> "$GITHUB_ENV"
+
+    - name: Install the system libraries the extensions build against
+      # composer.json requires ext-brotli and ext-zstd. Both are PECL extensions and
+      # the runner ships neither their headers nor, for zstd, the library itself.
+      run: sudo apt-get update && sudo apt-get install -y libbrotli-dev libzstd-dev
 
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
-        php-version: 8.2
-        extensions: brotli
+        php-version: ${{ matrix.php }}
+        extensions: brotli, zstd
+        # composer test:unit runs `pest --coverage --min=100`, and a coverage floor
+        # needs a driver: PHPUnit reads PCOV or Xdebug, and PCOV is the cheaper of
+        # the two. Without this the unit gate reports "No code coverage driver is
+        # available" instead of a number.
         coverage: pcov
-
-    - name: Validate composer.json and composer.lock
-      run: composer validate --strict
 
     - name: Cache Composer packages
       id: composer-cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: vendor
-        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        # This is a library and composer.lock is gitignored, so a fresh checkout has
+        # no lock to hash — composer.json is the only manifest there is. Keying on a
+        # lock no clone contains would put every build on the same empty hash.
+        key: ${{ runner.os }}-php-${{ matrix.php }}-${{ hashFiles('composer.json') }}
         restore-keys: |
-          ${{ runner.os }}-php-
+          ${{ runner.os }}-php-${{ matrix.php }}-
 
     - name: Install dependencies
       run: composer install --prefer-dist --no-progress
 
-    - name: Run test suite
-      run: XDEBUG_MODE=coverage composer test
+    - name: Run the check suite
+      # Nine checks in one process, and the same gate a tag is cut behind locally:
+      # PHP syntax, an AST parse of the same files, `composer validate --strict`,
+      # platform requirements (which is where a missing ext-brotli or ext-zstd is
+      # reported as a build problem rather than as a test failure), the workflow
+      # YAML — this file included — PHPStan, Pint, Rector and Pest. CI must not be
+      # weaker than the gate, so the whole thing runs here rather than the four-step
+      # `composer test` subset. A tool the runner is missing drops to a skip;
+      # `--require-all` is what would turn that into a failure.
+      # `--require-all` is the whole point of running the gate here: on a developer's
+      # machine a missing tool is a skip, and on a runner a tool that failed to install
+      # would otherwise read as a green build.
+      run: composer checks -- --require-all
+
+    - name: Enforce the coverage floor
+      # Pest runs twice on purpose. bin/checks.php runs it without coverage, because
+      # the same gate is run on machines that have no coverage driver installed, and
+      # asking there would fail every check for a reason about the machine. The one
+      # thing it therefore cannot assert — `pest --coverage --min=100`, the floor
+      # `composer test:unit` sets — is what this step is for, and the runner has PCOV.
+      run: composer test:unit

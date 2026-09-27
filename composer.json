@@ -2,8 +2,23 @@
     "name": "uak35/laravel-response-compression",
     "description": "Laravel response compression middleware",
     "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "Uak35",
+        "optimize",
+        "encoding",
+        "performance",
+        "php"
+    ],
+    "authors": [
+        {
+            "name": "Umar Ali Khan",
+            "email": "uak282006@gmail.com"
+        }
+    ],
     "require": {
-        "php": "^8.3.0",
+        "php": "^8.4",
         "ext-zlib": "*",
         "ext-brotli": "*",
         "ext-zstd": "*",
@@ -19,7 +34,6 @@
         "rector/rector": "2.*",
         "symfony/var-dumper": "^7.3.4|^8.0"
     },
-    "license": "MIT",
     "autoload": {
         "psr-4": {
             "Uak35\\ResponseCompression\\": "src/"
@@ -30,20 +44,6 @@
             "Uak35\\ResponseCompression\\Tests\\": "tests"
         }
     },
-    "keywords": [
-        "laravel",
-        "Uak35",
-        "optimize",
-        "encoding",
-        "performance",
-        "php"
-    ],
-    "authors": [
-        {
-            "name": "Umar Ali Khan",
-            "email": "uak282006@gmail.com"
-        }
-    ],
     "minimum-stability": "stable",
     "prefer-stable": true,
     "config": {
@@ -61,6 +61,8 @@
         }
     },
     "scripts": {
+        "checks": "@php bin/checks.php",
+        "release": "@php bin/release.php",
         "refactor": "rector",
         "tidy": [
             "@lint",

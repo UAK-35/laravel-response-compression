@@ -178,3 +178,103 @@ it('should zstd compress json response', function (): void {
         ->and($result->getContent())->not()->toBe('{"test":"test"}')
         ->and(Enc::isZstdEncoded($result->getContent()))->toBeTrue();
 });
+
+it('should not compress when compression is disabled', function (): void {
+    config()->set('response-compression.enabled', false);
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getContent())->toBe(getLongContent());
+});
+
+it('should compress for a client that accepts any encoding', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => '*']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBe('gzip')
+        ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeTrue();
+});
+
+it('should not compress for a client that accepts only another encoding', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'deflate']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getContent())->toBe(getLongContent());
+});
+
+it('should not compress for a user agent that cannot decode brotli', function (): void {
+    config()->set('response-compression.algorithm', 'br');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], [
+            'HTTP_ACCEPT_ENCODING' => 'br',
+            'HTTP_USER_AGENT' => 'axios/1.7.2',
+        ]),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getContent())->toBe(getLongContent());
+});
+
+it('should use the first configured encoding the client accepts', function (): void {
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', 'br,zstd,gzip');
+    config()->set('response-compression.algorithm', 'br');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'br']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBe('br')
+        ->and(Enc::isBrotliEncoded($result->getContent()))->toBeTrue();
+});
+
+it('should skip a configured encoding the client does not accept', function (): void {
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', 'br,zstd');
+    config()->set('response-compression.algorithm', 'zstd');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'zstd']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBe('zstd')
+        ->and(Enc::isZstdEncoded($result->getContent()))->toBeTrue();
+});
+
+it('should leave the response alone when no configured encoding is accepted', function (): void {
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', 'br');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getContent())->toBe(getLongContent());
+});
+
+it('should not compress when the configured algorithm is not one it can encode', function (): void {
+    config()->set('response-compression.algorithm', 'lz4');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => '*']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getContent())->toBe(getLongContent());
+});

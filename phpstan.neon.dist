@@ -1,4 +1,14 @@
 parameters:
+    # The PHP floor this package is analysed against, pinned rather than inferred.
+    #
+    # PHPStan does not read `composer.json`; without this it analyses against whatever PHP
+    # happens to be running the analysis, and Rector — which does take its floor from
+    # `require.php` — is then analysing a different language version than the analyser is.
+    # A rule can fire on one machine and not another on the same commit that way.
+    #
+    # 80400 is what `require.php: ^8.4` promises. Raise both together.
+    phpVersion: 80400
+
     level: max
     paths:
         - src
