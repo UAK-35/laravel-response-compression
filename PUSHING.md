@@ -18,7 +18,7 @@ parts and has no verified end-to-end push behind it yet.
 | the remote's `main` is the local `HEAD` | the same call answered `1ef9860b0cfc2ef611fb690c69c788cb35e5ef89`, which is the local `HEAD` and the commit `v0.0.9` points at |
 | every release tag is on the remote | `git ls-remote --tags origin` lists `refs/tags/v0.0.1` … `refs/tags/v0.0.9` |
 | the tags are annotated | each tag ref is accompanied by a peeled `refs/tags/v0.0.N^{}` entry, which only annotated tags produce |
-| HTTPS credentials come from Git Credential Manager | `git config --show-origin --get-all credential.helper` → `manager`, from both `C:/Program Files/Git/etc/gitconfig` and `C:/Users/Umar/.gitconfig` |
+| HTTPS credentials come from Git Credential Manager | `git config --show-origin --get-all credential.helper` → `manager`, set in both the system gitconfig and the user's own |
 | ssh is globally redirected to Windows OpenSSH | `core.sshCommand = C:/Windows/System32/OpenSSH/ssh.exe`, from `~/.gitconfig` |
 
 The last row is inert here: `origin` is HTTPS, so no ssh process is started. It would
@@ -32,7 +32,7 @@ workspace documents the same trap, and its longer version is at
 `LPR/git/PUSHING.md`.
 
 ```powershell
-cd E:\_WORKS\lpr\work\LPR\side-projects\laravel-response-compression
+cd <the package root>          # the directory holding this file
 
 git push origin main --follow-tags
 ```
@@ -66,10 +66,14 @@ Two things worth knowing before one goes out:
 
 ## What a push would send right now
 
-`HEAD` is `1ef9860` and the remote's `main` is `1ef9860`, so every tag up to `v0.0.9` is on
-the remote and the last release landed.
+Every tag up to `v0.0.9` is on the remote, and so is the commit that tag points at, so the
+release history is in sync and nothing published has been rewritten.
 
-The work after it is uncommitted: the middleware and config fixes, the PHP 8.4 floor, the
-`bin/` gate and releaser, the `docs/` records, and the `## Unreleased` section the releaser
-promotes. A push from this `HEAD` carries none of it — it needs a commit, and for a version
-`composer release -- --weigh --push` rather than a bare `git push`.
+Local `main` is ahead of it: the middleware and config fixes, the PHP 8.4 floor, the `bin/`
+gate and releaser, the `docs/` records and the `## Unreleased` section the releaser
+promotes. They are committed locally and unreleased — a bare `git push` would carry them as
+plain history, and `composer release -- --weigh --push` is what turns them into a version,
+because a push publishes nothing on its own: Packagist only ever sees tags.
+
+Read the numbers off this repository rather than trusting this paragraph, which is a
+snapshot: `git rev-parse HEAD origin/main`, then `git log --oneline v0.0.9..HEAD`.
