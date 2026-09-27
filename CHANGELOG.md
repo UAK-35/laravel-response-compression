@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   already exists, and over a changelog heading with no tag behind it. See RELEASING.md.
 - `Uak35\ResponseCompression\Support\Config` and `InvalidConfigurationException`: the readers
   every configured value now goes through.
+- A test that fails when a file a commit would carry holds a path that only resolves on the
+  machine it was written on — a drive letter, a home directory, a network share. `C:/Windows/…`
+  and `/home/runner/…` are named in the detector as the shapes that name nobody.
 
 ### Changed
 

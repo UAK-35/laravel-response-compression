@@ -17,6 +17,7 @@ answer is not always "port it".
 | the README↔config test | a published default that disagrees with the config file it documents | [`../tests/Unit/Config/ConfigDocTest.php`](../tests/Unit/Config/ConfigDocTest.php) |
 | the config-key test | a key read that the config does not publish, and a key published that nothing reads | [`../tests/Unit/Config/ConfigKeysTest.php`](../tests/Unit/Config/ConfigKeysTest.php) |
 | the docs-link test | a broken link between the records, and a record nothing links to | [`../tests/Unit/Docs/DocsLinksTest.php`](../tests/Unit/Docs/DocsLinksTest.php) |
+| the machine-path test | a path that only resolves on the machine it was written on — a drive letter, a home directory, a network share — in any file a commit would carry | [`../tests/Unit/Support/MachinePathsTest.php`](../tests/Unit/Support/MachinePathsTest.php) |
 | `phpVersion: 80400` | analysis against the PHP the analyst happens to run rather than the floor the package promises | [`../phpstan.neon.dist`](../phpstan.neon.dist) |
 | `failOnWarning`/`failOnRisky`/`failOnDeprecation` | a test that warns, is risky, or leans on a deprecation and still reports green | [`../phpunit.xml.dist`](../phpunit.xml.dist) |
 | `* text=auto` | whether a CRLF file is committed as CRLF depending on each contributor's `core.autocrlf` | [`../.gitattributes`](../.gitattributes) |
@@ -36,6 +37,17 @@ because all three of this package's silent defects were a disagreement between t
 the README advertised `algorithm` as `gzip` while the config shipped `br`, `min_length` as
 `1024` while the config shipped `2048`, and the encoder read `brotli.level` while the config
 published `br.level`.
+
+The machine-path guard is the one that came from something that had already happened rather
+than from the comparison that started this list: [PUSHING.md](../PUSHING.md) was written on a
+Windows machine, and a credentials table and a `cd` line came out of it carrying that
+machine's paths. Both were edited out by hand, which is a fix that lasts until the next
+runbook is written the same way. So the paths are read out of every file a commit would
+carry — the untracked ones included, because a file that has just been written is exactly
+where a path gets copied from a terminal — and the two shapes that name nobody are named in
+the detector instead of left to the eye: `C:/Windows/…`, which is the same on every Windows
+install and is the deliberate evidence in one row of that same table, and `/home/runner/…`,
+which is the same on every CI runner.
 
 ## Refused, and why
 
