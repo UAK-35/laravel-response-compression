@@ -13,6 +13,8 @@ decision and the one command that takes it.
 
 ## Unreleased
 
+## [v0.0.10-alpha1] - 2026-09-28
+
 ### Added
 
 - `bin/checks.php` through `composer checks`: PHP syntax, an AST parse of the same files,

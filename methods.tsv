@@ -1,4 +1,4 @@
-# methods.tsv — written by bin/release.php — describes the tree at v0.0.9
+# methods.tsv — written by bin/release.php — describes the tree at v0.0.10-alpha1
 # method	file	class	required
 handle	src/Contracts/Encoder.php	Uak35\ResponseCompression\Contracts\Encoder	1
 level	src/Contracts/Encoder.php	Uak35\ResponseCompression\Contracts\Encoder	0
@@ -8,11 +8,21 @@ handle	src/Encoders/GzipEncoder.php	Uak35\ResponseCompression\Encoders\GzipEncod
 level	src/Encoders/GzipEncoder.php	Uak35\ResponseCompression\Encoders\GzipEncoder	0
 handle	src/Encoders/ZstdEncoder.php	Uak35\ResponseCompression\Encoders\ZstdEncoder	1
 level	src/Encoders/ZstdEncoder.php	Uak35\ResponseCompression\Encoders\ZstdEncoder	0
+absent	src/Exceptions/InvalidConfigurationException.php	Uak35\ResponseCompression\Exceptions\InvalidConfigurationException	1
+unreadable	src/Exceptions/InvalidConfigurationException.php	Uak35\ResponseCompression\Exceptions\InvalidConfigurationException	3
 handle	src/Middleware/CompressResponse.php	Uak35\ResponseCompression\Middleware\CompressResponse	2
-validateRequestForAlgo	src/Middleware/CompressResponse.php	Uak35\ResponseCompression\Middleware\CompressResponse	2
 boot	src/ResponseCompressionServiceProvider.php	Uak35\ResponseCompression\ResponseCompressionServiceProvider	0
 getConfigPath	src/ResponseCompressionServiceProvider.php	Uak35\ResponseCompression\ResponseCompressionServiceProvider	0
 register	src/ResponseCompressionServiceProvider.php	Uak35\ResponseCompression\ResponseCompressionServiceProvider	0
+boolOr	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	2
+commaList	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	2
+int	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	1
+intInRange	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	4
+intOr	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	2
+string	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	1
+stringListOr	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	2
+stringOr	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	2
+validate	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	0
 isBrotliEncoded	src/Support/Enc.php	Uak35\ResponseCompression\Support\Enc	1
 isDeflateEncoded	src/Support/Enc.php	Uak35\ResponseCompression\Support\Enc	1
 isGzipEncoded	src/Support/Enc.php	Uak35\ResponseCompression\Support\Enc	1
