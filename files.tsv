@@ -1,4 +1,4 @@
-# files.tsv — written by bin/release.php — describes the tree at v0.0.10-alpha1
+# files.tsv — written by bin/release.php — describes the tree at v0.0.10
 # name	path	symbol
 response-compression.php	config/response-compression.php	(none)
 Encoder.php	src/Contracts/Encoder.php	Uak35\ResponseCompression\Contracts\Encoder

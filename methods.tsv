@@ -1,4 +1,4 @@
-# methods.tsv — written by bin/release.php — describes the tree at v0.0.10-alpha1
+# methods.tsv — written by bin/release.php — describes the tree at v0.0.10
 # method	file	class	required
 handle	src/Contracts/Encoder.php	Uak35\ResponseCompression\Contracts\Encoder	1
 level	src/Contracts/Encoder.php	Uak35\ResponseCompression\Contracts\Encoder	0
