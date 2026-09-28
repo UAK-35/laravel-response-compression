@@ -12,6 +12,14 @@ on:
     tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
+  # The dev tools are pinned to exact versions so that this gate is the one a workstation runs.
+  # A run that never resolves anything new cannot answer "what would the newest tools do?", so
+  # once a month — and on demand — the same job loosens those pins before it starts. That is the
+  # run that would have caught `rector/rector` 2.6.7 removing a prepared set this repository
+  # passed, rather than the push that published a version behind a red one.
+  schedule:
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -79,6 +87,24 @@ jobs:
 
     - name: Install dependencies
       run: composer install --prefer-dist --no-progress
+
+    - name: Loosen the dev pins
+      # Scheduled and manually dispatched runs only. The gate is pinned to the tools known to
+      # pass; this step is what asks the other question. `--no-update` keeps the pins step to
+      # writing composer.json, and the single `update` then resolves the newest of everything.
+      # Whatever it finds is reported by the run rather than by a release.
+      if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+      run: |
+        composer require --dev --no-update \
+          "laravel/pint:*" \
+          "orchestra/testbench:*" \
+          "pestphp/pest:*" \
+          "pestphp/pest-plugin-laravel:*" \
+          "pestphp/pest-plugin-type-coverage:*" \
+          "phpstan/phpstan:*" \
+          "rector/rector:*" \
+          "symfony/var-dumper:*"
+        composer update --no-progress
 
     - name: Run the check suite
       # Nine checks in one process, and the same gate a tag is cut behind locally:

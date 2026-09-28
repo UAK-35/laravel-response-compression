@@ -13,6 +13,31 @@ decision and the one command that takes it.
 
 ## Unreleased
 
+### Changed
+
+- **The development tools are pinned, and a monthly run deliberately unpins them.** Every
+  tool `require-dev` named was a range — `2.*`, `1.*`, `^10.6.0|^11.0` — so a runner resolved
+  whatever was newest that day while a workstation kept whatever it last installed, and this
+  release went out on a green workstation and a red runner. The tools the gate runs are named
+  with exact versions now, `pestphp/pest` among them: the binary `bin/checks.php` runs was
+  arriving transitively, so the one tool the tests are actually run by was the one nobody had
+  named. `.github/workflows/main.yml` gains a monthly `schedule`, and a `workflow_dispatch` for
+  asking sooner — that run loosens the pins, updates, and runs the same gate, so the newest
+  tools are exercised on a date nobody is releasing on. What sits below the pinned tools still
+  resolves fresh; only a lockfile would close that, and this repository has none by choice.
+
+### Fixed
+
+- **`rector.php` asked Rector for a prepared set that no longer exists, and that alone is
+  what the tag published as v0.0.10-alpha1 went out behind.** `Unknown named parameter
+  $strictBooleans` is a fatal error, so the run is red. Rector had already deprecated that set
+  as risky and not practical — 2.2.4 printed the warning and ignored the key, which is why
+  this machine's gate said `rector PASS` — and 2.6.7 removed the parameter, so the same
+  configuration is an error wherever the newest Rector is installed. The line is gone, which
+  is what the deprecation asked for. Nothing else in the gate failed on the newer tools:
+  syntax, AST, the composer schema, the platform requirements, the workflow YAML, PHPStan,
+  Pint and all 144 tests passed.
+
 ## [v0.0.10-alpha1] - 2026-09-28
 
 ### Added
