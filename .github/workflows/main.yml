@@ -2,7 +2,10 @@ name: PHP Composer
 
 on:
   push:
-    branches: [ "main" ]
+    # `development` is the lane these releases are cut from — every cut passes
+    # `--branch=development` — so it is gated the way `main` is rather than being the one
+    # branch no run ever sees. A push to any other branch still triggers nothing.
+    branches: [ "main", "development" ]
     # A tag is what Packagist publishes, and `branches` alone excludes tag refs: without this
     # every published version — release or prerelease — would carry no CI record at all. The
     # workflow also reads this file with `yaml-lint`, so a broken trigger fails the gate.

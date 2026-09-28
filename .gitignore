@@ -11,6 +11,7 @@ build
 /vendor/
 *.swp
 *.swo
+*.txt
 composer[0-9].json
 /composer.phar
 /hs_err_pid*.log

@@ -17,7 +17,8 @@ decision and the one command that takes it.
 
 - `bin/checks.php` through `composer checks`: PHP syntax, an AST parse of the same files,
   `composer validate --strict`, the platform requirements, the workflow YAML, PHPStan, Pint,
-  Rector and Pest in one run, with one summary and one exit code. CI runs it.
+  Rector and Pest in one run, with one summary and one exit code. CI runs it on `main`, on
+  `development`, and on every tag that would publish a version.
 - `bin/release.php` through `composer release`: works the next version out from the last tag and
   the changes since it, promotes the changelog, commits and tags — and cuts prereleases with
   `--prerelease=alpha|beta|rc`, counted from the tags themselves rather than remembered. It
@@ -63,6 +64,13 @@ decision and the one command that takes it.
   rest of `composer.json` is left byte for byte, in the file and in the release commit.
 
 ### Changed
+
+- **The package's PHP floor moves from `^8.3.0` to `^8.4`.** v0.0.9 required 8.3 and this
+  release requires 8.4, which is a change a consumer on 8.3 meets at `composer update` rather
+  than in a test: the requirement is the announcement, with nothing that fails later to repeat
+  it. It is the version the gate runs under, the version PHPStan analyses as, and the single
+  leg the CI matrix builds, so the number the package promises and the number anything is
+  exercised on are one number rather than two that agree by habit.
 
 - **A configuration value that cannot be read is refused instead of being replaced with a
   default.** A value that *is* what the key requires is read — including the string a value from
