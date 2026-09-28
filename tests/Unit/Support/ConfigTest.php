@@ -113,6 +113,24 @@ it('reads the booleans env() hands over', function (string $written, bool $expec
     ['', false],
 ]);
 
+it('reads an integer 0 or 1 as a boolean', function (int $written, bool $expected): void {
+    // `env()` hands booleans over as booleans, but the same two states reach config as
+    // integers whenever a value is cast or written in PHP — so they are read rather than
+    // refused for being the wrong type.
+    config()->set('response-compression.enabled', $written);
+
+    expect(Config::boolOr('response-compression.enabled', false))->toBe($expected);
+})->with([
+    [1, true],
+    [0, false],
+]);
+
+it('takes the default for a boolean key that is not set', function (): void {
+    config()->offsetUnset('response-compression.try_multiple_encodings');
+
+    expect(Config::boolOr('response-compression.try_multiple_encodings', true))->toBeTrue();
+});
+
 it('refuses a boolean that is none of those', function (): void {
     // filter_var() alone answers `false` here, which would silently disable compression
     // for a config typo nobody would ever see.
@@ -122,11 +140,42 @@ it('refuses a boolean that is none of those', function (): void {
         ->toThrow(InvalidConfigurationException::class, "is set to the string 'maybe', which is not a boolean.");
 });
 
+it('refuses a boolean that is any other integer', function (): void {
+    // A boolean has two states, and `2` is not one of them: a cast would read it as the
+    // truthy 1 it does not mean.
+    config()->set('response-compression.enabled', 2);
+
+    expect(fn (): bool => Config::boolOr('response-compression.enabled', false))
+        ->toThrow(InvalidConfigurationException::class, 'is set to the integer 2, which is not a boolean.');
+});
+
 it('refuses a string key that holds an array', function (): void {
     config()->set('response-compression.algorithm', ['br', 'gzip']);
 
     expect(fn (): string => Config::stringOr('response-compression.algorithm', 'gzip'))
         ->toThrow(InvalidConfigurationException::class, 'is set to an array of 2 item(s), which is not a string.');
+});
+
+it('takes the default for a string key that is not set', function (): void {
+    config()->offsetUnset('response-compression.algorithm');
+
+    expect(Config::stringOr('response-compression.algorithm', 'gzip'))->toBe('gzip');
+});
+
+it('refuses a required string key that is not set at all', function (): void {
+    // The readers with no default are the ones whose keys the package always ships, so
+    // absent means the config was never merged or published: there is nothing to fall back to.
+    config()->offsetUnset('response-compression.algorithm');
+
+    expect(fn (): string => Config::string('response-compression.algorithm'))
+        ->toThrow(InvalidConfigurationException::class, 'response-compression.algorithm is not set.');
+});
+
+it('refuses a required string key that holds another type', function (): void {
+    config()->set('response-compression.algorithm', 7);
+
+    expect(fn (): string => Config::string('response-compression.algorithm'))
+        ->toThrow(InvalidConfigurationException::class, 'is set to the integer 7, which is not a string.');
 });
 
 it('splits a comma-separated list, dropping the empty items', function (): void {
@@ -156,6 +205,16 @@ it('refuses a user agent prefix list with a member that is not a string', functi
 
     expect(fn (): array => Config::stringListOr('response-compression.br.non_supporting_user_agent_prefixes', []))
         ->toThrow(InvalidConfigurationException::class, 'is not a list of strings');
+});
+
+it('refuses a user agent prefix list that is not a list at all', function (): void {
+    // The container is checked before its members, because a list written out as one string
+    // is a config typo rather than a list of its characters: walking it is a warning, not a
+    // lookup, and a warning here would be a prefix that matches nothing.
+    config()->set('response-compression.br.non_supporting_user_agent_prefixes', 'axios/');
+
+    expect(fn (): array => Config::stringListOr('response-compression.br.non_supporting_user_agent_prefixes', []))
+        ->toThrow(InvalidConfigurationException::class, "is set to the string 'axios/', which is not a list of strings.");
 });
 
 it('accepts the configuration the package ships', function (): void {

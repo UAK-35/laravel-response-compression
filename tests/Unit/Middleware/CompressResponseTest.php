@@ -9,6 +9,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Uak35\ResponseCompression\Support\Enc;
+use Uak35\ResponseCompression\Tests\Support\ResponseWithNoReadableContent;
 
 it('should compress text response', function (): void {
 
@@ -97,6 +98,47 @@ it('should not compress if response is not successful', function (): void {
         ->and($result->headers->get('Content-Encoding'))->toBeNull()
         ->and($result->getContent())->toBe('error')
         ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeFalse();
+});
+
+/*
+ * What a skipped response says about itself. These two checks sit next to each other and both
+ * used to write the same sentence, so an unsuccessful response was recorded as a binary file —
+ * in the one output `enable_logging` exists to produce, which is where anyone looks to find out
+ * why a response was left alone.
+ */
+it('says a failed response was not successful rather than calling it a stream', function (): void {
+    config()->set('response-compression.enable_logging', true);
+    Log::spy();
+
+    runCompressResponseMiddleware(
+        Request::create('/api/trips', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response('error', 500),
+    );
+
+    Log::shouldHaveReceived('debug')
+        ->withArgs(fn (string $message, array $context = []): bool => $message === '[COMPR-RESP] Response is not successful - Response compression skipped - uri: /api/trips')
+        ->once();
+});
+
+it('should not compress a response whose content is not a string', function (): void {
+    // The third case the guard exists for. `BinaryFileResponse` and `StreamedResponse` are
+    // ruled out by type before this, and anything else reporting `false` from getContent()
+    // has to be skipped too: an encoder handed `false` would compress nothing and say it
+    // had compressed something.
+    config()->set('response-compression.enable_logging', true);
+    Log::spy();
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/api/trips', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new ResponseWithNoReadableContent(getLongContent(), 200, ['Content-Type' => 'text/plain']),
+    );
+
+    expect($result->getStatusCode())->toBe(Response::HTTP_OK)
+        ->and($result->headers->get('Content-Encoding'))->toBeNull();
+
+    Log::shouldHaveReceived('debug')
+        ->withArgs(fn (string $message, array $context = []): bool => $message === '[COMPR-RESP] Response is not a string - Response compression skipped - uri: /api/trips')
+        ->once();
 });
 
 it('should not compress if the content is below the configured minimum length', function (): void {

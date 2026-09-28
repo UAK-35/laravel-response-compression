@@ -129,7 +129,7 @@ final class CompressResponse
         }
 
         if (! $response->isSuccessful()) {
-            $this->logDebugStatus('Response is either binary file or a stream - Response compression skipped - uri: '.$requestUri);
+            $this->logDebugStatus('Response is not successful - Response compression skipped - uri: '.$requestUri);
 
             return false;
         }

@@ -26,6 +26,14 @@ decision and the one command that takes it.
   tools are exercised on a date nobody is releasing on. What sits below the pinned tools still
   resolves fresh; only a lockfile would close that, and this repository has none by choice.
 
+- **The coverage floor the unit gate sets is met again, on the coverage it was failing on.**
+  `bin/checks.php` runs Pest without coverage on purpose — the same gate has to work on a machine
+  with no coverage driver — so `pest --coverage --min=100` is asserted by a CI step of its own, and
+  that was the red step: 95.6% against 100%. What was missing was tests, not middleware. The
+  statements were the paths a reader takes when a key is simply not set (`boolOr`, `stringOr`), the
+  `string()` and `stringListOr()` refusals, the guard for a response whose content is not a string,
+  and two `describe()` arms that no reader reaches. 144 tests before, 166 after, `src/` back at 100%.
+
 ### Fixed
 
 - **`rector.php` asked Rector for a prepared set that no longer exists, and that alone is
@@ -37,6 +45,14 @@ decision and the one command that takes it.
   is what the deprecation asked for. Nothing else in the gate failed on the newer tools:
   syntax, AST, the composer schema, the platform requirements, the workflow YAML, PHPStan,
   Pint and all 144 tests passed.
+
+- **A response that was not successful logged itself as a binary file, and now says so.** The
+  response-side checks run in order — binary file or stream, then a status that is not successful,
+  then a body that is not a string — and the second and third were writing the same sentence, so a
+  500 was recorded in the diagnostic output as a stream skip. `enable_logging` exists to answer "why
+  was this response left alone", and for every failed request that answer was wrong. It reads
+  `Response is not successful - Response compression skipped` now; which responses are compressed is
+  unchanged.
 
 ## [v0.0.10-alpha1] - 2026-09-28
 
