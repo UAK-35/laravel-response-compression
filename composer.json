@@ -68,17 +68,17 @@
     "scripts": {
         "checks": "@php bin/checks.php",
         "release": "@php bin/release.php",
-        "refactor": "rector",
+        "refactor": "@php bin/tool.php rector",
         "tidy": [
             "@lint",
             "@refactor",
             "@lint"
         ],
-        "lint": "pint",
-        "test:refacto": "rector --dry-run",
-        "test:lint": "pint --test",
-        "test:types": "./vendor/bin/phpstan analyse --ansi",
-        "test:unit": "./vendor/bin/pest --colors=always --coverage --parallel --min=100",
+        "lint": "@php bin/tool.php pint",
+        "test:refacto": "@php bin/tool.php rector --dry-run",
+        "test:lint": "@php bin/tool.php pint --test",
+        "test:types": "@php bin/tool.php phpstan analyse --ansi",
+        "test:unit": "@php bin/coverage.php",
         "test": [
             "@test:refacto",
             "@test:lint",

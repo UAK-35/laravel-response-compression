@@ -65,6 +65,10 @@ use PhpParser\ParserFactory;
  * Windows and neither is reliably executable from another process. The same
  * invocation works on Windows and Linux, and a missing tool is reported as a
  * skip rather than crashing the run.
+ *
+ * Which file each tool is comes from `bin/tool-paths.php`, and from nowhere else. This gate used
+ * to keep its own copy of those five paths, because it cannot ask the composer scripts for theirs
+ * — a script is a shell string — and the copies had drifted by the time anyone compared them.
  */
 $root = str_replace('\\', '/', dirname(__DIR__));
 
@@ -151,13 +155,7 @@ $yamlFiles = yamlFiles($root);
 // checkout has and the repository does not — see composerValidateCommand().
 $lockIsShipped = commitsLockFile($root);
 
-$tools = [
-    'pint' => $root.'/vendor/laravel/pint/builds/pint',
-    'phpstan' => $root.'/vendor/phpstan/phpstan/phpstan.phar',
-    'rector' => $root.'/vendor/rector/rector/bin/rector',
-    'pest' => $root.'/vendor/pestphp/pest/bin/pest',
-    'yaml-lint' => $root.'/vendor/symfony/yaml/Resources/bin/yaml-lint',
-];
+$tools = toolPaths($root);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The checks
@@ -271,7 +269,7 @@ $checks = [
         'title' => 'Workflow YAML (yaml-lint)',
         'skip' => match (true) {
             $yamlFiles === [] => 'no YAML outside vendor/',
-            ! is_file($tools['yaml-lint']) => 'symfony/yaml is not installed',
+            ! is_file($tools['yaml-lint'] ?? '') => 'symfony/yaml is not installed',
             default => null,
         },
         'run' => static fn (): array => runCommand(
@@ -288,7 +286,7 @@ $checks = [
     ],
     'phpstan' => [
         'title' => "Static analysis (phpstan, level {$level})",
-        'skip' => is_file($tools['phpstan']) ? null : 'phpstan is not installed',
+        'skip' => is_file($tools['phpstan'] ?? '') ? null : 'phpstan is not installed',
         'run' => static fn (): array => runCommand(
             [PHP_BINARY, $tools['phpstan'], 'analyse', '--no-progress', '--no-ansi'],
             $root,
@@ -297,7 +295,7 @@ $checks = [
     'pint' => [
         'title' => 'Code style (pint --test)',
         'skip' => match (true) {
-            ! is_file($tools['pint']) => 'laravel/pint is not installed',
+            ! is_file($tools['pint'] ?? '') => 'laravel/pint is not installed',
             $stagedMode && $pintPaths === [] => 'no staged PHP files for Pint to read',
             default => null,
         },
@@ -308,7 +306,7 @@ $checks = [
     ],
     'rector' => [
         'title' => 'Automated refactoring (rector --dry-run)',
-        'skip' => is_file($tools['rector']) ? null : 'rector is not installed',
+        'skip' => is_file($tools['rector'] ?? '') ? null : 'rector is not installed',
         'run' => static fn (): array => runCommand(
             [PHP_BINARY, $tools['rector'], '--dry-run', '--no-progress-bar'],
             $root,
@@ -317,7 +315,7 @@ $checks = [
     'tests' => [
         'title' => $testsTitle,
         'skip' => match (true) {
-            ! is_file($tools['pest']) => 'pest is not installed',
+            ! is_file($tools['pest'] ?? '') => 'pest is not installed',
             $testsSkip !== null => $testsSkip,
             default => null,
         },
@@ -545,6 +543,36 @@ function runCommand(array $command, string $cwd): array
     fclose($pipes[1]);
 
     return ['exit' => proc_close($process), 'output' => $output];
+}
+
+/**
+ * Every tool this package runs, as name => the absolute path of the entry file that runs it.
+ *
+ * From `bin/tool-paths.php`, which is the only place a tool's path is written: the composer
+ * scripts reach their tools through `bin/tool.php`, which reads the same manifest, so the two
+ * sides cannot disagree about which file a tool is.
+ *
+ * An empty answer is not an error here. A tree with no manifest is a tree with no tools — a
+ * checkout whose `vendor/` was never installed, and the planted fixtures this gate is tested in —
+ * and a check whose tool is missing skips, which is what the skip column is for. A name the
+ * manifest does not have reads the same way rather than as an undefined index.
+ *
+ * @return array<string, string>
+ */
+function toolPaths(string $root): array
+{
+    $manifest = $root.'/bin/tool-paths.php';
+
+    if (! is_file($manifest)) {
+        return [];
+    }
+
+    $paths = require $manifest;
+
+    return array_map(
+        static fn (string $path): string => $root.'/'.ltrim($path, '/'),
+        is_array($paths) ? array_filter($paths, 'is_string') : [],
+    );
 }
 
 /**

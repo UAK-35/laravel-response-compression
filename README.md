@@ -206,7 +206,7 @@ version *is*, and [PUSHING.md](PUSHING.md) for getting it to the remote.
 ```bash
 composer checks        # the gate: nine checks, one summary, one exit code
 composer test          # rector --dry-run, pint --test, phpstan, pest
-composer test:unit     # pest --coverage --parallel --min=100
+composer test:unit     # the floor: 100% per src file, a ratchet per script in bin/
 git config core.hooksPath .githooks   # once per clone: check what a commit carries
 ```
 
@@ -215,19 +215,61 @@ release. It is nine checks in one process: `php -l` over every PHP file, an inde
 AST parse of the same files by nikic/php-parser, `composer validate --strict`,
 `composer check-platform-reqs`, `yaml-lint` over `.github/`, PHPStan, Pint, Rector and
 Pest. `--list` names them, `--only=` runs a subset, `--verbose` streams their output, and
-`--require-all` turns a missing tool from a skip into a failure.
+`--require-all` turns a missing tool from a skip into a failure. Where `composer` is not on
+`PATH` — a checkout whose Composer is the `composer.phar` beside it — the same commands run as
+`php composer.phar <script>`, which is how the gate reaches Composer itself.
 
 It calls each tool as `PHP_BINARY <entry file>` rather than through `vendor/bin`, so a
 checkout whose `vendor/` was installed on another platform still runs the same way: a
 shim is a shell script on Unix and a `.bat` on Windows, and neither is reliably
 executable from another process.
 
+The scripts hold to the same rule, and none of them writes a path down. A composer script is a
+shell string and cannot read a manifest, so the one command a script contains that runs a tool
+names `bin/tool.php` and the tool — `@php bin/tool.php pint` — and `bin/tool.php` looks the path
+up in `bin/tool-paths.php`, which is the only file in this repository where a tool's path is
+written. `bin/checks.php` reads the same manifest, so the gate and the scripts cannot disagree
+about which file a tool is; the two copies that could are gone.
+
+What the manifest holds is the entry file inside `vendor/`, never the `vendor/bin` shim beside
+it, and `@php` is the interpreter Composer is running under — so a tool runs under the PHP that
+installed the dependencies and whose platform requirements the gate checks, rather than
+whichever `php` is first on `PATH`. On a machine with two PHP installs that is the whole
+difference between a pass and a failure: `composer test:unit` through a `vendor/bin` shim
+reported that no coverage driver was available where the gate's own Pest run covered 100.0%.
+Naming the entry file outright also settles what a shim is for — it is generated for the
+platform that installed the dependencies, so one generated for another platform is not a way to
+reach the tool. `tests/Unit/Support/ToolPathsTest.php` reads the manifest and everything that
+names a tool, and fails on a path written down a second time — in a script, or in one of the
+three programs that run a tool — on a `vendor/bin` shim, on a path that is not on disk, and on a
+name nothing has or nothing runs.
+
 It runs Pest *without* coverage on purpose. The same gate is run on machines that have no
-coverage driver, where `--coverage` would fail the whole run for a reason about the
-machine rather than about the code. The `--min=100` floor therefore lives in
-`composer test:unit`, which CI runs as a step of its own after the gate; it needs PCOV or
-Xdebug, and on a machine with neither it reports that no driver is available rather than
-a number.
+coverage driver, where a report would fail the whole run for a reason about the machine
+rather than about the code. The floor therefore lives in `composer test:unit`, which CI runs
+as a step of its own after the gate, and which is `bin/coverage.php` rather than Pest: every
+file in `src/` at 100.0% on its own, and each script in `bin/` at a recorded floor that may
+be raised and not lowered. Two files in `bin/` are outside the report — the runner, which is
+the parent of the run it reads, and the manifest, which is a list rather than a script — and
+the guard record above says which is which and why.
+
+The two scripts cannot be measured from inside a test — they run on include, they call
+`exit()`, and the release one commits and tags — so the suite reaches them as child
+processes, and a child's coverage is not in the parent's report. Pest is therefore run with
+a collector in front of every script the suite spawns, the coverage each child writes is
+mapped back onto the file it was copied from by comparing contents rather than names, and
+those lines are added to the report before the floor is read. Before that, both scripts
+read 0.0% while sixty tests drove one of them end to end.
+
+The run names the machine it is on before it starts, because neither half of that is in the
+number. The PHP: its version, its path, and whether Composer is what started it — `@php` is
+Composer's own binary, so `composer test:unit` measures under a different interpreter than a
+run typed into a shell does. And the driver, or the sentence saying there is none and the one
+line that would give this machine one. Both are printed at the top of every run, and repeated
+at the foot of the two failures that are about a floor, so a red build says which PHP it was.
+A machine with no driver is named rather than refused: the process that measures is the suite,
+started as a child with an ini of its own, so a run begun with `-n` has no driver here while
+the run it starts has one.
 
 `.githooks/pre-commit` runs `bin/checks.php --staged`: the same tools pointed at the files a
 commit carries — syntax, Pint, and the docs-link test when markdown is staged — so those

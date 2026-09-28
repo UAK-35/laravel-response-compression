@@ -19,6 +19,11 @@ answer is not always "port it".
 | the config-key test | a key read that the config does not publish, and a key published that nothing reads | [`../tests/Unit/Config/ConfigKeysTest.php`](../tests/Unit/Config/ConfigKeysTest.php) |
 | the docs-link test | a broken link between the records, and a record nothing links to | [`../tests/Unit/Docs/DocsLinksTest.php`](../tests/Unit/Docs/DocsLinksTest.php) |
 | the machine-path test | a path that only resolves on the machine it was written on — a drive letter, a home directory, a network share — in any file a commit would carry | [`../tests/Unit/Support/MachinePathsTest.php`](../tests/Unit/Support/MachinePathsTest.php) |
+| the tool-path test | a tool's path written down in a second place — in a composer script, or in one of the three programs that runs a tool — a `vendor/bin` shim, which is a second interpreter, a path that is not on disk, a name nothing asks for, an entry nothing runs | [`../tests/Unit/Support/ToolPathsTest.php`](../tests/Unit/Support/ToolPathsTest.php) |
+| `bin/tool.php` | a composer script that writes a tool's path down instead of naming a tool: the script names this program and the tool, the manifest answers with the path, and the exit code is the tool's own — a wrapper that swallowed it would report every script as passing | [`../bin/tool.php`](../bin/tool.php) |
+| the gate's own tests | the script everything else is measured by, which no test had ever run — its exit codes, its skips and its refusals, in a planted tree | [`../tests/Unit/Gate/ChecksTest.php`](../tests/Unit/Gate/ChecksTest.php) |
+| `bin/coverage.php` | the two scripts in `bin/` that no test can run directly: the coverage each child process writes is collected, mapped back onto the file it was copied from, and merged before the floor is read — 100.0% for every `src/` file on its own, a ratchet per script that may only rise, and a header naming the PHP and the coverage driver the run is under | [`../bin/coverage.php`](../bin/coverage.php) |
+| `tests/Unit/Gate/CoverageTest.php` | a floor run that keeps quiet about the machine it is on: the interpreter is named before the suite starts and again at the foot of a failure, so a floor that moved is attributable to the code or to the PHP — and a run that collected nothing says so rather than reporting every file at 0.0% | [`../tests/Unit/Gate/CoverageTest.php`](../tests/Unit/Gate/CoverageTest.php) |
 | `phpVersion: 80400` | analysis against the PHP the analyst happens to run rather than the floor the package promises | [`../phpstan.neon.dist`](../phpstan.neon.dist) |
 | `failOnWarning`/`failOnRisky`/`failOnDeprecation` | a test that warns, is risky, or leans on a deprecation and still reports green | [`../phpunit.xml.dist`](../phpunit.xml.dist) |
 | `* text=auto` | whether a CRLF file is committed as CRLF depending on each contributor's `core.autocrlf` | [`../.gitattributes`](../.gitattributes) |
@@ -63,6 +68,46 @@ the detector instead of left to the eye: `C:/Windows/…`, which is the same on 
 install and is the deliberate evidence in one row of that same table, and `/home/runner/…`,
 which is the same on every CI runner.
 
+The coverage floor became a program of its own for the same reason the log-message guard reads
+what the branches write instead of pinning each message: the number it had was not the number it
+looked like. `src/` was measured from inside the suite, and the two scripts in `bin/` were not
+measured at all — they run on include, they call `exit()`, and the suite reaches them as child
+processes, so the floor read 100.0% while sixty tests drove `bin/release.php` end to end. What
+changed is where the evidence comes from, not what is asserted: a child writes down what it
+covered, and the merge maps a fixture's copy back onto the repository's file by comparing
+contents, because a fixture's `bin/checks.php` is a three-line stub and reading it by name would
+have handed the gate 100.0% coverage for a script that exits on line three. The floors are 100.0%
+per file for `src/` and a ratchet for each script — written down, because closing the rest of
+those lines is writing more scenarios rather than deleting dead code. Two files in `bin/` are left
+out of the report, each for a reason of its own. `bin/coverage.php` is the parent of the run it
+reads, so its own lines are in no file any child writes; it opens by naming the machine instead:
+the PHP it is under — version, path, and whether Composer started it, since `@php` is Composer's
+own binary — and the coverage driver, or the sentence saying there is none and what would give
+this machine one. `bin/tool-paths.php` is a list rather than a script — a `return [name => path]`
+whose seven lines PHPUnit counts as seven statements while PCOV reports the one statement once —
+so it reads 14.3% however many processes read it, and a floor that cannot rise is noise; what can
+be wrong with it is which entries it holds, which the tool-path test asserts. Neither file has a
+number, and a floor that fails is either the code or the interpreter that ran it.
+
+The tool-path guard is the third one that came from a defect rather than from the comparison
+that started this list, and it is the same shape as the machine-path guard: a path that reads
+correctly and is wrong. Every tool was named twice — four of the five in `composer.json`, because a
+script is a shell string, and all five in `bin/checks.php`, which cannot be asked for its list
+because it runs on include — and the two copies had drifted. The scripts reached their tools through
+`vendor/bin`; the gate named the file inside `vendor/`. `vendor/bin/pest` and
+`vendor/pestphp/pest/bin/pest` both read as Pest, so the difference is invisible in the path
+and visible only in what it does: the shim is a `.bat` that runs whichever `php` is first on
+`PATH`, and on a machine with two installs that is the interpreter without the coverage
+driver.
+
+The two lists are gone rather than reconciled: `bin/tool-paths.php` is the one place a tool's
+path is written, the scripts reach a tool by naming it to `bin/tool.php`, and the gate asks the
+same manifest. What one file cannot say about itself is what the guard reads — that nobody has
+written a path down again, that every path is the entry file inside `vendor/` and is on disk,
+and that every name is one something asks for and every asker's name exists. A name that is not
+there is the quiet failure of the three: it reads as "not installed", which is a skip in the
+summary that looks like a machine without the tool rather than a typo in a script.
+
 ## Refused, and why
 
 - **A surface inventory (`files.tsv`, `methods.tsv`) and the scripts that diff it.** The
@@ -79,10 +124,10 @@ which is the same on every CI runner.
   brotli or zstd to remove the extension, and a `suggest` entry would recommend the opposite
   of the documentation beside it. Two pieces of metadata disagreeing is what the guards above
   exist to prevent.
-- **The coverage floor inside the gate.** `pest --coverage --min=100` needs a PCOV or Xdebug
-  driver, and the gate is run on machines that have neither. Running it in the gate would
-  fail every check there for a reason about the machine rather than about the code, so the
-  floor is CI's second step and `composer test:unit`.
+- **The coverage floor inside the gate.** A floor needs a PCOV or Xdebug driver, and the gate
+  is run on machines that have neither. Running it in the gate would fail every check there for
+  a reason about the machine rather than about the code, so the floor is CI's second step and
+  `composer test:unit` — which is `bin/coverage.php`, and not part of the nine.
 - **A `version` field in `composer.json`.** `composer validate` recommends leaving it out on
   a package published from tags, and a number in the repository is a second source of truth
   that drifts from the tag Packagist actually reads. See [RELEASING.md](../RELEASING.md).

@@ -13,6 +13,84 @@ decision and the one command that takes it.
 
 ## Unreleased
 
+### Added
+
+- **A floor run says which PHP it is under, and whether anything can count a line.** Both are
+  reasons a floor comes back red on a machine with no regression in it: the recorded floors were
+  taken under one interpreter while `composer test:unit` runs the script under Composer's own, and
+  with no PCOV or Xdebug loaded every file measures 0.0% and every floor reports the whole package
+  below itself. Neither is visible in the number, so `bin/coverage.php` opens by naming the
+  interpreter — its version, its path, and whether Composer is what started it — and the coverage
+  driver, or the sentence saying there is none and the one line that would give this machine one.
+  The same facts are repeated at the foot of the two failures that are about a floor, because a red
+  build is read at the bottom of that output rather than at the top, and a run that collected
+  nothing now takes its temporary directory with it, where it used to `exit(1)` straight past the
+  cleanup. The decision lives in `tests/Support/CoverageEnvironment.php` and is asserted branch by
+  branch, including the two a runner cannot be made to have: a PCOV that is loaded and switched
+  off, and an Xdebug left in `develop` — each a driver that is present and cannot count.
+
+- **A tool's path is written down once, in a manifest the scripts and the gate both read.** It was
+  written down twice — once in `composer.json`, because a script is a shell string and cannot read
+  a manifest, and once in `bin/checks.php`, which cannot be asked for its list because it runs on
+  include — and the two copies disagreed without either path looking wrong: `vendor/bin/pest` and
+  `vendor/pestphp/pest/bin/pest` both read as Pest. `bin/tool-paths.php` is now the only file
+  holding a path. A composer script names `bin/tool.php` and the tool — `@php bin/tool.php pint` —
+  and `bin/tool.php` looks the path up, runs the tool from the package root under `PHP_BINARY`, and
+  returns the tool's own exit code, so a script that runs one tool means what that tool means. The
+  gate asks the same manifest, and a tree whose manifest is missing has no tools rather than a
+  fatal out of an include. `tests/Unit/Support/ToolPathsTest.php` reads what a single file cannot
+  check about itself: a path written down again in a script or in one of the three programs that
+  runs a tool, a `vendor/bin` shim, a path that is not on disk, a name nothing asks for, and an
+  entry nothing runs. The runner's own refusals — no manifest, a manifest that names nothing, a
+  name it does not have, a tool that is not installed — are driven in
+  `tests/Unit/Gate/ToolTest.php`, and the file is held to a floor of 86% with the rest of `bin/`.
+
+- **The two scripts in `bin/` nothing could reach are measured, and every script there is held to
+  a floor.** The two were the only code in the repository nothing read: both run on include, both
+  call `exit()`, and the release one commits and tags, so the suite reaches them the only way it
+  can — by planting a repository, copying the script into it and running it as a child process —
+  and the coverage a child collects is its own. The
+  floor therefore reported 100.0% of `src/` while reading 0.0% on both scripts, with sixty tests
+  driving one of them end to end. `tests/Support/collect-coverage.php` is handed to every child as
+  `auto_prepend_file` when `RC_SCRIPT_COVERAGE_DIR` is set, and writes what that process covered at
+  shutdown; `bin/coverage.php` — which `composer test:unit` now runs in place of Pest — maps each
+  copy back onto the file it came from by comparing contents rather than names, adds those lines to
+  the report, and then reads the floor: 100.0% for every file in `src/`, judged on its own rather
+  than as one average, and for each script a recorded floor that may be raised and not lowered.
+  Those floors are 54% for `bin/checks.php`, 78% for `bin/release.php` and 86% for `bin/tool.php`,
+  a point or two under what they measure today and written down so the next change cannot quietly
+  spend them. Two files in `bin/` are outside the report and outside the floor: the runner, which
+  is the parent of the run it reads, and the manifest, which is a list rather than a script — a
+  `return [...]` whose lines PHPUnit counts as statements while PCOV reports the statement once, so
+  it can never read above a seventh however many processes read it. What can be wrong with the
+  manifest is which entries it holds, which the tool-path test asserts. The margin is what the
+  environment costs: the gate decides whether to run `composer validate` by looking for a Composer
+  it can reach, so a run through `composer test:unit` covers the check and a run of the runner
+  directly covers the skip — the same tests, ten lines apart.
+
+- **The gate is tested, which is where most of that came from.** `bin/checks.php` is the script
+  everything else is measured by, and no test had ever run it: the release rails plant a three-line
+  `exit(1)` stub wherever they need a gate that fails on cue, which is the right stub to plant and
+  the reason the real gate read 0.0%. `tests/Unit/Gate/ChecksTest.php` runs it in a planted tree —
+  `--list`, an option it does not have, a file that does not parse, a tool that is not installed
+  with and without `--require-all`, `--staged` on a tree with nothing staged, and a tree with no
+  manifest at all — taking it from 0.0% to 55.4% of its lines and pinning the two codes a caller
+  has to be able to tell apart: 2 for an option it does not have, 1 for a tree that fails.
+
+### Fixed
+
+- **The tool scripts run the tools under the PHP that installed them, not through the `vendor/bin`
+  shims beside them.** A shim is generated by Composer for the platform that installed the
+  dependencies, and on Windows the `.bat` one runs whichever `php` is first on `PATH`. On a machine
+  with more than one PHP that is a different interpreter with a different set of extensions, and it
+  is not hypothetical: `composer test:unit` reported that no coverage driver was available, while
+  the same `pest`, run by the PHP that had installed the dependencies, reported 100.0%. Every script
+  that runs a tool now reaches it through `bin/tool.php`, which runs the file the manifest names
+  under `PHP_BINARY` — the interpreter Composer itself is running under, so it needs no shim, and
+  it resolves the same way on Windows and on Linux. A checkout whose Composer is the
+  `composer.phar` beside it rather than a `composer` on `PATH` runs the same scripts as
+  `php composer.phar <script>`.
+
 ## [v0.0.10] - 2026-09-28
 
 ### Changed

@@ -15,10 +15,36 @@
     failOnNotice="true"
     failOnRisky="true"
     failOnWarning="true">
+    <!--
+        `src/` and the tooling in `bin/`, because both are code this package is responsible for and
+        only one of them was ever measured. Neither `bin/checks.php` nor `bin/release.php` can be
+        covered from inside a test — they run on include, they call `exit()`, and the release one
+        commits and tags — so the suite reaches them as child processes and `bin/coverage.php` adds
+        what those children covered to this report. Before that, both read 0.0% while sixty tests
+        drove one of them.
+
+        Two files are left out, each for a reason of its own:
+
+          - `bin/coverage.php` is the parent of this run, so its own lines are in no file any child
+            writes. Excluding it is the difference between a floor that measures the scripts and one
+            that also asks a script to cover itself;
+          - `bin/tool-paths.php` is a list rather than a program. It is a `return [name => path]`,
+            and the two halves of this report disagree about it: PHPUnit counts each line of the
+            array as a statement while PCOV reports the statement once, so the file reads 14.3%
+            however many processes read it, and a floor that cannot rise is noise. What can be
+            wrong with it is which entries it holds — a name nothing asks for, an entry nothing
+            runs, a path that is not the entry file inside `vendor/` or not on disk at all — and
+            `tests/Unit/Support/ToolPathsTest.php` is where that is asserted.
+    -->
     <source>
         <include>
             <directory suffix=".php">./src</directory>
+            <directory suffix=".php">./bin</directory>
         </include>
+        <exclude>
+            <file>./bin/coverage.php</file>
+            <file>./bin/tool-paths.php</file>
+        </exclude>
     </source>
     <testsuites>
         <testsuite name="default">

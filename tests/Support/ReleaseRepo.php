@@ -319,7 +319,7 @@ final class ReleaseRepo
 
     public function script(string $script, string ...$arguments): ReleaseRun
     {
-        $command = [PHP_BINARY, $this->path($script), ...$arguments];
+        $command = [PHP_BINARY, ...$this->coverage(), $this->path($script), ...$arguments];
 
         $process = proc_open(
             $command,
@@ -530,6 +530,38 @@ final class ReleaseRepo
     private static function changelog(string $notes): string
     {
         return "# Changelog\n\n## Unreleased\n\n".trim($notes, "\n")."\n\n## [v0.0.1] - 2025-01-01\n\n### Added\n\n- The first release.\n";
+    }
+
+    /**
+     * The flags a spawned script is run with when the suite is being measured, and nothing at all
+     * when it is not.
+     *
+     * A script in a fixture is a child process, so the floor cannot see it: the coverage a child
+     * collects is its own. `bin/coverage.php` sets `RC_SCRIPT_COVERAGE_DIR` and runs Pest with it
+     * exported, which is what turns this on — a plain `pest`, the gate's own test step, and every
+     * developer's run are left exactly as they were.
+     *
+     * The scope is the fixture rather than the package, because the file the child executes is the
+     * copy in the fixture: `pcov.directory` is already pinned to this package's `src/` on some
+     * machines, and a collection that nothing falls inside is silent. What the child covered is
+     * then mapped back to the file it was copied from by `ScriptCoverage`, which compares contents
+     * before it believes a copy is the package's file.
+     *
+     * @return list<string>
+     */
+    private function coverage(): array
+    {
+        $directory = getenv('RC_SCRIPT_COVERAGE_DIR');
+
+        if (! is_string($directory) || $directory === '') {
+            return [];
+        }
+
+        return [
+            '-d', 'pcov.enabled=1',
+            '-d', 'pcov.directory='.str_replace('\\', '/', $this->path),
+            '-d', 'auto_prepend_file='.self::package().'/tests/Support/collect-coverage.php',
+        ];
     }
 
     /**
