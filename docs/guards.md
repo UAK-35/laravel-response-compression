@@ -11,6 +11,7 @@ answer is not always "port it".
 | Guard | What it catches | Where |
 |---|---|---|
 | `bin/checks.php` | nine checks in one process: syntax, an AST parse, the composer schema, the platform requirements, the workflow YAML, PHPStan, Pint, Rector, Pest — one summary, one exit code | [`../bin/checks.php`](../bin/checks.php) |
+| `.githooks/pre-commit` | a commit carrying PHP that does not parse, style the project does not use, or a link between the records that no longer resolves — by running `bin/checks.php --staged` | [`../.githooks/pre-commit`](../.githooks/pre-commit) |
 | `bin/release.php` | a version cut from the wrong branch, over uncommitted work, over a tag that exists, over a red gate, over a commit the remote has not seen — and the numbering of prerelease lanes | [RELEASING.md](../RELEASING.md) |
 | the config readers | a value that cannot be read: refused with the key and the value rather than replaced by a default | [config-reading.md](config-reading.md) |
 | `Config::validate()` | the same, at boot rather than on the request that first needs the value | [`../src/Support/Config.php`](../src/Support/Config.php) |
@@ -31,6 +32,19 @@ The gate drops a check to a skip when a tool is missing, which is right on a dev
 machine — half of these tools are `require-dev` — and wrong on a runner, where a tool that
 failed to install reads as a green build. That is why CI runs the gate with `--require-all`:
 it is the same gate, with the skips turned into failures where a skip can only be a mistake.
+
+The hook is that same gate, earlier and narrower. `php bin/checks.php --staged` — which is
+what `.githooks/pre-commit` runs — points three checks at the files a commit carries: syntax
+over the staged PHP, Pint over the staged PHP, and the docs-link test when markdown is staged.
+Those three are what a commit can break on its own; the rest of the gate is a tree-shaped
+question, because PHPStan and Rector read every file that references the ones you changed. It
+reuses `bin/checks.php` rather than being a script of its own for the same reason CI runs the
+whole gate rather than a subset: a second list of tools is a second list to keep in step.
+Deletions are in the staged set even though no tool can be handed one — a deletion is what
+stops a link resolving, and the file that broke is not the one that changed. When nothing
+staged is something the three can read, they report a skip rather than a pass. And when no PHP
+interpreter can be found, the hook skips with a message instead of blocking: a machine without
+PHP must not become a machine that cannot commit.
 
 The two README/config guards and the config-key guard are the three worth the most here,
 because all three of this package's silent defects were a disagreement between two files:

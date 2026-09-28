@@ -23,8 +23,9 @@ use SplFileInfo;
  *                                       config ships the section as `br`, so the lookup
  *                                       returned null and the level was always the default,
  *                                       whatever the config or `.env` said;
- *   enable_logging                      published, read by nobody — a key an operator can set
- *                                       that changes nothing at all.
+ *   enable_logging                      published, read by nobody — a key an operator could
+ *                                       set that changed nothing at all, until the middleware's
+ *                                       debug logging was wired to it (docs/unwired-config.md).
  *
  * Reading the source and the config as two sets turns both failures into one comparison, in
  * both directions. A reader that tolerates an absent key is deliberately *not* exempt from
@@ -73,10 +74,13 @@ final class ConfigKeys
      * Keys the config file publishes that nothing reads, each with the record that says so —
      * because a key like this is a decision rather than an oversight, and it is only a
      * decision once something is written down.
+     *
+     * Empty, and kept as the empty case rather than deleted: the only key that was ever in it,
+     * `enable_logging`, is read by the middleware's debug logging now
+     * (docs/unwired-config.md). Every entry here is a hole in "nothing is published that goes
+     * unread", so an empty array is the state this guard wants to be in.
      */
-    public const array UNWIRED = [
-        'enable_logging' => 'docs/unwired-config.md',
-    ];
+    public const array UNWIRED = [];
 
     /**
      * Every key the config file publishes, without the `response-compression.` prefix, sorted.

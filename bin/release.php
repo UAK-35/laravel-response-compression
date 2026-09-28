@@ -17,10 +17,15 @@ declare(strict_types=1);
  *   With no tags at all the base is 0.0.0, so the bump applies to it directly: a weighed
  *   minor is 0.1.0 and a weighed patch 0.0.1.
  *
+ *   A release commit carries three things and the tag is the version of all of them: the promoted
+ *   CHANGELOG, the inventory (`files.tsv` and `methods.tsv`) restamped with the tag being created,
+ *   and `composer.json`'s `extra.branch-alias` when the release opens a line. The first is what
+ *   the release says; the other two are what the *next* release weighs against.
+ *
  * THE BUMP IS WEIGHED
  * -------------------
  *   `--weigh` reads the changes that are about to be released, weighs them against the
- *   policy in RELEASING.md and takes the bump. Three signals are read and the loudest one
+ *   policy in RELEASING.md and takes the bump. Four signals are read and the loudest one
  *   wins:
  *
  *     CHANGELOG  the `###` headings of the Unreleased section — the Keep a Changelog
@@ -29,6 +34,9 @@ declare(strict_types=1);
  *                Commits (`feat`, `fix`, `!`, `BREAKING CHANGE:`)
  *     surface    the classes, public methods, public properties, public constants and config
  *                keys of src/ and config/ at HEAD against the last tag
+ *     inventory  `files.tsv` and `methods.tsv`, as the last release wrote them and stamped
+ *                with the tag it created — read only when that stamp names the tag being
+ *                released from, and reported as stale rather than believed when it does not
  *
  *   An explicit bump (`--minor`, `--major`, `--version=X.Y.Z`) is allowed, but never smaller
  *   than what the policy asks for: declaring one that undersells the changes stops the
@@ -89,7 +97,7 @@ declare(strict_types=1);
  *     the changelog already has it     two sections for one version is a heading nobody can read
  *     no `## Unreleased` section       there is nothing to promote
  *     the Unreleased section is empty  the notes are what a release publishes
- *     the declared bump undersells     shipping a breaking change as a patch
+ *     the declared bump undersells     a `--minor`, `--major` or `--version` below the weighing
  *     `composer checks` is red         the tag has to point at a commit the gate passed
  *     HEAD is not the remote's tip     the commit being released is one nothing has built
  *     not interactive, no `--yes`      it is about to commit and tag
@@ -106,6 +114,7 @@ declare(strict_types=1);
  *   php bin/release.php --minor               declare the bump (never below the policy)
  *   php bin/release.php --prerelease=alpha    cut the next alpha in the current line
  *   php bin/release.php --version=0.2.1       release exactly this version
+ *   php bin/release.php --inventory           write the inventory for the latest tag, and stop
  *   php bin/release.php --weigh --push        ...and push the branch and the tag
  *
  * EXIT CODES
@@ -123,6 +132,7 @@ $options = [
     'kind' => null,
     'version' => null,
     'prerelease' => null,
+    'inventory' => false,
     'dry-run' => false,
     'yes' => false,
     'push' => false,
@@ -159,7 +169,7 @@ foreach (array_slice($argv, 1) as $argument) {
         continue;
     }
 
-    if (in_array($argument, ['--dry-run', '--yes', '-y', '--push', '--allow-dirty', '--ignore-policy', '--skip-checks', '--skip-ci'], true)) {
+    if (in_array($argument, ['--dry-run', '--yes', '-y', '--push', '--allow-dirty', '--ignore-policy', '--skip-checks', '--skip-ci', '--inventory'], true)) {
         $options[ltrim($argument, '-')] = true;
 
         continue;
@@ -192,6 +202,42 @@ if ($options['prerelease'] !== null && ! in_array($options['prerelease'], ['alph
 
 if (git($root, ['rev-parse', '--git-dir'])['exit'] !== 0) {
     fail($root.' is not a git repository. The version of this package is the tag, so a release is a tag, and a tag needs one.');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// --inventory — write the record, without releasing anything
+// ─────────────────────────────────────────────────────────────────────────────
+
+// A package that adopts this tooling mid-life has nothing for the fourth signal to read, and the
+// release that would write it is the one that cannot weigh it: the rows describe the tree at the
+// tag *before* the one being cut, so the first release to run this writes a record nothing weighs
+// and the second is the first to read one. This writes it once, for the tag the tree is built on,
+// which is what makes the next release weigh a real record instead of starting blind.
+//
+// Asked before every other rail on purpose: it writes two tracked files and stops, so it does not
+// matter which branch is checked out, whether the tree is dirty, or whether a release is even
+// wanted — and asking after the branch rail would refuse it from anywhere but `main`.
+if ($options['inventory']) {
+    $described = latestTag($root);
+    $written = syncInventory($root, $described ?? '(no tag)', true, $described);
+
+    if (! $written['written']) {
+        fail('files.tsv / methods.tsv could not be written.');
+    }
+
+    note(sprintf(
+        '%s — %d file(s), %d method(s), describing %s',
+        $written['current'] ? 'the inventory already described this tree' : 'the inventory was written',
+        $written['count']['files'],
+        $written['count']['methods'],
+        $described ?? '(no tag)',
+    ));
+
+    if (! $written['current']) {
+        note('nothing was committed: git add -- files.tsv methods.tsv');
+    }
+
+    exit(0);
 }
 
 $branch = $options['branch'];
@@ -242,7 +288,12 @@ $entries = countBullets($unreleasedBody);
 // Weighing the changes
 // ─────────────────────────────────────────────────────────────────────────────
 
-$signals = weigh($root, $base, $unreleasedBody);
+// The inventory is read before the weighing rather than inside it: the plan reports what happened
+// to it — weighed, stale, or written by this release — as well as the severity it carried, and
+// reading the tree twice to say two things about one reading is how the two answers come apart.
+$inventory = inventoryState($root, $base);
+
+$signals = weigh($root, $base, $unreleasedBody, $inventory['signal']);
 $weighed = loudest($signals);
 $weighedKind = kindOf($weighed, $baseLine);
 $kind = $options['kind'] ?? $weighedKind;
@@ -266,8 +317,16 @@ if ($options['version'] !== null) {
 
 $tag = 'v'.$version;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Rails on the version
+// What was asked for, and how big a step it is. A version named outright is measured the same
+// way a declared `--minor` is: `0.0.9` to `0.0.10` is a patch however the notes read, and a
+// number below what they call for has to be overridden out loud rather than slipped past —
+// which is the one hole a floor on `--minor` alone leaves open.
+$asked = $options['version'] !== null
+    ? '--version='.$options['version']
+    : ($options['kind'] === null ? '--weigh' : '--'.$options['kind']);
+
+$declaredKind = $options['kind'] ?? ($options['version'] !== null ? kindBetween($baseVersion, $version) : null);
+$undersold = $declaredKind !== null && size($declaredKind) < size($weighedKind);
 // ─────────────────────────────────────────────────────────────────────────────
 
 $existing = allVersions($root);
@@ -324,17 +383,28 @@ if (in_array($version, $documented, true)) {
         ? 'none'
         : sprintf('newest v%s of %d', $newest, count($existing));
 
+    $steps = nextAboveTag($newest, $documented);
+
     fail(sprintf(
         "CHANGELOG.md already has a section for %1\$s, and no %1\$s tag exists, so that heading is history this repository never released — not notes an earlier run promoted.\n\n"
         ."Promoting these notes under it would leave one version with two sets of notes: the ones written there and the ones in `## Unreleased`.\n\n"
-        ."Two ways out, and both are a decision:\n\n"
-        ."  go above it      --version=%2\$s is the next %3\$s above every version this repository has written down (tags: %4\$s; changelog: %5\$s)\n"
-        .'  reuse the line   re-label or fold the inherited heading first, then release %1$s from the tag sequence',
+        ."The ways out, and each is a decision:\n\n"
+        ."  go above it        --version=%2\$s is the next %3\$s above every version this repository has written down (tags: %4\$s; changelog: %5\$s)\n"
+        .'%6$s'
+        .'  reuse the line     re-label or fold the inherited heading first, then release %1$s from the tag sequence',
         $tag,
         bump($written, $kind),
         $kind,
         $tags,
         'v'.implode(', v', $documented),
+        $steps === null ? '' : sprintf(
+            "  count the tags on  --version=%s steps past %s, the newest tag, and no heading claims it: the\n"
+            ."                     tags go on counting from where they stopped while the inherited sections\n"
+            ."                     stay as they are. That step is smaller than these notes weigh, so\n"
+            ."                     --ignore-policy is what says so out loud.\n",
+            $steps,
+            'v'.$newest,
+        ),
     ));
 }
 
@@ -358,6 +428,18 @@ if ($promoting) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// composer.json — the branch alias for the line being released
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Read and rewritten as bytes rather than decoded and re-encoded: the rest of the file — its key
+// order, its indentation, the way its author writes an empty object — is not this script's to
+// normalise, and a release commit that reformats composer.json is a diff nobody can review.
+$composerPath = $root.'/composer.json';
+$composer = @file_get_contents($composerPath);
+$alias = aliasFor($version);
+$aliased = rewriteBranchAlias($composer === false ? '' : $composer, $alias);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // The plan
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -366,13 +448,20 @@ $promoted = promote($changelog, $version, date('Y-m-d'));
 echo PHP_EOL.'Release plan'.PHP_EOL.PHP_EOL;
 line('branch', $branch);
 line('base', $base === null ? 'none — this is the first tag' : $base);
-line('bump', $kind.'  ('.($options['kind'] === null ? 'weighed: '.$weighed : 'declared').')');
+// The kind is read off whichever of the two actually decided the number: a declaration is the
+// step it names, and a weighed release is the step the loudest signal asked for. Printing the
+// weighed kind beside a declared version would put two answers to one question on adjacent lines.
+line('bump', ($declaredKind ?? $weighedKind).'  ('.($declaredKind === null ? 'weighed: '.$weighed : 'declared: '.$asked).')');
 line('version', $version);
 line('tag', $tag);
 line('stability', isPrerelease($version) ? $kind.' prerelease, ahead of v'.baseOf($version) : 'stable');
 line('changelog', $promoted === null
     ? 'not promoted: there is no `## Unreleased` section'
     : sprintf('%s  (%d entr%s)', $promoted['heading'], $entries, $entries === 1 ? 'y' : 'ies'));
+line('inventory', $inventory['line']);
+line('branch-alias', $aliased['branches'] === []
+    ? 'none for the dev lanes in composer.json — left alone'
+    : implode(', ', $aliased['branches']).' -> '.$alias.($aliased['changed'] ? '  (updated)' : '  (unchanged)'));
 line('checks', $options['skip-checks'] ? 'not checked (--skip-checks)' : ($options['dry-run'] ? 'not run (--dry-run)' : 'composer checks'));
 line('ci', $options['skip-ci'] ? 'not checked (--skip-ci)' : 'HEAD must be the tip of '.$options['remote'].'/'.$branch);
 line('commit', 'Release '.$tag);
@@ -385,8 +474,15 @@ foreach ($signals as $name => $signal) {
     line($name, $signal === null ? 'not read' : $signal['severity'].'  '.$signal['evidence']);
 }
 
-if ($options['ignore-policy']) {
-    note('--ignore-policy: the declared bump is released though it undersells the weighing');
+if ($undersold && $options['ignore-policy']) {
+    note(sprintf('--ignore-policy: releasing %s, below the %s the changes call for', $version, $weighedKind));
+}
+
+// The policy rail is asked after the plan has been printed, so a dry run reaches this line and not
+// that one. Saying it here keeps the one thing a plan must never be — silently wrong about a bump
+// the real run would refuse.
+if ($undersold && ! $options['ignore-policy'] && $options['dry-run']) {
+    note(sprintf('%s would be refused without --ignore-policy: the changes call for a %s release', $asked, $weighedKind));
 }
 
 echo PHP_EOL;
@@ -413,10 +509,10 @@ if ($entries === 0) {
     fail("The `## Unreleased` section is empty, so this release would publish no notes.\n\nA release is what a reader upgrades on: write the entries first, or run --weigh --dry-run to see the bump they weigh.");
 }
 
-if ($options['kind'] !== null && ! $options['ignore-policy'] && size($options['kind']) < size($weighedKind)) {
+if ($undersold && ! $options['ignore-policy']) {
     fail(sprintf(
-        "--%s was declared, but the changes call for a %s release.\n\n  %s\n\nDeclare the larger bump, or pass --ignore-policy to release anyway and say so.",
-        $options['kind'],
+        "%s was declared, but the changes call for a %s release.\n\n  %s\n\nDeclare the larger bump, or pass --ignore-policy to release anyway and say so.",
+        $asked,
         $weighedKind,
         loudestEvidence($signals),
     ));
@@ -481,9 +577,43 @@ if (@file_put_contents($changelogPath, str_replace("\n", $eol, $promoted['conten
     fail('CHANGELOG.md could not be written.');
 }
 
+// The changelog is not the only file this release describes. The inventory is rewritten and
+// stamped with the tag being created — that stamp is what lets the next release weigh against it —
+// and composer.json's branch alias follows the line when the release opens one. Both are
+// bookkeeping *about* the version, which is why they are committed with it rather than separately.
+$files = ['CHANGELOG.md', 'files.tsv', 'methods.tsv'];
+$refreshed = syncInventory($root, $tag, true);
+
+if (! $refreshed['written']) {
+    fail(sprintf(
+        "%s / %s could not be written, and they are the record the next release weighs against.\n\nA release is refused rather than tagged without them: an inventory that is written later cannot tell \"nothing changed\" from \"not refreshed\".",
+        'files.tsv',
+        'methods.tsv',
+    ));
+}
+
+note(sprintf(
+    'inventory refreshed — %d file(s), %d method(s), described as %s',
+    $refreshed['count']['files'],
+    $refreshed['count']['methods'],
+    $tag,
+));
+
+if ($aliased['changed']) {
+    if (@file_put_contents($composerPath, $aliased['content']) === false) {
+        fail('composer.json could not be written.');
+    }
+
+    note(sprintf('branch-alias updated to %s (%s)', $alias, implode(', ', $aliased['branches'])));
+
+    $files[] = 'composer.json';
+} elseif (! $aliased['found']) {
+    note('no extra.branch-alias for the dev lanes in composer.json — leaving it alone');
+}
+
 foreach ([
-    ['add', 'CHANGELOG.md'],
-    ['commit', '-m', 'Release '.$tag],
+    ['add', '--', ...$files],
+    ['commit', '-m', 'Release '.$tag, '--', ...$files],
     ['tag', '-a', $tag, '-m', $tag],
 ] as $command) {
     note('git '.implode(' ', $command));
@@ -538,6 +668,7 @@ function usage(): void
           --major          Declare a major bump.
           --version=V      Release exactly this version, e.g. 1.0.0 or 0.0.1-alpha1.
           --prerelease=L   Cut the next alpha, beta or rc in the current line.
+          --inventory      Write files.tsv and methods.tsv for the latest tag, and stop.
           --dry-run        Print the plan, the promoted changelog head and the commands.
       -y, --yes            Do not ask before committing and tagging.
           --push           Push the branch with --follow-tags when done.
@@ -817,6 +948,27 @@ function bump(string $base, string $kind): string
 }
 
 /**
+ * The smallest bump that turns `$base` into `$version`.
+ *
+ * A version named with `--version` is held to the same floor a declared `--minor` is, because
+ * otherwise it is the one way to name a number below what the notes call for — and a release
+ * that undersells its own notes is the defect the floor exists for. The digits decide, so
+ * `0.0.9` to `0.0.10` is a patch however the notes read, and a prerelease suffix moves none of
+ * them: the step `0.0.9` to `0.1.0-alpha1` is the minor that opened the line.
+ */
+function kindBetween(string $base, string $version): string
+{
+    [$baseMajor, $baseMinor] = array_map(intval(...), explode('.', baseOf($base)));
+    [$major, $minor] = array_map(intval(...), explode('.', baseOf($version)));
+
+    if ($major !== $baseMajor) {
+        return 'major';
+    }
+
+    return $minor === $baseMinor ? 'patch' : 'minor';
+}
+
+/**
  * The kind of release a weighing severity asks for, given the line being released.
  *
  * A breaking change is a major once the package is past 1.0, and a minor while it is 0.x —
@@ -891,6 +1043,34 @@ function nextLaneNumber(string $root, string $line, string $lane): int
     }
 
     return $highest + 1;
+}
+
+/**
+ * The next number above the newest tag that no changelog heading claims.
+ *
+ * This is the tag sequence's own way forward, for the case the rail below is about: a changelog
+ * that carries a section for a version this repository never tagged — inherited history — leaves
+ * the number that section holds unusable *here*, while the tags go on counting from where they
+ * stopped. Stepping one patch at a time is what finds the first number that is both above the
+ * newest tag and free, and null when the line has no such number left to give.
+ */
+function nextAboveTag(?string $newest, array $documented): ?string
+{
+    if ($newest === null) {
+        return null;
+    }
+
+    $candidate = bump($newest, 'patch');
+
+    for ($steps = 0; $steps < 100; $steps++) {
+        if (! in_array($candidate, $documented, true)) {
+            return $candidate;
+        }
+
+        $candidate = bump($candidate, 'patch');
+    }
+
+    return null;
 }
 
 /**
@@ -1065,17 +1245,23 @@ function linkReferences(string $content, string $version): string
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * The three signals, each read on its own. The loudest wins, and a signal that cannot be read
- * costs a second opinion and nothing else — never a lower bump.
+ * The four signals, each read on its own. The loudest wins, and a signal that cannot be read costs
+ * a second opinion and nothing else — never a lower bump.
  *
+ * The inventory arrives already read rather than being read here, because the plan reports its
+ * state beside its severity; a signal is either a reading or nothing at all, and "nothing at all"
+ * is what a stale inventory is: it cannot tell "nothing changed" from "not refreshed".
+ *
+ * @param  array{severity: string, evidence: string}|null  $inventory
  * @return array<string, array{severity: string, evidence: string}|null>
  */
-function weigh(string $root, ?string $base, string $unreleased): array
+function weigh(string $root, ?string $base, string $unreleased, ?array $inventory): array
 {
     return [
         'CHANGELOG' => changelogSignal($unreleased),
         'commits' => commitSignal($root, $base),
         'surface' => surfaceSignal($root, $base),
+        'inventory' => $inventory,
     ];
 }
 
@@ -1201,12 +1387,44 @@ function surfaceSignal(string $root, ?string $base): ?array
 
     $then = publicSurface($root, $base);
 
-    $gone = array_values(array_diff(array_keys($then), array_keys($now)));
-    $narrowed = [];
+    // Compared by symbol rather than by `file::symbol`, which is what each side is keyed by. Under
+    // PSR-4 a path and a class name are one fact, so a key whose file changed while its symbol did
+    // not is the same thing to import: a move. Reading those as a removal and an addition reported
+    // the one change a consumer cannot survive for a change that costs them nothing, and the
+    // inventory — which has a path column, and so can see it — read the same tree as a move.
+    $nowAt = [];
 
-    foreach ($now as $name => $required) {
-        if (isset($then[$name]) && $required > $then[$name]) {
-            $narrowed[] = $name;
+    foreach (array_keys($now) as $key) {
+        $nowAt[surfaceName($key)] ??= $key;
+    }
+
+    $thenNames = [];
+    $gone = [];
+    $narrowed = [];
+    $moved = [];
+
+    foreach ($then as $key => $required) {
+        $name = surfaceName($key);
+        $thenNames[$name] = true;
+
+        if (! isset($nowAt[$name])) {
+            $gone[] = $key;
+
+            continue;
+        }
+
+        $at = $nowAt[$name];
+
+        // A move is free only while the symbol it carries is unchanged: one that also gained a
+        // required argument is exactly the narrowing this signal exists to catch.
+        if ($now[$at] > $required) {
+            $narrowed[] = $at === $key ? $key : $key.' -> '.$at;
+
+            continue;
+        }
+
+        if ($at !== $key) {
+            $moved[] = $key.' -> '.$at;
         }
     }
 
@@ -1217,13 +1435,40 @@ function surfaceSignal(string $root, ?string $base): ?array
         ];
     }
 
-    $appeared = array_values(array_diff(array_keys($now), array_keys($then)));
+    $appeared = [];
+
+    foreach (array_keys($now) as $key) {
+        if (! isset($thenNames[surfaceName($key)])) {
+            $appeared[] = $key;
+        }
+    }
 
     if ($appeared !== []) {
         return ['severity' => 'minor', 'evidence' => count($appeared).' symbol(s) appeared: '.implode(', ', array_slice($appeared, 0, 3))];
     }
 
+    if ($moved !== []) {
+        return [
+            'severity' => 'patch',
+            'evidence' => count($moved).' symbol(s) moved between files, which costs nothing: '.implode(', ', array_slice($moved, 0, 3)),
+        ];
+    }
+
     return ['severity' => 'patch', 'evidence' => 'no public symbol changed'];
+}
+
+/**
+ * The symbol a surface key is about, with the file it lives in taken off: `file::symbol` becomes
+ * `symbol`, so two keys naming one declaration in two files compare equal.
+ *
+ * The first `::` is the separator and never a later one: a symbol's own name carries one
+ * (`function Uak35\ResponseCompression\Middleware\CompressResponse::handle`) while a path cannot.
+ */
+function surfaceName(string $key): string
+{
+    $separator = strpos($key, '::');
+
+    return $separator === false ? $key : substr($key, $separator + 2);
 }
 
 /**
@@ -1237,6 +1482,30 @@ function publicSurface(string $root, ?string $revision): array
 {
     $symbols = [];
 
+    foreach (surfaceSources($root, $revision) as $file => $contents) {
+        foreach (symbolsIn($contents) as $name => $shape) {
+            $symbols[$file.'::'.$name] = $shape;
+        }
+    }
+
+    ksort($symbols);
+
+    return $symbols;
+}
+
+/**
+ * What every file the surface is read from says, at a revision or in the working tree.
+ *
+ * The one place that knows how to read a file at a revision: both readers of that file set go
+ * through it — the symbol map and the inventory rows — so the two signals are always describing the
+ * same bytes, which is the only reason their readings can be compared with each other at all.
+ *
+ * @return array<string, string>
+ */
+function surfaceSources(string $root, ?string $revision): array
+{
+    $sources = [];
+
     foreach (surfaceFiles($root, $revision) as $file) {
         if ($revision === null) {
             $contents = @file_get_contents($root.'/'.$file);
@@ -1246,18 +1515,12 @@ function publicSurface(string $root, ?string $revision): array
             $contents = $blob['exit'] === 0 ? $blob['output'] : null;
         }
 
-        if ($contents === null || $contents === '') {
-            continue;
-        }
-
-        foreach (symbolsIn($contents) as $name => $shape) {
-            $symbols[$file.'::'.$name] = $shape;
+        if ($contents !== null && $contents !== '') {
+            $sources[$file] = $contents;
         }
     }
 
-    ksort($symbols);
-
-    return $symbols;
+    return $sources;
 }
 
 /**
@@ -1597,7 +1860,7 @@ function previousMeaningful(array $tokens, int $index): int|string|null
 }
 
 /**
- * The loudest severity of the three.
+ * The loudest severity any of them carries.
  */
 function loudest(array $signals): string
 {
@@ -1639,4 +1902,466 @@ function loudestEvidence(array $signals): string
     return $worst === null
         ? 'no signal could be read, so the bump could not be weighed'
         : sprintf('%s (%s): %s', $worst['name'], $worst['severity'], $worst['evidence']);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers — the inventory
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Where the two inventory files live: the package root, beside the changelog they are committed
+ * with.
+ *
+ * @return array{files: string, methods: string}
+ */
+function inventoryPaths(string $root): array
+{
+    return ['files' => $root.'/files.tsv', 'methods' => $root.'/methods.tsv'];
+}
+
+/**
+ * The rows both files hold, read off the working tree.
+ *
+ * `files.tsv` is the file list with the class each file declares, and `methods.tsv` is the public
+ * methods those files declare with how many arguments each one requires. The `symbol` column is
+ * what stops a file that moved from being read as a file that went: under PSR-4 a path and a class
+ * name are one fact, so a path that changed while its symbol did not is the one kind of move that
+ * costs a consumer nothing.
+ *
+ * The coverage is the surface signal's own file list rather than a second walk of the tree, so the
+ * two signals always describe the same set of files — and a revision can be named, which is what
+ * lets `--inventory` write the rows for the tag a tree is built on rather than for whatever is on
+ * disk at the moment somebody ran it.
+ *
+ * @return array{files: list<array{name: string, path: string, symbol: string}>, methods: list<array{method: string, file: string, class: string, required: string}>}
+ */
+function inventoryRecords(string $root, ?string $revision = null): array
+{
+    $files = [];
+    $methods = [];
+
+    foreach (surfaceSources($root, $revision) as $path => $source) {
+        $symbols = symbolsIn($source);
+        $symbol = '(none)';
+
+        foreach (array_keys($symbols) as $key) {
+            if (str_starts_with($key, 'class ')) {
+                $symbol = substr($key, strlen('class '));
+
+                break;
+            }
+        }
+
+        $files[] = ['name' => basename($path), 'path' => $path, 'symbol' => $symbol];
+
+        foreach ($symbols as $key => $required) {
+            if (! str_starts_with($key, 'function ')) {
+                continue;
+            }
+
+            [$class, $method] = explode('::', substr($key, strlen('function ')), 2);
+
+            $methods[] = ['method' => $method, 'file' => $path, 'class' => $class, 'required' => (string) $required];
+        }
+    }
+
+    usort($files, static fn (array $a, array $b): int => $a['path'] <=> $b['path']);
+    usort($methods, static fn (array $a, array $b): int => [$a['class'], $a['method']] <=> [$b['class'], $b['method']]);
+
+    return ['files' => $files, 'methods' => $methods];
+}
+
+/**
+ * One inventory file's bytes: what it is, the tag it describes, its columns, then the rows.
+ *
+ * TSV rather than JSON, and not for speed: a row is an `explode("\t", $line)` with no quoting rule
+ * to get wrong, and one symbol per line means `git diff` shows a rename as two lines a person can
+ * read.
+ *
+ * @param  list<string>  $columns
+ * @param  list<array<string, string>>  $rows
+ */
+function renderInventory(string $file, string $tag, array $columns, array $rows): string
+{
+    $content = sprintf('# %s — written by bin/release.php — describes the tree at %s', $file, $tag)."\n"
+        .'# '.implode("\t", $columns)."\n";
+
+    foreach ($rows as $row) {
+        $content .= implode("\t", array_map(static fn (string $column): string => $row[$column] ?? '', $columns))."\n";
+    }
+
+    return $content;
+}
+
+/**
+ * The inventory as this tree and this stamp would write it.
+ *
+ * @return array{files: string, methods: string, count: array{files: int, methods: int}}
+ */
+function inventoryDocument(string $root, string $tag, ?string $revision = null): array
+{
+    $records = inventoryRecords($root, $revision);
+
+    return [
+        'files' => renderInventory('files.tsv', $tag, ['name', 'path', 'symbol'], $records['files']),
+        'methods' => renderInventory('methods.tsv', $tag, ['method', 'file', 'class', 'required'], $records['methods']),
+        'count' => ['files' => count($records['files']), 'methods' => count($records['methods'])],
+    ];
+}
+
+/**
+ * The one place the two files are compared and written, so the weighing and the release agree on
+ * what "the same inventory" means: the bytes on disk against the bytes this tree and stamp produce,
+ * with carriage returns normalised away first.
+ *
+ * The stamp is part of the comparison on purpose. A file that describes a different release is a
+ * file that cannot witness anything, and that is the one difference that must never be waved
+ * through.
+ *
+ * @return array{current: bool, written: bool, count: array{files: int, methods: int}}
+ */
+function syncInventory(string $root, string $tag, bool $write = true, ?string $revision = null): array
+{
+    $document = inventoryDocument($root, $tag, $revision);
+    $paths = inventoryPaths($root);
+    $current = true;
+
+    foreach (['files', 'methods'] as $file) {
+        $onDisk = @file_get_contents($paths[$file]);
+
+        if ($onDisk === false || str_replace(["\r\n", "\r"], "\n", $onDisk) !== $document[$file]) {
+            $current = false;
+        }
+    }
+
+    if (! $write) {
+        return ['current' => $current, 'written' => false, 'count' => $document['count']];
+    }
+
+    $written = @file_put_contents($paths['files'], $document['files']) !== false
+        && @file_put_contents($paths['methods'], $document['methods']) !== false;
+
+    return ['current' => $current, 'written' => $written, 'count' => $document['count']];
+}
+
+/**
+ * One inventory read back: the tag it says it describes, its column names, and its rows in the
+ * order they were written.
+ *
+ * CRLF is normalised away rather than trusted: the files are pinned to LF in `.gitattributes`, but
+ * a Windows checkout can still hand one back with carriage returns, and a `\r` left on the last
+ * cell would make two identical rows compare unequal.
+ *
+ * @return array{stamp: string, columns: list<string>, rows: list<array<string, string>>}|null
+ */
+function readInventory(string $path): ?array
+{
+    $raw = @file_get_contents($path);
+
+    if ($raw === false) {
+        return null;
+    }
+
+    $stamp = 'unknown';
+    $columns = [];
+    $rows = [];
+
+    foreach (explode("\n", str_replace(["\r\n", "\r"], "\n", $raw)) as $line) {
+        if ($line === '') {
+            continue;
+        }
+
+        if (str_starts_with($line, '#')) {
+            if ($stamp === 'unknown' && preg_match('/describes the tree at (.+?)\s*$/', $line, $match) === 1) {
+                $stamp = $match[1];
+            } elseif ($columns === [] && str_contains($line, "\t")) {
+                $columns = explode("\t", ltrim(substr($line, 1)));
+            }
+
+            continue;
+        }
+
+        $cells = explode("\t", $line);
+        $row = [];
+
+        foreach ($columns as $index => $column) {
+            $row[$column] = $cells[$index] ?? '';
+        }
+
+        if ($row !== []) {
+            $rows[] = $row;
+        }
+    }
+
+    return ['stamp' => $stamp, 'columns' => $columns, 'rows' => $rows];
+}
+
+/**
+ * The inventory as a signal, and the state the plan reports beside it.
+ *
+ * The stamp is the whole safety property, so a mismatch does not become a reading with a caveat:
+ * it becomes **no** reading. An inventory regenerated at some other moment — by hand, or in a
+ * commit of its own — cannot tell "nothing changed" from "not refreshed", and believing the first
+ * when the second is true is how a breaking change ships as a patch. Losing a signal costs a second
+ * opinion and nothing else, because no signal ever lowers the bump.
+ *
+ * This signal can therefore only raise the bump, and the tag diff stays the authority on the
+ * surface whenever it cannot be read.
+ *
+ * @return array{signal: array{severity: string, evidence: string}|null, line: string, fresh: bool, stamp: string, counts: array{files: int, methods: int}}
+ */
+function inventoryState(string $root, ?string $base): array
+{
+    $paths = inventoryPaths($root);
+
+    $stored = [
+        'files' => readInventory($paths['files']),
+        'methods' => readInventory($paths['methods']),
+    ];
+
+    $current = inventoryRecords($root);
+    $counts = ['files' => count($current['files']), 'methods' => count($current['methods'])];
+    $tally = sprintf('%d file(s), %d method(s)', $counts['files'], $counts['methods']);
+    $expected = $base ?? '(no tag)';
+
+    if ($stored['files'] === null && $stored['methods'] === null) {
+        return [
+            'signal' => null,
+            'line' => $tally.'  (nothing written down yet — this release writes it)',
+            'fresh' => false,
+            'stamp' => '(missing)',
+            'counts' => $counts,
+        ];
+    }
+
+    // Both files were written together, so both have to name this release. One stamp saying
+    // something else is a file edited on its own, and a pair that disagrees cannot be told apart
+    // from a half-refreshed one — which is the state this signal must never guess at, so it is not
+    // weighed rather than weighed with a caveat.
+    $stamps = array_values(array_unique(array_filter(
+        [$stored['files']['stamp'] ?? null, $stored['methods']['stamp'] ?? null],
+        static fn (?string $stamp): bool => $stamp !== null,
+    )));
+
+    if ($stamps !== [$expected]) {
+        return [
+            'signal' => null,
+            'line' => sprintf(
+                '%s  (stale: it describes %s and this release is built on %s, so it is not weighed)',
+                $tally,
+                implode(' / ', $stamps),
+                $expected,
+            ),
+            'fresh' => false,
+            'stamp' => implode(' / ', $stamps),
+            'counts' => $counts,
+        ];
+    }
+
+    $stamp = $expected;
+
+    $diff = diffInventory($stored, $current);
+
+    return [
+        'signal' => [
+            'severity' => $diff['severity'],
+            'evidence' => $diff['evidence'] === []
+                ? sprintf('%s, nothing removed, renamed or added since %s', $tally, $stamp)
+                : sprintf('%d change(s) since %s: ', count($diff['evidence']), $stamp).implode('; ', array_slice($diff['evidence'], 0, 3)),
+        ],
+        'line' => sprintf('%s  (fresh, weighed against %s)', $tally, $stamp),
+        'fresh' => true,
+        'stamp' => $stamp,
+        'counts' => $counts,
+    ];
+}
+
+/**
+ * The inventory's verdict on the working tree, weighed the way the tag diff weighs a surface.
+ *
+ * A file that disappeared is breaking and one that appeared is a minor. A path whose declared
+ * symbol changed is breaking, because the symbol is what a consumer imports — and a path that moved
+ * with its symbol intact is a move, which costs nothing, and is the one reading a file list can add
+ * on top of a symbol diff. A method's stored argument count is what catches the breaking kind a
+ * name alone cannot see: a required argument that was not there before.
+ *
+ * @param  array{files: array{stamp: string, columns: list<string>, rows: list<array<string, string>>}|null, methods: array{stamp: string, columns: list<string>, rows: list<array<string, string>>}|null}  $stored
+ * @param  array{files: list<array{name: string, path: string, symbol: string}>, methods: list<array{method: string, file: string, class: string, required: string}>}  $current
+ * @return array{severity: string, evidence: list<string>}
+ */
+function diffInventory(array $stored, array $current): array
+{
+    $severity = 'patch';
+    $evidence = [];
+
+    $storedFiles = [];
+
+    foreach ($stored['files']['rows'] ?? [] as $row) {
+        if (($row['path'] ?? '') !== '') {
+            $storedFiles[$row['path']] = $row['symbol'] ?? '(none)';
+        }
+    }
+
+    $currentFiles = [];
+
+    foreach ($current['files'] as $row) {
+        $currentFiles[$row['path']] = $row['symbol'];
+    }
+
+    $pathsBySymbol = array_flip($currentFiles);
+    $movedTo = [];
+
+    foreach (array_diff_key($storedFiles, $currentFiles) as $path => $symbol) {
+        // A symbol that turns up at a new path is a move rather than a removal and an addition: it
+        // is the same thing to import, so it costs nothing.
+        if ($symbol !== '(none)' && array_key_exists($symbol, $pathsBySymbol)) {
+            $target = $pathsBySymbol[$symbol];
+            $movedTo[$target] = true;
+            $evidence[] = sprintf('moved %s: %s -> %s', $symbol, $path, $target);
+
+            continue;
+        }
+
+        $severity = 'breaking';
+        $evidence[] = $symbol === '(none)' ? 'removed file '.$path : 'removed file '.$path.' ('.$symbol.')';
+    }
+
+    foreach (array_diff_key($currentFiles, $storedFiles) as $path => $symbol) {
+        if (array_key_exists($path, $movedTo)) {
+            continue;
+        }
+
+        $severity = louder($severity, 'minor');
+        $evidence[] = $symbol === '(none)' ? 'added file '.$path : 'added file '.$path.' ('.$symbol.')';
+    }
+
+    foreach ($storedFiles as $path => $symbol) {
+        if (! array_key_exists($path, $currentFiles) || $currentFiles[$path] === $symbol) {
+            continue;
+        }
+
+        $severity = 'breaking';
+        $evidence[] = sprintf(
+            '%s now declares %s, was %s',
+            $path,
+            $currentFiles[$path] === '(none)' ? 'nothing' : $currentFiles[$path],
+            $symbol === '(none)' ? 'nothing' : $symbol,
+        );
+    }
+
+    $storedMethods = [];
+
+    foreach ($stored['methods']['rows'] ?? [] as $row) {
+        $storedMethods[($row['class'] ?? '').'::'.($row['method'] ?? '')] = $row['required'] ?? '0';
+    }
+
+    $currentMethods = [];
+
+    foreach ($current['methods'] as $row) {
+        $currentMethods[$row['class'].'::'.$row['method']] = $row['required'];
+    }
+
+    foreach ($storedMethods as $key => $required) {
+        if (! array_key_exists($key, $currentMethods)) {
+            $severity = 'breaking';
+            $evidence[] = 'removed public method '.$key.'()';
+
+            continue;
+        }
+
+        $now = $currentMethods[$key];
+
+        if ($now === $required) {
+            continue;
+        }
+
+        if ((int) $now > (int) $required) {
+            $severity = 'breaking';
+            $evidence[] = sprintf('%s() needs %s required argument(s), was %s', $key, $now, $required);
+
+            continue;
+        }
+
+        $severity = louder($severity, 'minor');
+        $evidence[] = sprintf('%s() takes %s required argument(s), was %s', $key, $now, $required);
+    }
+
+    foreach ($currentMethods as $key => $required) {
+        if (array_key_exists($key, $storedMethods)) {
+            continue;
+        }
+
+        $severity = louder($severity, 'minor');
+        $evidence[] = 'added public method '.$key.'()';
+    }
+
+    return ['severity' => $severity, 'evidence' => $evidence];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers — the branch alias
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The dev branches whose alias this script owns.
+ *
+ * A fixed pair rather than every `dev-*` key in the file: an alias for another line — a maintenance
+ * branch's, say — names a different line, so rewriting it would be wrong rather than thorough. These
+ * two are this repository's own branches, and the names are here once so the plan can say what it
+ * owns when it finds nothing to change.
+ *
+ * @return list<string>
+ */
+function aliasBranches(): array
+{
+    return ['dev-main', 'dev-development'];
+}
+
+/**
+ * The branch alias for the line being developed: `X.Y.x-dev` for a release of `X.Y.Z`.
+ */
+function aliasFor(string $version): string
+{
+    [$major, $minor] = array_map(intval(...), explode('.', baseOf($version)));
+
+    return $major.'.'.$minor.'.x-dev';
+}
+
+/**
+ * Point the dev lanes' aliases at `$alias`, and change nothing else in the file.
+ *
+ * Only the two values move, and only when they are wrong: a release of `X.Y.Z` with `Z > 0` is a
+ * patch on the line already being developed, so its aliases are already right, and it is `X.Y.0`
+ * that moves them — the trunk is that line from then on.
+ *
+ * @return array{content: string, changed: bool, found: bool, branches: list<string>}
+ */
+function rewriteBranchAlias(string $composer, string $alias): array
+{
+    $branches = [];
+    $changed = false;
+
+    $pattern = '/"('.implode('|', array_map(preg_quote(...), aliasBranches())).')"(\s*:\s*")([^"]*)(")/';
+
+    $updated = preg_replace_callback(
+        $pattern,
+        static function (array $match) use ($alias, &$branches, &$changed): string {
+            $branches[] = $match[1];
+
+            if ($match[3] === $alias) {
+                return $match[0];
+            }
+
+            $changed = true;
+
+            return '"'.$match[1].'"'.$match[2].$alias.$match[4];
+        },
+        $composer,
+    );
+
+    if ($updated === null) {
+        return ['content' => $composer, 'changed' => false, 'found' => false, 'branches' => []];
+    }
+
+    return ['content' => $updated, 'changed' => $changed, 'found' => $branches !== [], 'branches' => $branches];
 }

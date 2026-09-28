@@ -24,3 +24,13 @@
 # tools that are require-dev, so an installer has nothing to run them against.
 /bin/checks.php     export-ignore
 /bin/release.php    export-ignore
+
+# The release inventory: what the last release shipped, written by bin/release.php into the
+# release commit so the next release can weigh against it. Nothing in an installed package reads
+# it, and a host app has no tag to describe.
+/files.tsv          export-ignore
+/methods.tsv        export-ignore
+
+# One row per line, read back with an `explode` on the tab: a carriage return left on the last
+# cell would make two identical rows compare unequal, in the weighing and in `--check` alike.
+*.tsv               text eol=lf

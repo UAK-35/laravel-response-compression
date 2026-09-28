@@ -106,6 +106,45 @@ it('refuses a declared bump that undersells the changes', function (): void {
         ->and($overridden->plan('version'))->toBe('1.1.0');
 });
 
+it('holds a version named outright to the same floor as a declared bump', function (): void {
+    $repo = ReleaseRepo::make();
+
+    // 0.0.1 to 0.0.2 is a patch however the notes read, and these notes are `### Added`. A
+    // version used to be the one declaration the policy did not measure: `--minor` was held to
+    // the weighing and `--version` was not, so naming a number was a way around the rail rather
+    // than a way of choosing inside it.
+    $refused = $repo->release('--version=0.0.2', '--skip-ci', '--yes');
+
+    expect($refused->exitCode)->toBe(1)
+        ->and($refused->refused('--version=0.0.2 was declared, but the changes call for a minor release.'))->toBeTrue();
+
+    // Overridden out loud rather than silently: a number below what the notes call for is a
+    // decision, and the plan is where the decision is printed.
+    $overridden = $repo->release('--version=0.0.2', '--ignore-policy', '--skip-ci', '--yes');
+
+    expect($overridden->exitCode)->toBe(0, $overridden->describe())
+        ->and($overridden->said('--ignore-policy: releasing 0.0.2, below the minor the changes call for'))->toBeTrue()
+        ->and($overridden->plan('bump'))->toBe('patch  (declared: --version=0.0.2)')
+        ->and($repo->tags())->toContain('v0.0.2');
+});
+
+it('reads a symbol that moved between files as a move rather than a removal', function (): void {
+    // The notes are a patch on purpose: if the move still read as a removal, the surface signal
+    // would call it breaking and the version would open a minor line instead of staying on this
+    // one — which is the whole difference the reading makes.
+    $repo = ReleaseRepo::make()->withNotes("### Fixed\n\n- A defect, fixed.\n");
+    $repo->moveClass('src/Thing.php', 'src/Moved.php');
+
+    $run = $repo->release('--weigh', '--dry-run');
+
+    // The symbol is the same one in a different file, which is nothing to import differently: under
+    // PSR-4 the path and the class name are one fact, and only the name is what a consumer uses.
+    expect($run->plan('surface'))->toContain('moved between files')
+        ->and($run->plan('surface'))->toContain('Thing')
+        ->and($run->plan('surface'))->not()->toContain('removed')
+        ->and($run->plan('version'))->toBe('0.0.2');
+});
+
 it('weighs a change to the public surface as breaking', function (): void {
     $repo = ReleaseRepo::make()->retagAs('v1.0.0');
     $repo->withoutPublicSymbol();
@@ -190,7 +229,10 @@ it('refuses a version the changelog already documents, and names the way out', f
         // promoted these notes twice.
         ->and($run->refused('no v0.1.0 tag exists'))->toBeTrue()
         // The way out is a number, not an error message: one above every version written down.
-        ->and($run->refused('--version=0.2.0'))->toBeTrue();
+        ->and($run->refused('--version=0.2.0'))->toBeTrue()
+        // And the other number: the tag sequence's own next step, which is the one this package
+        // took — above the newest tag, and claimed by no heading.
+        ->and($run->refused('--version=0.0.2'))->toBeTrue();
 
     $released = $repo->release('--version=0.2.0', '--skip-ci', '--yes');
 

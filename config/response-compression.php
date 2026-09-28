@@ -83,10 +83,12 @@ return [
     /**
      * Enable or disable the debug logging of every compression decision.
      *
-     * NOT YET WIRED - nothing reads this key. The middleware currently carries no logger,
-     * so setting it changes nothing. It stays published because a host app may already set
-     * it in .env, and removing a public key is a breaking change. See
-     * docs/unwired-config.md.
+     * Off by default, and a diagnostic rather than a feature: the middleware runs on every API
+     * response, so this switch decides whether a line is written for each decision it makes -
+     * not enabled, not allowed for this request, skipped and why, and which encoding was used
+     * - most of them naming the request. See docs/unwired-config.md. Deliberately not part of
+     * the boot check in Config::validate(): a line in a log is not worth stopping an
+     * application from starting.
      */
     'enable_logging' => env('RESPONSE_COMPRESSION_LOGGING', false),
 

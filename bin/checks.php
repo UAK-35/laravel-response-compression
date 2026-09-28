@@ -27,6 +27,12 @@ use PhpParser\ParserFactory;
  * neither PCOV nor Xdebug would see this gate fail for a reason that is about
  * the machine rather than about the code. CI runs both.
  *
+ * The suite itself runs under `--parallel`, which is again what `composer test:unit`
+ * already does: most of these tests are process spawns — a planted git repository, a
+ * release script started against it — so a worker per file is the difference between
+ * minutes and seconds. A narrowed run is not asked to: one file handed to a worker per
+ * core is more booting than testing, and `--staged` runs in front of every commit.
+ *
  * USAGE
  * -----
  *   php bin/checks.php                  run everything, print only what failed
@@ -35,10 +41,22 @@ use PhpParser\ParserFactory;
  *   php bin/checks.php --audit          add `composer audit` (needs the network)
  *   php bin/checks.php --require-all    fail instead of skipping when a tool is missing
  *   php bin/checks.php --list           list the checks without running anything
+ *   php bin/checks.php --staged         check only what a commit carries
  *   php bin/checks.php --help
  *
  * Exit code is 0 when every check passed, 1 when any failed (or was skipped
  * under --require-all), 2 for a usage error.
+ *
+ * STAGED MODE
+ * -----------
+ * `--staged` is what `.githooks/pre-commit` runs, and it is the same tools pointed at the
+ * files a commit carries rather than at the tree: syntax over the staged PHP, Pint over
+ * the staged PHP, and the docs-link test when markdown is staged. Those three are the ones
+ * a commit can break on its own. The rest of the gate is a tree-shaped question — PHPStan
+ * and Rector read every file that references the ones you changed, so asking them about a
+ * subset answers something other than what `composer checks` answers. A staged PHP file
+ * outside the roots the tree-wide pass covers is not checked here for the same reason it
+ * is not checked there.
  *
  * PORTABILITY
  * -----------
@@ -60,6 +78,7 @@ $options = [
     'require-all' => false,
     'list' => false,
     'only' => [],
+    'staged' => false,
 ];
 
 foreach (array_slice($argv, 1) as $argument) {
@@ -88,6 +107,12 @@ foreach (array_slice($argv, 1) as $argument) {
 
     if ($argument === '--list') {
         $options['list'] = true;
+
+        continue;
+    }
+
+    if ($argument === '--staged') {
+        $options['staged'] = true;
 
         continue;
     }
@@ -138,19 +163,70 @@ $tools = [
 // The checks
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Staged scope
+// ─────────────────────────────────────────────────────────────────────────────
+
+// The files a commit carries, and the narrowing that follows from them. Deleted paths
+// are part of the set even though no tool can be handed one: a deletion is what breaks
+// a link that nothing else touches.
+$stagedMode = $options['staged'];
+$stagedFiles = $stagedMode ? stagedFiles($root) : [];
+
+$stagedPhp = array_values(array_filter(
+    $stagedFiles,
+    static fn (string $path): bool => str_ends_with($path, '.php') && is_file($root.'/'.$path),
+));
+
+// The `syntax` check reads absolute paths, so the staged ones are narrowed against the
+// absolute list the tree-wide pass built rather than intersected as strings.
+$stagedAbsolute = array_map(static fn (string $path): string => $root.'/'.$path, $stagedPhp);
+$phpFiles = $stagedMode ? array_values(array_intersect($phpFiles, $stagedAbsolute)) : $phpFiles;
+
+// Pint is handed the paths, and pint.json's `notPath` is honoured when Pint walks the
+// tree itself and ignored when it is told what to look at — so the exclusion is applied
+// here. A commit must not be blocked by a rule the project turned off.
+$pintExcluded = pintExcluded($root);
+
+$pintPaths = $stagedMode
+    ? array_values(array_filter(
+        $stagedPhp,
+        static fn (string $path): bool => ! in_array($path, $pintExcluded, true),
+    ))
+    : [];
+
+$markdownStaged = array_any($stagedFiles, static fn (string $path): bool => str_ends_with($path, '.md'));
+
+$testsTitle = $stagedMode ? 'Docs links (pest)' : 'Test suite (pest)';
+$pestPaths = $stagedMode && $markdownStaged ? ['tests/Unit/Docs/DocsLinksTest.php'] : [];
+$testsSkip = $stagedMode && ! $markdownStaged ? 'no markdown staged' : null;
+
+// The whole suite runs in parallel, which is how `composer test:unit` already runs it. Most of
+// these tests are process spawns — a planted git repository, a release script started against
+// it — so a worker per file is what turns minutes into seconds, and it is the same binary and
+// the same assertions either way. A narrowed run is not: one file handed to a worker per core
+// is more booting than testing, and `--staged` sits in front of every commit.
+$pestParallel = $stagedMode ? [] : ['--parallel'];
+
 $level = phpstanLevel($root);
 
 $checks = [
     'syntax' => [
         'title' => 'PHP syntax (php -l)',
-        'skip' => $phpFiles === [] ? 'no PHP files found' : null,
+        'skip' => match (true) {
+            $phpFiles !== [] => null,
+            $stagedMode => 'no staged PHP files',
+            default => 'no PHP files found',
+        },
         'run' => static fn (): array => checkSyntax($root, $phpFiles),
-        'note' => static function (array $result) use ($phpFiles): string {
+        'note' => static function (array $result) use ($phpFiles, $stagedMode): string {
             $failed = preg_match_all('/Errors parsing/', $result['output']);
 
-            return $failed === 0
-                ? count($phpFiles).' files, no syntax errors'
-                : "{$failed} of ".count($phpFiles).' files failed';
+            if ($failed !== 0) {
+                return "{$failed} of ".count($phpFiles).' files failed';
+            }
+
+            return count($phpFiles).($stagedMode ? ' staged files' : ' files').', no syntax errors';
         },
     ],
     'ast' => [
@@ -220,8 +296,15 @@ $checks = [
     ],
     'pint' => [
         'title' => 'Code style (pint --test)',
-        'skip' => is_file($tools['pint']) ? null : 'laravel/pint is not installed',
-        'run' => static fn (): array => runCommand([PHP_BINARY, $tools['pint'], '--test'], $root),
+        'skip' => match (true) {
+            ! is_file($tools['pint']) => 'laravel/pint is not installed',
+            $stagedMode && $pintPaths === [] => 'no staged PHP files for Pint to read',
+            default => null,
+        },
+        'run' => static fn (): array => runCommand(
+            [PHP_BINARY, $tools['pint'], '--test', ...$pintPaths],
+            $root,
+        ),
     ],
     'rector' => [
         'title' => 'Automated refactoring (rector --dry-run)',
@@ -232,9 +315,13 @@ $checks = [
         ),
     ],
     'tests' => [
-        'title' => 'Test suite (pest)',
-        'skip' => is_file($tools['pest']) ? null : 'pest is not installed',
-        'run' => static fn (): array => runCommand([PHP_BINARY, $tools['pest']], $root),
+        'title' => $testsTitle,
+        'skip' => match (true) {
+            ! is_file($tools['pest']) => 'pest is not installed',
+            $testsSkip !== null => $testsSkip,
+            default => null,
+        },
+        'run' => static fn (): array => runCommand([PHP_BINARY, $tools['pest'], ...$pestParallel, ...$pestPaths], $root),
         'note' => static function (array $result): string {
             // Pest ends with its duration, which says nothing about whether it
             // passed; the count it printed a line earlier does.
@@ -257,6 +344,13 @@ if ($options['audit']) {
         ),
         'note' => static fn (array $result): string => composerReason($result['output']),
     ];
+}
+
+if ($stagedMode && $options['only'] === []) {
+    // The three a commit can break on its own, and the only three that can be answered
+    // from the staged files. An explicit `--only=` is left alone: it is a deliberate
+    // question about the tree, not the hook's question about a commit.
+    $checks = array_intersect_key($checks, array_flip(['syntax', 'pint', 'tests']));
 }
 
 if ($options['only'] !== []) {
@@ -406,6 +500,8 @@ function usage(): void
           --audit       Also run `composer audit` (needs network access).
           --require-all Treat a missing tool as a failure instead of a skip.
           --list        List the checks and their skip conditions.
+          --staged      Check only the staged files (syntax, style, docs links),
+                        which is what the pre-commit hook runs.
       -h, --help        Show this help.
 
     Exit code: 0 all green, 1 anything failed, 2 usage error.
@@ -580,6 +676,70 @@ function commitsLockFile(string $root): bool
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers — file discovery
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The paths a commit would carry, relative to the package root and forward-slashed,
+ * as git reports them.
+ *
+ * Deletions are in the set as well as additions, copies, modifications and renames,
+ * because a deletion is a change to what a doc link resolves to: the file that breaks
+ * is the one nobody touched. A path git no longer has on disk is filtered out by the
+ * caller before a tool is handed it.
+ *
+ * A repository git cannot be asked about answers an empty list. A staged run over an
+ * empty list skips its checks rather than passing them, which is what the summary then
+ * says — the alternative, reporting nothing and exiting 0, is the failure mode a check
+ * like this exists to avoid.
+ *
+ * @return list<string>
+ */
+function stagedFiles(string $root): array
+{
+    $result = runCommand(
+        ['git', 'diff', '--cached', '--name-only', '--diff-filter=ACMRD', '-z'],
+        $root,
+    );
+
+    if ($result['exit'] !== 0) {
+        return [];
+    }
+
+    $paths = array_values(array_filter(
+        explode("\0", $result['output']),
+        static fn (string $path): bool => $path !== '',
+    ));
+
+    sort($paths);
+
+    return $paths;
+}
+
+/**
+ * The paths `pint.json` tells Pint to leave alone.
+ *
+ * Pint honours `notPath` when it walks the tree itself and ignores it when it is told
+ * what to look at, and the staged run hands it the staged paths — so the exclusion has
+ * to be applied by the caller. Without this, committing a change to the one file the
+ * project deliberately exempts would be blocked by a rule the project turned off.
+ *
+ * @return list<string>
+ */
+function pintExcluded(string $root): array
+{
+    $config = @file_get_contents($root.'/pint.json');
+
+    if (! is_string($config)) {
+        return [];
+    }
+
+    $decoded = json_decode($config, true);
+
+    if (! is_array($decoded) || ! is_array($decoded['notPath'] ?? null)) {
+        return [];
+    }
+
+    return array_values(array_filter($decoded['notPath'], is_string(...)));
+}
 
 /**
  * Every .php file under the given roots, sorted, dot-directories skipped.

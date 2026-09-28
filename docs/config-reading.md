@@ -66,9 +66,12 @@ response body nobody can explain.
 The middleware and the encoders read through the same `Config` readers, so a value changed at
 runtime is refused there too rather than only at boot.
 
-`enable_logging` is deliberately left out of the boot check. Nothing reads it
-([unwired-config.md](unwired-config.md)), and a key that cannot affect a response should not be
-able to stop one.
+`enable_logging` is deliberately left out of the boot check. It is read by the middleware rather
+than at boot ([unwired-config.md](unwired-config.md)), because a key whose only effect is a line
+in a log should not be able to stop an application from starting. Its reader is `boolOr()` like
+the other switches, and a reader that refuses what it cannot read does not stop refusing it here:
+a typo in that value costs the response that needed the decision, not the boot. That is the trade
+the exclusion makes, and it is worth knowing which half of it you get.
 
 ## The evidence
 

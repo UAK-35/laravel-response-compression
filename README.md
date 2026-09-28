@@ -158,10 +158,12 @@ Route::get('/profile', function () {
 /**
  * Enable or disable the debug logging of every compression decision.
  *
- * NOT YET WIRED - nothing reads this key. The middleware currently carries no logger,
- * so setting it changes nothing. It stays published because a host app may already set
- * it in .env, and removing a public key is a breaking change. See
- * docs/unwired-config.md.
+ * Off by default, and a diagnostic rather than a feature: the middleware runs on every API
+ * response, so this switch decides whether a line is written for each decision it makes -
+ * not enabled, not allowed for this request, skipped and why, and which encoding was used
+ * - most of them naming the request. See docs/unwired-config.md. Deliberately not part of
+ * the boot check in Config::validate(): a line in a log is not worth stopping an
+ * application from starting.
  */
 'enable_logging' => env('RESPONSE_COMPRESSION_LOGGING', false),
 
@@ -205,6 +207,7 @@ version *is*, and [PUSHING.md](PUSHING.md) for getting it to the remote.
 composer checks        # the gate: nine checks, one summary, one exit code
 composer test          # rector --dry-run, pint --test, phpstan, pest
 composer test:unit     # pest --coverage --parallel --min=100
+git config core.hooksPath .githooks   # once per clone: check what a commit carries
 ```
 
 `composer checks` runs `bin/checks.php`, which is what CI runs and what to run before a
@@ -225,6 +228,13 @@ machine rather than about the code. The `--min=100` floor therefore lives in
 `composer test:unit`, which CI runs as a step of its own after the gate; it needs PCOV or
 Xdebug, and on a machine with neither it reports that no driver is available rather than
 a number.
+
+`.githooks/pre-commit` runs `bin/checks.php --staged`: the same tools pointed at the files a
+commit carries — syntax, Pint, and the docs-link test when markdown is staged — so those
+three cannot land broken. Enable it once per clone with `git config core.hooksPath .githooks`,
+and bypass it for one commit with `git commit --no-verify`. It looks for PHP on `PATH`, in
+`$RESPONSE_COMPRESSION_PHP`, or in `git config response-compression.php "<path to php>"`, and
+skips — saying so — rather than blocking when it finds none.
 
 ---
 

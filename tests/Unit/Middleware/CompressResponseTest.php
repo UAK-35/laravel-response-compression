@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -277,4 +278,53 @@ it('should not compress when the configured algorithm is not one it can encode',
 
     expect($result->headers->get('Content-Encoding'))->toBeNull()
         ->and($result->getContent())->toBe(getLongContent());
+});
+
+/*
+ * The switch is a diagnostic, so both of these matter: one line per decision while it is on, and
+ * not one line while it is off. Without the second, a logger that had gone inert again — the state
+ * `enable_logging` was published in, see docs/unwired-config.md — would keep every test green.
+ *
+ * `Log` is spied rather than written to: the assertions are about the messages this middleware
+ * composes, and a host app's log file is not a place to read them back from.
+ */
+it('should log every compression decision when enable_logging is on', function (): void {
+    config()->set('response-compression.enable_logging', true);
+    Log::spy();
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/api/trips', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    // Still compressed: the switch decides whether a line is written, never what the middleware
+    // does with the response.
+    expect($result->headers->get('Content-Encoding'))->toBe('gzip');
+
+    // The two ends of one request's path: that compression was considered, and which encoding it
+    // settled on. Both name the request, which is the part that makes the line worth writing.
+    Log::shouldHaveReceived('debug')
+        ->withArgs(fn (string $message, array $context = []): bool => $message === '[COMPR-RESP] Response compression checking - uri: /api/trips')
+        ->once();
+
+    Log::shouldHaveReceived('debug')
+        ->withArgs(fn (string $message, array $context = []): bool => $message === '[COMPR-RESP] >> Compressing response using first available encoding = gzip - uri: /api/trips')
+        ->once();
+});
+
+it('should write no log line at all when enable_logging is off', function (): void {
+    // Off is the shipped default, and setting it here rather than relying on it is the point: a
+    // test that inherits the default stops testing it the moment the default moves.
+    config()->set('response-compression.enable_logging', false);
+    Log::spy();
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/api/trips', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBe('gzip');
+
+    // The same request as the test above, decision for decision: the only difference is the flag.
+    Log::shouldNotHaveReceived('debug');
 });

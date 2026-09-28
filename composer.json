@@ -58,6 +58,10 @@
             "providers": [
                 "Uak35\\ResponseCompression\\ResponseCompressionServiceProvider"
             ]
+        },
+        "branch-alias": {
+            "dev-development": "0.0.x-dev",
+            "dev-main": "0.0.x-dev"
         }
     },
     "scripts": {

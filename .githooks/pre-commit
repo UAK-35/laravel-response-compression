@@ -1,0 +1,66 @@
+#!/bin/sh
+# =============================================================================
+# .githooks/pre-commit — the part of the gate a commit must not break
+# =============================================================================
+# Enable once per clone:
+#
+#     git config core.hooksPath .githooks
+#
+# Then every commit runs `php bin/checks.php --staged`, which checks the staged files
+# for PHP syntax, code style, and broken links between the docs — the three things a
+# commit can break on its own. `composer checks` stays the whole gate; this is the same
+# tools, earlier and narrower.
+#
+# Bypass one commit with `git commit --no-verify`.
+#
+# The interpreter is looked for in this order, and the hook skips rather than blocking
+# when it finds none: a machine without PHP must not become a machine that cannot
+# commit.
+#
+#   1. $RESPONSE_COMPRESSION_PHP
+#   2. `git config --get response-compression.php`
+#   3. `php` (or `php.exe`) on PATH
+#
+# (2) exists because a Windows install is often outside PATH, and .git/config is the one
+# place a machine-local setting can live without being committed anywhere.
+# =============================================================================
+
+set -u
+
+root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$root" || exit 0
+
+if [ ! -f bin/checks.php ]; then
+    echo "pre-commit: bin/checks.php is missing, so the staged checks were skipped." >&2
+    exit 0
+fi
+
+php_bin="${RESPONSE_COMPRESSION_PHP:-}"
+
+if [ -z "$php_bin" ]; then
+    php_bin="$(git config --get response-compression.php 2>/dev/null || true)"
+fi
+
+if [ -z "$php_bin" ]; then
+    for candidate in php php.exe; do
+        if command -v "$candidate" >/dev/null 2>&1; then
+            php_bin="$candidate"
+            break
+        fi
+    done
+fi
+
+if [ -z "$php_bin" ]; then
+    echo "pre-commit: no PHP interpreter found, so the staged checks were skipped." >&2
+    echo "  name one with: git config response-compression.php \"<path to php>\"" >&2
+    exit 0
+fi
+
+if "$php_bin" bin/checks.php --staged; then
+    exit 0
+fi
+
+echo "" >&2
+echo "pre-commit: the commit was stopped by the checks above." >&2
+echo "  fix them, or bypass this commit with: git commit --no-verify" >&2
+exit 1

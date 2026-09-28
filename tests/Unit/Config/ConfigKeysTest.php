@@ -12,7 +12,8 @@ use Uak35\ResponseCompression\Tests\Support\ConfigKeys;
 | Two of this package's defects were a key and a reader disagreeing, and each was invisible
 | from the side it was on: BrotliEncoder read `response-compression.brotli.level`, which the
 | config does not publish (the section is `br`), so the level was always the default — and
-| `enable_logging` is published while nothing reads it at all.
+| `enable_logging` was published while nothing read it at all. It is wired to the middleware's
+| debug logging now, which is why `ConfigKeys::UNWIRED` is empty.
 |
 | So the two sets are read and compared in both directions. A typo in a key is one failing
 | assertion instead of a setting that quietly does nothing.
@@ -104,13 +105,33 @@ it('publishes no key that nothing reads', function (): void {
 
 it('names the record that lets an unread key exist', function (): void {
     // An allow-list with no evidence behind it is where a defect goes to be forgotten, so an
-    // entry in it has to be named by the document it points at.
+    // entry in it has to be named by the document it points at — and it has to be a key that
+    // nothing reads, or the exemption outlives the thing it was granted for. `enable_logging`
+    // is read by the middleware's debug logging now (docs/unwired-config.md), so the list is
+    // empty: both halves are collected and compared as sets rather than asserted inside the
+    // loop, because a loop over an empty list asserts nothing at all, and a test that asserts
+    // nothing is reported as risky rather than as green.
+    $unanchored = [];
+    $stale = [];
+
     foreach (ConfigKeys::UNWIRED as $path => $record) {
         $file = packageRoot().'/'.$record;
 
-        expect(is_file($file))->toBeTrue()
-            ->and((string) file_get_contents($file))->toContain($path);
+        // `is_file()` first, and short-circuited: a missing record has to be reported, not turned
+        // into a warning by the read that would follow it.
+        $named = is_file($file) && str_contains((string) file_get_contents($file), $path);
+
+        if (! $named) {
+            $unanchored[] = sprintf('%s is exempt with no record naming it in %s', $path, $record);
+        }
+
+        if (in_array($path, $this->read, true)) {
+            $stale[] = sprintf('%s is exempt from being read, and is read', $path);
+        }
     }
+
+    expect($unanchored)->toBe([])
+        ->and($stale)->toBe([]);
 });
 
 it('reads the source with a reader the package has', function (): void {

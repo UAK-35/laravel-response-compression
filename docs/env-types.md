@@ -60,5 +60,6 @@ The read still happens in the accessor rather than in the config file, for the r
 was narrowed down for in the first place: normalising in `config()` would make `env()` and the
 config value disagree, which is a worse trap than the one being fixed.
 
-The one key this leaves a default for is `enable_logging`, which nothing reads
-([unwired-config.md](unwired-config.md)).
+`enable_logging` is read through the same `boolOr()` as the other switches, with `false` as its
+default; what it is left out of is the boot check rather than the reading
+([config-reading.md](config-reading.md), [unwired-config.md](unwired-config.md)).

@@ -73,24 +73,80 @@ avoid publishing: it names a commit rather than a build anyone should install.
 
 ## What the weighing reads
 
-Three signals, each read on its own; the loudest decides the bump, and a signal that
-cannot be read costs a second opinion and never a lower bump.
+Four signals, each read on its own; the loudest decides the bump, and a signal that
+cannot be read costs a second opinion and never a lower bump. One of them is the release's
+own record, written by the release before it: the inventory below.
 
 | Signal | Read from | Loud when |
 |---|---|---|
 | `CHANGELOG` | the `###` headings under `## Unreleased` | `### Removed`, or `BREAKING` anywhere, is a breaking change; `### Added` / `### Changed` / `### Deprecated` are minor; anything else is a patch |
 | `commits` | the subjects since the last tag, as Conventional Commits | `type!:` or a `BREAKING CHANGE:` body is breaking; `feat` is minor; `fix` and unprefixed subjects are patch |
-| `surface` | the public symbols added, removed or narrowed between the last tag and HEAD | a removed or narrowed public class or member is breaking |
+| `surface` | the public symbols added, removed or narrowed between the last tag and HEAD | a removed or narrowed public class or member is breaking; a file that moved with its symbol intact costs nothing |
+| `inventory` | `files.tsv` and `methods.tsv` as the last release wrote them — read only when their stamp names the tag being released from | a removed file or public method, or a method that gained a required argument, is breaking; an added file or method is a minor; a file that moved with its class name intact costs nothing |
 
 The surface signal is why the weighing is worth reading rather than trusting: it is the one
 that notices a rename that no commit message mentioned. It reads the source at both
 revisions rather than the diff, so a member that moved between files is not mistaken for a
-removal.
+removal — symbols are compared by name rather than by path, which is what a consumer imports,
+and a move is therefore free unless the symbol it carries changed shape on the way. The
+inventory reads the same move from the other direction, off its path column.
+
+## The inventory
+
+`files.tsv` and `methods.tsv` sit at the package root. `bin/release.php` writes both in the
+release commit, next to the CHANGELOG, stamped with the tag it is creating; the next release reads
+them as its fourth signal. They are the record a tag cannot always be: what was shipped, written
+down, so a renamed file or a method that changed shape can be seen rather than remembered.
+
+| File | One row per | Columns |
+|---|---|---|
+| `files.tsv` | file under `src/` or `config/` | `name`, `path`, `symbol` — the class the file declares, or `(none)` for a config file |
+| `methods.tsv` | public method | `method`, `file`, `class`, `required` — how many arguments the method requires |
+
+TSV rather than JSON, and not for speed: a row is an `explode("\t", $line)` with no quoting rule to
+get wrong, and one symbol per line means `git diff` shows a rename as two lines a person can read.
+
+Both files open with two `#` lines — what the file is, and which tag it *describes*. The stamp is
+the whole safety property:
+
+- **both** stamps name the tag being released from → the rows are evidence, and the tree is weighed
+  against them;
+- anything else → the file was written at some other moment, which makes "nothing changed" and "not
+  refreshed" indistinguishable on disk. It is reported as **stale** and skipped, and the tag diff
+  stays the authority. Both stamps have to match rather than just one, because the pair is written
+  together: a disagreement between them is one file edited on its own, and a half-refreshed
+  inventory is the state this signal must never guess at.
+
+Believing a lazily refreshed inventory is what would let a breaking change ship as a patch, and
+that is the one direction a versioning signal must never be wrong in. Losing one costs a second
+opinion and nothing else, because no signal ever lowers the bump.
+
+**`composer release -- --inventory` writes both files and stops.** The release is what keeps them
+current, and it is the writer that matters — but a package adopting this tooling mid-life has
+nothing for the signal to read, and the release that would write it is the one that cannot weigh
+it: the rows describe the tree at the tag *before* the one being cut. So `--inventory` writes them
+once, for the tag the tree is built on, and the next release weighs a real record instead of
+starting blind. That is what this package did for `v0.0.9`, and it is why the plan for the release
+after it reads `fresh, weighed against v0.0.9` rather than `nothing written down yet`.
+
+It is asked before every other rail, because it writes two tracked files and stops: the branch
+the tree is on, whether it is dirty, and whether a tag already exists are all things a release
+refuses over and none of them is a reason not to write a record. Before the first tag it stamps
+`(no tag)` and describes the working tree, which is the only tree there is. Asked again when the
+files are already current, it says so and writes nothing.
+
+There is deliberately **no `--check`**, and nothing in CI reads these files. A check in the gate
+would keep the inventory in step with every commit, which is the one state in which it cannot
+witness anything — and a tree whose inventory is stale already says so in the plan, which is where
+it matters.
 
 **A declared bump never undersells the weighing.** `--minor` on a release whose notes are
 under `### Removed` is refused, with the evidence, unless `--ignore-policy` says to release
 anyway. `--patch` is not an option at all: the weighing's floor is a patch, so declaring one
-would say nothing.
+would say nothing. A version named with `--version=X.Y.Z` is measured the same way — the step
+its digits imply is what is compared, so `0.0.9` to `0.0.10` is held to a patch's floor
+whatever the notes say, and a version below the weighing is overridden out loud like any
+other declaration.
 
 ## Version policy
 
@@ -114,6 +170,11 @@ minor bump rather than a patch — including the ones this package has already t
 ([docs/env-types.md](docs/env-types.md)), and a value that cannot be read is refused rather
 than replaced by a default ([docs/config-reading.md](docs/config-reading.md)).
 
+The notes are the signal you control, so an entry filed under the wrong category is the answer
+to a weighing you disagree with: a change that is really a fix belongs under `### Fixed`.
+Moving the entry is the fix. There is no flag that lowers the policy — `--ignore-policy` is
+for a weighing that misread the tree, not for one you would rather not hear.
+
 ## The changelog
 
 `CHANGELOG.md` follows Keep a Changelog, so a release promotes its `## Unreleased` section:
@@ -127,7 +188,26 @@ The heading style is read from the file's own released sections rather than impo
 file's line endings are kept as they are, and a `[Unreleased]: …/compare/…` link reference
 is repointed — a file that keeps no such references gets none invented for it.
 
-## The numbering to reconcile, before the next tag
+## The branch alias
+
+`extra.branch-alias` in `composer.json` gives the dev lanes a version to resolve as, so a consumer
+requiring `^0.0` can install one as readily as a tag. Two keys name this repository's own branches,
+and the release keeps them honest:
+
+- `dev-main` and `dev-development` both point at `X.Y.x-dev` for the line being developed;
+- a patch on that line leaves them alone — `X.Y.Z` with `Z > 0` is not a new line;
+- a release that opens one moves them, because the trunk is that line from then on.
+
+Only those two keys are touched, and only their values, as bytes in the file rather than a decoded
+and re-encoded structure: the rest of `composer.json` — its key order, its indentation — is not this
+script's to normalise, and a release commit that reformats it is a diff nobody can review. An alias
+the dev lanes do not own names a different line, so rewriting it would be wrong rather than
+thorough; the plan says which keys it owns and the file is otherwise left alone.
+
+`composer.json` goes into the release commit beside the CHANGELOG and the inventory, and only when
+a value actually moved.
+
+## The numbering, and the decision taken
 
 Tags stop at **`v0.0.9`**, which is what `HEAD` and the remote's `main` point at. The
 changelog's newest sections are **`## [v0.2.0] - 2025-09-09`** and **`## [v0.1.0]`**, and
@@ -135,34 +215,81 @@ they are inherited: the `v0.2.0` entry credits `@botnetdobbs` and links a pull r
 against `chr15k/laravel-response-compression`, the upstream this package was taken from.
 No tag exists for either.
 
-So a weighed release is refused, and the refusal names both ways out:
+So a weighed release is refused, and the refusal names every way out of it:
 
 ```
 ✗ CHANGELOG.md already has a section for v0.1.0, and no v0.1.0 tag exists, so that heading
   is history this repository never released — not notes an earlier run promoted.
-  …
-  go above it      --version=0.3.0 is the next minor above every version this repository has
-                   written down (tags: newest v0.0.9 of 9; changelog: v0.2.0, v0.1.0)
-  reuse the line   re-label or fold the inherited heading first, then release v0.1.0 from
-                   the tag sequence
+
+Promoting these notes under it would leave one version with two sets of notes: the ones
+written there and the ones in `## Unreleased`.
+
+The ways out, and each is a decision:
+
+  go above it        --version=0.3.0 is the next minor above every version this repository …
+                     (tags: newest v0.0.9 of 9; changelog: v0.2.0, v0.1.0)
+  count the tags on  --version=0.0.10 steps past v0.0.9, the newest tag, and no heading
+                     claims it: the tags go on counting from where they stopped while the
+                     inherited sections stay as they are. That step is smaller than these
+                     notes weigh, so --ignore-policy is what says so out loud.
+  reuse the line     re-label or fold the inherited heading first, then release v0.1.0 …
 ```
 
 The weighing asks for a minor, and a minor above `v0.0.9` is `0.1.0` — which is a heading
-already in the file. That is the whole collision, and one of these has to be chosen:
+already in the file. That is the whole collision, and the decision taken is the second way,
+recorded here rather than left to the next person to rediscover:
 
 - **Go above it** — `composer release -- --version=0.3.0`. The tag sequence jumps over the
   inherited numbers, the changelog's sections stay as upstream wrote them, and nothing is
   republished. This is the choice that needs no edit to the changelog, and the refusal
   computes the exact number.
+- **Count the tags on** — `composer release -- --version=0.0.10`. The next number above
+  `v0.0.9` that no heading claims: the tags go on counting from where they stopped while the
+  inherited sections stay as they are. **This is the decision taken here**, which is why the
+  refusal names the number instead of only describing it. The command needs `--ignore-policy`
+  as well, and the next section says why.
 - **Reuse the line** — re-label or fold the inherited heading first (it describes someone
   else's release), then release `v0.1.0` from the tag sequence as usual. The changelog then
   reads as one history rather than two, at the cost of editing sections this repository did
   not write.
 
-Neither is a repair the script could make on its own, which is why it refuses rather than
-picking one. The one thing not to do is tag `v0.2.0` now: Packagist would publish a version
-whose heading carries a date from 2025 and a set of changes that do not match what would
-actually be in it.
+None of the three is a repair the script could make on its own, which is why it refuses
+rather than picking one. The one thing not to do is tag `v0.2.0` now: Packagist would publish
+a version whose heading carries a date from 2025 and a set of changes that do not match what
+would actually be in it.
+
+### The next release is `v0.0.10`, and what declaring it costs
+
+`0.0.9` to `0.0.10` is a **patch**, and these notes weigh a **minor** — an `### Added`
+heading is the package gaining something. So the number is below the floor the policy sets,
+and a version named outright is held to that floor exactly as `--minor` is: `--version`
+chooses inside the policy rather than around it, which is the one hole a floor on `--minor`
+alone would have left. The command says so out loud:
+
+```powershell
+composer release -- --version=0.0.10 --ignore-policy
+```
+
+and the plan prints what was overridden rather than quietly shipping a minor's worth of
+changes under a patch number:
+
+```
+  bump          patch  (declared: --version=0.0.10)
+  …
+  note: --ignore-policy: releasing 0.0.10, below the minor the changes call for
+```
+
+This is the shape of a first release under this policy: the weighing describes the size of
+the change, and a number that deliberately disagrees with it is a decision that gets
+**declared**. `--dry-run` prints the same plan and reports the refusal it is avoiding — the
+rail itself is asked when the run is real.
+
+One consequence to know before the tag after this one: **while the inherited headings are
+there, every release from this tag sequence is declared.** `--weigh` from `v0.0.10` asks for
+a minor, a minor is `0.1.0`, and `0.1.0` is a heading this file already carries — so it
+refuses again, with the same ways out. Folding or re-labelling the two inherited sections is
+a one-commit edit that can be made whenever, and until it is, the release command keeps its
+declaration.
 
 ## What it refuses
 
@@ -174,9 +301,9 @@ actually be in it.
 | tag exists | the version is already tagged — a published tag is never moved or reused |
 | not newer | the version is not above the newest tag |
 | prerelease precedes its release | the release the prerelease is named after is already tagged |
-| heading without a tag | the changelog documents the version but no tag does — see above |
+| heading without a tag | the changelog documents the version but no tag does — see [the numbering](#the-numbering-and-the-decision-taken) |
 | no notes | there is no `## Unreleased` section, or it is empty |
-| under-declared bump | a declared bump is smaller than the weighing |
+| undersold declaration | a declared `--minor`, `--major` or `--version` is a smaller step than the weighing |
 | red gate | `composer checks` did not pass |
 | unseen commit | `HEAD` is not the tip of the remote branch |
 | no remote | there is no remote branch to compare `HEAD` against |

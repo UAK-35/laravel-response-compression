@@ -218,9 +218,11 @@ final class Config
      * Every key this package reads, so a bad value stops the application at boot rather
      * than the first request that needs it.
      *
-     * `enable_logging` is deliberately not read here. Nothing in the package reads it at
-     * all (docs/unwired-config.md), and a key that cannot affect a response should not be
-     * able to stop one.
+     * `enable_logging` is deliberately left out of this list. It is read by the middleware
+     * rather than at boot (docs/unwired-config.md), and a key whose only effect is a line in
+     * a log should not be able to stop an application from starting. Its reader is still
+     * `boolOr()`, so a value it cannot read stops the response that needed the decision
+     * instead of the boot — the trade this exclusion makes, stated rather than implied.
      *
      * @throws InvalidConfigurationException on the first key that cannot be read
      */

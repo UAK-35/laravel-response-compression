@@ -1,0 +1,10 @@
+# files.tsv — written by bin/release.php — describes the tree at v0.0.9
+# name	path	symbol
+response-compression.php	config/response-compression.php	(none)
+Encoder.php	src/Contracts/Encoder.php	Uak35\ResponseCompression\Contracts\Encoder
+BrotliEncoder.php	src/Encoders/BrotliEncoder.php	Uak35\ResponseCompression\Encoders\BrotliEncoder
+GzipEncoder.php	src/Encoders/GzipEncoder.php	Uak35\ResponseCompression\Encoders\GzipEncoder
+ZstdEncoder.php	src/Encoders/ZstdEncoder.php	Uak35\ResponseCompression\Encoders\ZstdEncoder
+CompressResponse.php	src/Middleware/CompressResponse.php	Uak35\ResponseCompression\Middleware\CompressResponse
+ResponseCompressionServiceProvider.php	src/ResponseCompressionServiceProvider.php	Uak35\ResponseCompression\ResponseCompressionServiceProvider
+Enc.php	src/Support/Enc.php	Uak35\ResponseCompression\Support\Enc

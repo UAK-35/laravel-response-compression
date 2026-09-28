@@ -170,8 +170,8 @@ it('refuses the whole configuration when one value cannot be read', function ():
 });
 
 it('keeps the logger switch out of the boot check', function (): void {
-    // Nothing reads `enable_logging` (docs/unwired-config.md), so a value that cannot
-    // affect a response must not be able to stop one.
+    // `enable_logging` is read by the middleware rather than at boot (docs/unwired-config.md),
+    // so a value that cannot be read must not be able to stop the application from starting.
     config()->set('response-compression.enable_logging', 'whatever');
 
     expect(validateConfiguration(...))->not->toThrow(InvalidConfigurationException::class);
