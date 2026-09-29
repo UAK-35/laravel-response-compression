@@ -196,8 +196,10 @@ rejected, and the evidence behind the answer:
 - [What should happen to a configuration value that cannot be read?](docs/config-reading.md)
 - [Which guards does this package keep, and which did it refuse?](docs/guards.md)
 
-Releasing and pushing have files of their own: [RELEASING.md](RELEASING.md) for what a
-version *is*, and [PUSHING.md](PUSHING.md) for getting it to the remote.
+Releasing and pushing have files of their own: `RELEASING.md` for what a version *is*, and
+`PUSHING.md` for getting it to the remote. Both are runbooks for whoever cuts the release, so
+both live in the repository rather than in the package — neither is a file `composer require`
+leaves behind.
 
 ---
 

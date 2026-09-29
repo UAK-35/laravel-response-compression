@@ -172,8 +172,19 @@ than replaced by a default ([docs/config-reading.md](docs/config-reading.md)).
 
 The notes are the signal you control, so an entry filed under the wrong category is the answer
 to a weighing you disagree with: a change that is really a fix belongs under `### Fixed`.
-Moving the entry is the fix. There is no flag that lowers the policy — `--ignore-policy` is
-for a weighing that misread the tree, not for one you would rather not hear.
+Moving the entry is the fix. There is no flag that lowers the policy: `--ignore-policy` releases
+anyway and says so in the plan, and it is for a weighing that misread the tree or for notes you
+are choosing to publish thin — not for a bump you would rather not hear.
+
+**A removal the notes leave out is refused on its own.** The surface signal and the inventory
+each read a symbol that is gone, and each wraps it in a breaking change, so the release takes the
+right number whatever the notes claim — while the notes, which are what a consumer upgrades on,
+can still list the change as a fix. When the two readings agree that a public symbol was removed
+and `## Unreleased` declares no removal, the release stops, naming the symbol and the reading that
+saw it. Filing the entry under `### Removed` is the fix, and `--ignore-policy` is what publishes
+notes that thin. Both readings have to agree before anything is refused: a public constant or
+property is a symbol the inventory has no column for, so a removal only the surface saw is left to
+the notes rather than turned into a refusal the next person works around.
 
 ## The changelog
 
@@ -209,13 +220,17 @@ a value actually moved.
 
 ## The numbering, and the decision taken
 
-Tags stop at **`v0.0.9`**, which is what `HEAD` and the remote's `main` point at. The
-changelog's newest sections are **`## [v0.2.0] - 2025-09-09`** and **`## [v0.1.0]`**, and
-they are inherited: the `v0.2.0` entry credits `@botnetdobbs` and links a pull request
-against `chr15k/laravel-response-compression`, the upstream this package was taken from.
-No tag exists for either.
+This package's tags begin at `v0.0.1`. Its changelog began earlier, with
+**`## [v0.2.0] - 2025-09-09`** and **`## [v0.1.0] - 2024-12-29`**, which are inherited: the
+`v0.2.0` entry credits `@botnetdobbs` and links a pull request against
+`chr15k/laravel-response-compression`, the upstream this package was taken from. No tag here
+corresponded to either, so the changelog documented two versions this repository had never
+released — and the first weighed release after `v0.0.9` landed on one of them, because a minor
+above `0.0.9` is `0.1.0`.
 
-So a weighed release is refused, and the refusal names every way out of it:
+So a weighed release was refused, and the refusal named every way out of it. This is that
+output, as it read at `v0.0.9` — the numbers in it are the ones the script computed from that
+tree, and the rail itself is unchanged:
 
 ```
 ✗ CHANGELOG.md already has a section for v0.1.0, and no v0.1.0 tag exists, so that heading
@@ -235,42 +250,50 @@ The ways out, and each is a decision:
   reuse the line     re-label or fold the inherited heading first, then release v0.1.0 …
 ```
 
-The weighing asks for a minor, and a minor above `v0.0.9` is `0.1.0` — which is a heading
-already in the file. That is the whole collision, and the decision taken is the second way,
-recorded here rather than left to the next person to rediscover:
+None of the three is a repair the script could make on its own, which is why it refuses rather
+than picking one. The decision taken then was the second way, recorded here rather than left to
+the next person to rediscover: the tags went on counting from where they stopped while the
+inherited sections stayed as upstream wrote them. That is why `v0.0.10` was **declared**
+rather than weighed — the next section has the record of what that cost — and it is the number
+that put this package's own line one tag past the collision.
 
-- **Go above it** — `composer release -- --version=0.3.0`. The tag sequence jumps over the
-  inherited numbers, the changelog's sections stay as upstream wrote them, and nothing is
-  republished. This is the choice that needs no edit to the changelog, and the refusal
-  computes the exact number.
-- **Count the tags on** — `composer release -- --version=0.0.10`. The next number above
-  `v0.0.9` that no heading claims: the tags go on counting from where they stopped while the
-  inherited sections stay as they are. **This is the decision taken here**, which is why the
-  refusal names the number instead of only describing it. The command needs `--ignore-policy`
-  as well, and the next section says why.
-- **Reuse the line** — re-label or fold the inherited heading first (it describes someone
-  else's release), then release `v0.1.0` from the tag sequence as usual. The changelog then
-  reads as one history rather than two, at the cost of editing sections this repository did
-  not write.
+The third way is the one that then had to be taken, because nothing about it was a one-off.
+From `v0.0.10` a weighed release asks for a minor, and a minor is `0.1.0`: the same heading,
+the same refusal, one tag later — so every release from that sequence would have had to carry
+the same declaration. The inherited sections have therefore been **folded into a single
+`## Inherited from upstream` section** at the end of the changelog, where the two releases are
+third-level headings and keep their notes, their credits and their dates.
 
-None of the three is a repair the script could make on its own, which is why it refuses
-rather than picking one. The one thing not to do is tag `v0.2.0` now: Packagist would publish
-a version whose heading carries a date from 2025 and a set of changes that do not match what
-would actually be in it.
+`## Inherited from upstream` is not a version, so the script no longer reads `0.2.0` or `0.1.0`
+as versions this repository documented, and `--weigh` takes the minor it was refusing over:
 
-### The next release is `v0.0.10`, and what declaring it costs
+```powershell
+composer release -- --weigh --dry-run     # plans 0.1.0, no declaration, no override
+```
 
-`0.0.9` to `0.0.10` is a **patch**, and these notes weigh a **minor** — an `### Added`
-heading is the package gaining something. So the number is below the floor the policy sets,
+Editing sections this repository did not write is the cost of that way, and the fold is
+deliberately the smallest form of it: a heading, a level, and a paragraph saying whose history
+this is. Nothing was renumbered and nothing removed, so the two releases are as findable as
+they were — and when `0.1.0` is released from here, the promoted `## [v0.1.0]` heading carries a
+tag behind it, which is the one shape no rail objects to.
+
+The one thing not to do, then or now, is tag `v0.2.0`: Packagist would publish a version whose
+heading carries a date from 2025 and a set of changes that do not match what would actually be
+in it.
+
+### What declaring `v0.0.10` cost
+
+`0.0.9` to `0.0.10` is a **patch**, and those notes weighed a **minor** — an `### Added`
+heading is the package gaining something. So the number was below the floor the policy sets,
 and a version named outright is held to that floor exactly as `--minor` is: `--version`
 chooses inside the policy rather than around it, which is the one hole a floor on `--minor`
-alone would have left. The command says so out loud:
+alone would have left. The command said so out loud:
 
 ```powershell
 composer release -- --version=0.0.10 --ignore-policy
 ```
 
-and the plan prints what was overridden rather than quietly shipping a minor's worth of
+and the plan printed what was overridden rather than quietly shipping a minor's worth of
 changes under a patch number:
 
 ```
@@ -279,17 +302,18 @@ changes under a patch number:
   note: --ignore-policy: releasing 0.0.10, below the minor the changes call for
 ```
 
-This is the shape of a first release under this policy: the weighing describes the size of
-the change, and a number that deliberately disagrees with it is a decision that gets
-**declared**. `--dry-run` prints the same plan and reports the refusal it is avoiding — the
-rail itself is asked when the run is real.
+This was the shape of a first release under this policy: the weighing describes the size of the
+change, and a number that deliberately disagrees with it is a decision that gets **declared**.
+`--dry-run` prints the same plan and reports the refusal it is avoiding — the rail itself is
+asked when the run is real.
 
-One consequence to know before the tag after this one: **while the inherited headings are
-there, every release from this tag sequence is declared.** `--weigh` from `v0.0.10` asks for
-a minor, a minor is `0.1.0`, and `0.1.0` is a heading this file already carries — so it
-refuses again, with the same ways out. Folding or re-labelling the two inherited sections is
-a one-commit edit that can be made whenever, and until it is, the release command keeps its
-declaration.
+It was declared once, for `v0.0.10`, and it does not have to be declared again. The one
+consequence the declaration came with was that the inherited headings made **every** release
+from that tag sequence a declaration too, `--weigh` from `v0.0.10` asking for a minor and a
+minor being `0.1.0` — a heading the changelog already carried. That is what the fold in the
+section above removed, and it was removed the way that section describes rather than with a
+flag: `--ignore-policy` is for a weighing that misread the tree, not for a changelog that
+cannot hold the number the tree asks for.
 
 ## What it refuses
 
@@ -304,6 +328,7 @@ declaration.
 | heading without a tag | the changelog documents the version but no tag does — see [the numbering](#the-numbering-and-the-decision-taken) |
 | no notes | there is no `## Unreleased` section, or it is empty |
 | undersold declaration | a declared `--minor`, `--major` or `--version` is a smaller step than the weighing |
+| undeclared removal | the surface and the inventory both saw a public symbol removed and `## Unreleased` does not declare one — see [the policy](#version-policy) |
 | red gate | `composer checks` did not pass |
 | unseen commit | `HEAD` is not the tip of the remote branch |
 | no remote | there is no remote branch to compare `HEAD` against |

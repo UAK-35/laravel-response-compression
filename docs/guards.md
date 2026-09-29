@@ -17,8 +17,11 @@ answer is not always "port it".
 | `Config::validate()` | the same, at boot rather than on the request that first needs the value | [`../src/Support/Config.php`](../src/Support/Config.php) |
 | the README↔config test | a published default that disagrees with the config file it documents | [`../tests/Unit/Config/ConfigDocTest.php`](../tests/Unit/Config/ConfigDocTest.php) |
 | the config-key test | a key read that the config does not publish, and a key published that nothing reads | [`../tests/Unit/Config/ConfigKeysTest.php`](../tests/Unit/Config/ConfigKeysTest.php) |
+| the config-claim test | a docblock or a record that says a key is unread while the source reads it | [`../tests/Unit/Config/ConfigClaimsTest.php`](../tests/Unit/Config/ConfigClaimsTest.php) |
 | the docs-link test | a broken link between the records, and a record nothing links to | [`../tests/Unit/Docs/DocsLinksTest.php`](../tests/Unit/Docs/DocsLinksTest.php) |
+| the changelog-preamble test | a preamble that goes on naming a version as inherited once this package has released it — the stale claim the next release would otherwise write into the file | [`../tests/Unit/Docs/ChangelogPreambleTest.php`](../tests/Unit/Docs/ChangelogPreambleTest.php) |
 | the machine-path test | a path that only resolves on the machine it was written on — a drive letter, a home directory, a network share — in any file a commit would carry | [`../tests/Unit/Support/MachinePathsTest.php`](../tests/Unit/Support/MachinePathsTest.php) |
+| the log-message test | two branches that report a skip with the same sentence, which is a line the log cannot tell apart — read from what the branches write, not from what they do | [`../tests/Unit/Middleware/LogMessagesTest.php`](../tests/Unit/Middleware/LogMessagesTest.php) |
 | the tool-path test | a tool's path written down in a second place — in a composer script, or in one of the three programs that runs a tool — a `vendor/bin` shim, which is a second interpreter, a path that is not on disk, a name nothing asks for, an entry nothing runs | [`../tests/Unit/Support/ToolPathsTest.php`](../tests/Unit/Support/ToolPathsTest.php) |
 | `bin/tool.php` | a composer script that writes a tool's path down instead of naming a tool: the script names this program and the tool, the manifest answers with the path, and the exit code is the tool's own — a wrapper that swallowed it would report every script as passing | [`../bin/tool.php`](../bin/tool.php) |
 | the gate's own tests | the script everything else is measured by, which no test had ever run — its exit codes, its skips and its refusals, in a planted tree | [`../tests/Unit/Gate/ChecksTest.php`](../tests/Unit/Gate/ChecksTest.php) |
@@ -57,6 +60,12 @@ the README advertised `algorithm` as `gzip` while the config shipped `br`, `min_
 `1024` while the config shipped `2048`, and the encoder read `brotli.level` while the config
 published `br.level`.
 
+The config-claim guard is the fourth of that family, one layer up from the code: a docblock
+that says a key is unread is a claim *about* the read set, and `enable_logging`'s docblock in
+the config file and in the README went on saying it was inert after the middleware had been
+wired to read it. Neither file was wrong on its own, which is why nothing caught it — the
+claim is only false beside the code that reads the key.
+
 The machine-path guard is the one that came from something that had already happened rather
 than from the comparison that started this list: [PUSHING.md](../PUSHING.md) was written on a
 Windows machine, and a credentials table and a `cd` line came out of it carrying that
@@ -67,6 +76,19 @@ where a path gets copied from a terminal — and the two shapes that name nobody
 the detector instead of left to the eye: `C:/Windows/…`, which is the same on every Windows
 install and is the deliberate evidence in one row of that same table, and `/home/runner/…`,
 which is the same on every CI runner.
+
+The log-message guard came from a defect that had already shipped: two of the middleware's skip
+checks sat next to each other and wrote the same sentence, so an unsuccessful response was
+recorded as a binary file — in the one output `enable_logging` exists to produce, which is where
+anyone looks to find out why a response was left alone. It was found by reading the file and
+fixed by hand, and a hand fix is what comes back. A test that pins a message pins it one branch
+at a time, so a third branch copied from one of them passes every one of them; what can see the
+duplicate is what the branches have in common, the text they write. So each `logDebugStatus(…)`
+call is read out of the file as a *shape* — the sentence it writes with the values taken out —
+and two shapes that match are reported with both line numbers. The reading is held to two things
+of its own, because a guard that read nothing would pass: it has to find every call in the file
+rather than the ones it happened to understand, and the shapes it reasons about are compared
+against the messages the middleware really composes when six of its branches are driven.
 
 The coverage floor became a program of its own for the same reason the log-message guard reads
 what the branches write instead of pinning each message: the number it had was not the number it

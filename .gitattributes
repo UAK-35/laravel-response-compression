@@ -17,6 +17,11 @@
 # Runbooks for whoever cuts the release, not for whoever installs the package. The
 # docs/ records are left in: they explain why the middleware behaves as it does, which
 # is worth having beside the code.
+#
+# So nothing the package ships links to them: the README names both and the changelog says
+# the numbering is recorded in `RELEASING.md`, and neither one links. A dead link is how a
+# reader who has the package learns that a runbook exists and that they will never be handed
+# it, which is a worse thing to leave in their path than a sentence that names a file.
 /RELEASING.md       export-ignore
 /PUSHING.md         export-ignore
 
