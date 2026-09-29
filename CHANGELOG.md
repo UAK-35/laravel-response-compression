@@ -127,6 +127,17 @@ release — which is why it sits in the repository rather than in the package.
   manifest at all — taking it from 0.0% to 55.4% of its lines and pinning the two codes a caller
   has to be able to tell apart: 2 for an option it does not have, 1 for a tree that fails.
 
+### Changed
+
+- **The desktop app's own directory is ignored, so its state cannot reach a commit.** `.freebuff/`
+  appeared the first time this checkout was opened as a workspace by the editor's agent: one file
+  holding a project id, naming nothing and belonging to no version of this package. Untracked and
+  *not* ignored is the one combination that matters — it shows in `git status`, so `git add -A`
+  takes it, and the next commit would publish a file whose entire content is a fact about one
+  machine. `.gitignore` now covers it, beside the other artefacts a run leaves behind, and the
+  reason to write the rule down rather than remember it is the reason that file exists at all: the
+  next machine writes its own.
+
 ### Fixed
 
 - **A pointer an installed package cannot follow is gone.** `RELEASING.md` and `PUSHING.md` are
