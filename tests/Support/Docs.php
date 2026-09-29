@@ -76,9 +76,24 @@ final class Docs
             return [];
         }
 
+        return self::linksIn($contents);
+    }
+
+    /**
+     * Every inline link in a piece of markdown, read from the text rather than from a file.
+     *
+     * The two callers hold different things and mean the same thing by a link: the docs guard has
+     * a whole document, and the guard-index guard has one cell of a table. One reader serves both,
+     * so a link cannot come to mean two things — and a row's link can be resolved against the
+     * document it was written in, which is only true because both go through here.
+     *
+     * @return list<array{target: string, line: int}>
+     */
+    public static function linksIn(string $markdown): array
+    {
         $links = [];
 
-        foreach (explode("\n", str_replace("\r\n", "\n", $contents)) as $index => $line) {
+        foreach (explode("\n", str_replace("\r\n", "\n", $markdown)) as $index => $line) {
             if (preg_match_all('/\]\(([^)\s]+)\)/', $line, $matches) === 0) {
                 continue;
             }

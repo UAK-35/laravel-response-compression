@@ -18,6 +18,24 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **The index of the guards is read, so the next guard cannot be added without a place in it.**
+  `docs/guards.md` is where a guard is put in front of whoever adds the next one, which makes it
+  the one file in this repository whose drift is every guard's drift. One direction of that was
+  watched already — a row that links a test which has since been renamed fails, because a row's
+  link is a link like any other — and the other could not be watched at all, and no test could have
+  watched it, because none of them knew what a guard is: a guard could arrive with no row and read
+  as though it had always been in the list. `tests/Support/GuardIndex.php` reads the table as a
+  claim about a directory: every row's `Where` cell is resolved, and every file in
+  `tests/Support/` — 17 of them, read from the directory rather than listed beside it — is named on
+  the page, as a reading in the section that lists them or as support in the section that says it
+  is not a guard. A new file there therefore costs one line of the index, and that line is the
+  decision the index exists to record. The two rows whose `Where` cell said "the same workflow" in
+  prose now link the workflow they meant, because a row that resolves nothing sends nobody; and
+  the page's two claims that this package sat beside another are stated as what they are — a
+  companion package rather than a sibling, a sibling being a layout claim like any other. A link is
+  read out of a cell by `Docs::linksIn()`, which the docs guard now reads a document through as
+  well, so the one thing a link means cannot come to differ between a cell and a file. 4 tests.
+
 - **A guard that stopped checking anything now fails here instead of reporting nothing forever.**
   Every reading in this package answers "nothing is wrong" while it is working, and the same thing
   once it is not: a pattern loosened until no path matches it, a class of file dropped from a walk,
