@@ -1,0 +1,25 @@
+# =============================================================================
+# package-dev — the daily loop in this checkout
+# =============================================================================
+# Every command named in `description` is read out of `instructions.md` by the
+# `descriptions` step of `python .agents/verify.py`, so a description can only
+# advertise commands the skill really defines. A hyphenated word in a description
+# is read as a command name, which is why the prose here avoids them.
+name: "package-dev"
+version: "1.0.0"
+description: "This package's daily loop: the nine check gate, the coverage floor, the dev tools, the lists of the guard index, and the check that asks whether the tools themselves still work. Commands - gate, gate-local, staged, checks-list, index, test, test-unit, test-types, test-lint, tidy, single-test, verify-tools, agentic-check, agentic-layer, agentic-fix, agentic-selftest. Invoke on mentions of a test run, a style fix, the gate, coverage, the guard index, a toolchain that misbehaves, or any change inside this repository."
+instructions: "instructions.md"
+author: "UAK35"
+license: "MIT"
+tags: gate, testing, coverage, style, quality, package
+categories: quality
+
+sync:
+  freebuff:
+    enabled: true
+    name_override: "package-dev"
+  gemini:
+    enabled: true
+  windsurf:
+    enabled: true
+    filename: "package-dev.windsurf.md"

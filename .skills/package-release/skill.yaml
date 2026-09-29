@@ -1,0 +1,24 @@
+# =============================================================================
+# package-release — weighing, cutting and pushing a version
+# =============================================================================
+# `description` is spell read by the `descriptions` step of `python .agents/verify.py`:
+# every command name in it has to be defined in `instructions.md`, and a hyphenated
+# word is read as a command name.
+name: "package-release"
+version: "1.0.0"
+description: "Weigh what the tree adds up to, cut a version, and get the tag to the remote on the development lane. Commands - unreleased, weigh, weigh-dry-run, release-cut, prerelease, push, verify-runbooks. Invoke when a version is being decided, cut or pushed, or when the claims in a runbook about the remote are being checked again."
+instructions: "instructions.md"
+author: "UAK35"
+license: "MIT"
+tags: release, semver, tags, packagist, runbooks, package
+categories: release
+
+sync:
+  freebuff:
+    enabled: true
+    name_override: "package-release"
+  gemini:
+    enabled: true
+  windsurf:
+    enabled: true
+    filename: "package-release.windsurf.md"

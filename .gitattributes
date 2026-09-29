@@ -30,6 +30,23 @@
 /bin/checks.php     export-ignore
 /bin/release.php    export-ignore
 
+# The agentic layer: the rules an agent reads, the skills it loads, the checks that keep the two
+# honest, and a pointer file for each of the ten tools that expect one. A consumer installs the
+# middleware and the config; none of this is anything they run. It is left in the repository rather
+# than hidden because it is the reasoning behind the code - and `.agents/machine.local.json`, which
+# is the only file in it that names a machine, is gitignored rather than exported.
+/AGENTS.md          export-ignore
+/CLAUDE.md          export-ignore
+/GEMINI.md          export-ignore
+/.agents            export-ignore
+/.skills            export-ignore
+/.trae              export-ignore
+/.cursor            export-ignore
+/.continue          export-ignore
+/.junie             export-ignore
+/.kiro              export-ignore
+/.windsurf          export-ignore
+
 # The release inventory: what the last release shipped, written by bin/release.php into the
 # release commit so the next release can weigh against it. Nothing in an installed package reads
 # it, and a host app has no tag to describe.

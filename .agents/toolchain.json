@@ -1,0 +1,139 @@
+{
+    "why": "The commands this package runs and the tools they run through, written down once. The command table in AGENTS.md is rendered from this file by `python .agents/verify.py --fix` and refused as a restatement anywhere else, so a command that changes here changes in the one place a reader looks, and a surface that states one differently fails the check instead of running an older line.",
+
+    "scope": "This is a Composer package, not an application: there is no artisanal surface to speak of, no routes, no database and no scheduler. What it has instead is a gate - nine checks in bin/checks.php - and four programs in bin/ that the gate, a release and the two lists of the guard index run. So the commands here are the gate, the wrappers around the four dev tools it drives, the releaser, and the agentic checks in this directory. Nothing that belongs to a consuming Laravel app appears here, because nothing here runs against one.",
+
+    "rules_run_tools": "A tool is never run through a `vendor/bin` shim. On Windows the shim is a `.bat` that runs whichever `php` is first on PATH, which on a machine with more than one PHP is a different interpreter with a different set of extensions - the failure that made `composer test:unit` report no coverage driver while the same Pest, run by the PHP that installed the dependencies, reported 100.0%. bin/tool-paths.php is the one place a tool's path is written down, bin/tool.php runs it under `PHP_BINARY`, and `tests/Unit/Support/ToolPathsTest.php` refuses a second copy of a path anywhere. The commands below the gate therefore name a composer script or a `bin/` program, never a path into vendor/. The same rule covers the interpreter itself: nothing here writes a `php` path down either. `.agents/machine.local.json` names this machine's PHP once, `python .agents/render_local.py --value __PHP_EXE__` spells it out for the one command that needs it spelled out, a composer script is run by Composer under `PHP_BINARY` and so names none, and the pre-commit hook reads that file before it falls back to the environment, to `.git/config` or to PATH - saying so when a fallback is what answered.",
+
+    "tools": {
+        "php": {
+            "token": "__PHP_EXE__",
+            "pin": "^8.4",
+            "ask": ["__PHP_EXE__", "-r", "echo PHP_VERSION;"],
+            "pin_why": "composer.json's require.php states the same constraint and the check compares the two, because the two are one decision written twice: a machine moved to PHP 8.3 has to stop at the gate rather than somewhere inside the suite",
+            "purpose": "runs the gate, the suite, and the five programs in bin/"
+        },
+        "composer": {
+            "command": "composer",
+            "phar": "composer.phar",
+            "pin": "^2",
+            "ask": ["__PHP_EXE__", "composer.phar", "--version"],
+            "pin_why": "every script in composer.json is a Composer 2 script - `@php`, `@lint`, and a list of scripts that run in order - and a package whose scripts are the gate needs the manager that reads them. There is no committed composer.lock to ask (a library gitignores it), so the major is probed rather than read",
+            "purpose": "the scripts in composer.json are where the gate, the tool wrappers and the coverage floor live"
+        },
+        "pwsh": {
+            "token": "__PWSH_EXE__",
+            "pin": "7",
+            "ask": ["__PWSH_EXE__", "-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()"],
+            "pin_why": "PowerShell 7 is the shell the snippets in AGENTS.md and in the skills are written for: Windows PowerShell 5.1 has different cmdlets and no `&&`. It is named as a token rather than written out, because this repository has a guard that refuses a drive path anywhere in a file a commit would carry",
+            "purpose": "the Windows shell every command runs through - PowerShell 7, never cmd.exe and never MSYS"
+        },
+        "python": {
+            "command": "python",
+            "pin": "3",
+            "pin_why": "the agentic checks in this directory are the only thing here written in Python, and none of them is part of the package's own gate: the gate is PHP and runs without one. A machine with only `python3` is answered by the same fallback the programs here use, and a machine with neither loses the agentic checks rather than the package's",
+            "purpose": "runs the agentic consistency check and the two generators beside it"
+        }
+    },
+
+    "shells": {
+        "windows": {
+            "tool": "pwsh",
+            "mandate": "\"<__PWSH_EXE__>\" -Command \"<line>\"",
+            "purpose": "the Windows shell every command runs through: the pwsh tool above, resolved from .agents/machine.local.json. The path is not written out because the guard that refuses a machine path in this repository is right about why: it resolves to one machine"
+        },
+        "linux": {
+            "mandate": "bash -c \"<line>\"",
+            "purpose": "the Linux shell, for the same commands run outside Windows - CI runs them here"
+        }
+    },
+
+    "commands": {
+        "gate": {
+            "line": "composer checks -- --require-all",
+            "purpose": "the whole gate, with a missing tool as a failure instead of a skip - what CI and a release use"
+        },
+        "gate-local": {
+            "line": "composer checks",
+            "purpose": "the same nine checks on a workstation, where half the tools are require-dev and a missing one is a skip"
+        },
+        "staged": {
+            "line": "__PHP_EXE__ bin/checks.php --staged",
+            "purpose": "the staged files only - syntax, style and the links between the docs - which is what the pre-commit hook runs, under the PHP it resolves from .agents/machine.local.json"
+        },
+        "checks-list": {
+            "line": "__PHP_EXE__ bin/checks.php --list",
+            "purpose": "the nine checks and the condition each one skips on, under this machine's PHP rather than whichever `php` happens to be first on PATH"
+        },
+        "index": {
+            "line": "__PHP_EXE__ bin/index.php",
+            "purpose": "render the two lists of files in docs/guards.md from tests/Support/, where each file declares its own row - the composer.json script `index` is the same program"
+        },
+        "index-check": {
+            "line": "__PHP_EXE__ bin/index.php --check",
+            "purpose": "the same reading with nothing written: what tests/Unit/Docs/GuardIndexTest.php asserts, and the form that fails a document which has drifted from the directory"
+        },
+        "test": {
+            "line": "composer test",
+            "purpose": "Rector dry-run, Pint in test mode, PHPStan and the coverage floor, in that order"
+        },
+        "test-unit": {
+            "line": "composer test:unit",
+            "purpose": "Pest under coverage, holding every src/ file at 100.0% and a ratchet per program in bin/"
+        },
+        "test-types": {
+            "line": "composer test:types",
+            "purpose": "PHPStan at max, through bin/tool.php"
+        },
+        "test-lint": {
+            "line": "composer test:lint",
+            "purpose": "Pint in test mode, which writes nothing"
+        },
+        "tidy": {
+            "line": "composer tidy",
+            "purpose": "lint, then refactor, then lint again - the second pass is what checks Rector's output"
+        },
+        "release": {
+            "line": "composer release -- --weigh",
+            "purpose": "the releaser: weigh the tree against the last tag first, and cut a version only on a second, deliberate run"
+        },
+        "agentic-check": {
+            "line": "python .agents/verify.py",
+            "purpose": "everything in one run: the tools and processes this package needs, its two path guards, its gate, and the layer against itself - read-only, exit 1 on a finding"
+        },
+        "verify-tools": {
+            "line": "python .agents/verify.py --package",
+            "purpose": "the tools and the two package checks alone, without the layer's readings: does this machine still work"
+        },
+        "agentic-layer": {
+            "line": "python .agents/verify.py --layer",
+            "purpose": "the layer alone, with no PHP in it: the fast subset the pre-commit hook runs"
+        },
+        "agentic-fix": {
+            "line": "python .agents/verify.py --fix",
+            "purpose": "repair what a generator owns (the rendered command table, the skill targets), then re-check"
+        },
+        "agentic-selftest": {
+            "line": "python .agents/verify.py --selftest",
+            "purpose": "plant one fault per step in a copy of the layer and require the step to name it"
+        },
+        "agentic-init": {
+            "line": "python .agents/render_local.py --init",
+            "purpose": "ask for this machine's PHP and PowerShell, then render every settings file from the answers"
+        },
+        "skills-sync": {
+            "line": "python .skills/_sync.py",
+            "purpose": "regenerate .agents/skills/ and the pointers that read it from the sources in .skills/"
+        }
+    },
+
+    "not_copied": {
+        "why": "The agentic layer here was built from the one in the LPR application this package is developed beside, and four things it has were deliberately left behind rather than adapted",
+        "entries": {
+            "deploy_and_push_infrastructure": "ECS deploys, ECR images, build markers, secret syncing, database resets and a websocket service are the application's, and none of them acts on a Composer package",
+            "mcp_servers": "the application's .mcp.json names a documentation server and a code graph for a Laravel app. This package has no server to point at, and a config naming one would be a dependency on a machine",
+            "layout_and_schema_rules": "app/Schemas, database/synchronization, the repository pattern and the Octane statelessness rules describe a Laravel application's layout. What survives of them here is the shape of the reasoning, not the rules",
+            "laravel_boost_instructions": "the copied-in copilot instructions for the application list its Livewire, Tailwind and Vite setup. A middleware package consumes none of it"
+        }
+    }
+}

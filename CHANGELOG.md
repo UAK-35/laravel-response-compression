@@ -18,6 +18,48 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **The repository can be asked whether the tools it needs still work.** `python .agents/verify.py`
+  runs twelve readings in two halves, and only one of them is about the agentic layer. The `tools`
+  step asks programs rather than reading files: which PHP is being used here and does its version
+  answer the pin in `.agents/toolchain.json`, are the three extensions `composer.json` requires
+  loaded, can a coverage driver count a line for the floor, what composer reports, is Python new
+  enough, is PowerShell 7 where the Windows snippets expect it, is git runnable, does every tool in
+  `bin/tool-paths.php` still start through `bin/tool.php` — which is the process rather than the tool
+  — is the hook this repository documents actually enabled in this clone, and is there a `vendor/` at
+  all to run any of it from. The layer's nine readings follow, and the package's own two path guards
+  and its gate are steps of the same run rather than something it re-implements. `--layer` is the
+  fast subset the pre-commit hook now runs, `--package` is the tools and the two package readings, and
+  `--only=STEP` runs one. The first run of it found the check's own bug: Composer colourises
+  `--version` even when it is writing into a pipe, so the version arrived as an escape sequence and
+  was read as no version at all — the same reading `bin/checks.php` already makes with its own
+  `stripAnsi()`. A missing toolchain is a finding here rather than a skip, because "the processes this
+  package needs do not run on this machine" is the answer to the question this step was asked, and a
+  missing `vendor/` is a note naming the one command that fixes it rather than a silent pass.
+
+- **The repository carries its own rules, and the rules are checked rather than trusted.**
+  `AGENTS.md` is the canonical file: what this package is, the gate and what each of its nine checks
+  proves, the two path guards and the rule that a guard may not go quiet, the code and documentation
+  rules, the release lane and the two runbooks, and how a commit is made. Ten pointer files name it
+  and restate nothing — `CLAUDE.md`, `GEMINI.md`, `.trae/TRAE.md` and `.trae/rules/project_rules.md`,
+  `.cursor/rules/agents.mdc`, `.continue/rules/00-agents.md`, `.junie/guidelines.md`,
+  `.kiro/steering/package-rules.md`, `.github/copilot-instructions.md`,
+  `.windsurf/rules/000-agents.windsurf.md` — so a rule is edited once and cannot come to mean two
+  things. `.agents/` holds what a tool loads: two skills generated from `.skills/` (`package-dev`
+  for the daily loop, `package-release` for weighing, cutting and pushing a version), a
+  `code-reviewer` agent that reviews against this package's semver promise rather than generic
+  Laravel advice, a command each for the gate and a release, and `toolchain.json` as the single
+  statement of every command and every pin — section 13 of `AGENTS.md` is rendered from it, and a
+  command written out a second way is refused. `verify.py` is what makes the layer checkable: the
+  canonical sections and the pointers to them, the index of everything loadable, each skill target
+  against the source it was generated from, the three pointer mechanisms, the pins against
+  `composer.json`, and every `__TOKEN__` against the four that exist. `--selftest` plants one fault
+  per step in a copy of the layer and requires the step to name it, because a check that stopped
+  checking reports exactly what a working one reports on a tree with nothing wrong: 9 steps, 9
+  mutations, all reported. What was deliberately not copied from the application this package is
+  developed beside is recorded in `.agents/toolchain.json` — its deploys, its push infrastructure,
+  its MCP servers and its application layout rules describe a Laravel application, and none of them
+  acts on a Composer package.
+
 - **The index of the guards is read, so the next guard cannot be added without a place in it.**
   `docs/guards.md` is where a guard is put in front of whoever adds the next one, which makes it
   the one file in this repository whose drift is every guard's drift. One direction of that was
@@ -185,6 +227,19 @@ release — which is why it sits in the repository rather than in the package.
   has to be able to tell apart: 2 for an option it does not have, 1 for a tree that fails.
 
 ### Changed
+
+- **This machine's paths live in one gitignored file, and nothing committed names them.**
+  `.agents/render_local.py` owns `.agents/machine.local.json`: `--init` asks for the PHP binary,
+  PowerShell 7 and the package root, `--value` answers a token for a reader who needs one spelled
+  out, and the three settings files a tool actually reads — `.trae/settings.json`,
+  `.trae/settings.local.json`, `.kiro/settings/local.json` — are rendered from the committed
+  `.example` template beside each one. All four are ignored, because a rendered settings file holds a
+  drive path by construction, which is the thing the two path guards exist to refuse. The
+  pre-commit hook gained the matching step: when a commit touches this layer it runs
+  `python .agents/verify.py` before the package's own staged checks, and a machine with no Python
+  loses the check rather than the commit, exactly as a machine with no PHP already did.
+  `.gitattributes` keeps the layer out of the dist — a consumer installs the middleware and the
+  config, and none of this is anything they run.
 
 - **Nothing in this repository names anything outside it any more, including the two records that
   explain what such a name looks like.** `tests/Support/MachinePaths.php` and the test beside it

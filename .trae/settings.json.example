@@ -1,0 +1,33 @@
+{
+    "aiAssistant": {
+        "enableAiAssistant": true,
+        "enableCodeContext": true,
+        "skillRoots": [
+            ".agents/skills"
+        ],
+        "agentRoots": [
+            ".agents/agents"
+        ]
+    },
+    "terminal": {
+        "shell": "__PWSH_EXE__",
+        "defaultDirectory": "__PACKAGE_DIR__"
+    },
+    "php": {
+        "executablePath": "__PHP_EXE__",
+        "validate": {
+            "executablePath": "__PHP_EXE__"
+        }
+    },
+    "composer": {
+        "path": "__PHP_EXE__ composer.phar"
+    },
+    "files": {
+        "exclude": [
+            "**/vendor/**",
+            "**/build/**",
+            "**/.phpunit.cache/**",
+            "**/.agents/machine.local.json"
+        ]
+    }
+}

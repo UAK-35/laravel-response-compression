@@ -6,10 +6,10 @@
 #
 #     git config core.hooksPath .githooks
 #
-# Then every commit runs `php bin/checks.php --staged`, which checks the staged files
-# for PHP syntax, code style, and broken links between the docs — the three things a
-# commit can break on its own. `composer checks` stays the whole gate; this is the same
-# tools, earlier and narrower.
+# Then every commit runs `bin/checks.php --staged`, under the interpreter resolved below,
+# which checks the staged files for PHP syntax, code style, and broken links between the
+# docs — the three things a commit can break on its own. `composer checks` stays the whole
+# gate; this is the same tools, earlier and narrower.
 #
 # Bypass one commit with `git commit --no-verify`.
 #
@@ -17,12 +17,19 @@
 # when it finds none: a machine without PHP must not become a machine that cannot
 # commit.
 #
-#   1. $RESPONSE_COMPRESSION_PHP
-#   2. `git config --get response-compression.php`
-#   3. `php` (or `php.exe`) on PATH
+#   1. $RESPONSE_COMPRESSION_PHP - an override for one command rather than a setting
+#   2. `.agents/machine.local.json` - the one file that names this machine's PHP, read
+#      through `python .agents/render_local.py --value __PHP_EXE__`, and the file that
+#      `python .agents/render_local.py --init` writes
+#   3. `git config --get response-compression.php` - how a clone configured before this
+#      hook read that file still works
+#   4. `php` (or `php.exe`) on PATH
 #
-# (2) exists because a Windows install is often outside PATH, and .git/config is the one
-# place a machine-local setting can live without being committed anywhere.
+# (2) is the answer to "which PHP is this repository using": section 2 of AGENTS.md, the
+# settings files a tool reads and this hook all resolve the same one, so replacing this
+# machine's PHP is one edit to that file. (3) and (4) exist so that a clone which has not run
+# `--init` still commits - and when the answer comes from one of them, the hook says so
+# instead of letting the difference pass quietly.
 # =============================================================================
 
 set -u
@@ -36,15 +43,45 @@ if [ ! -f bin/checks.php ]; then
 fi
 
 php_bin="${RESPONSE_COMPRESSION_PHP:-}"
+php_from=""
+
+if [ -n "$php_bin" ]; then
+    php_from="the environment"
+fi
+
+# The machine file first: it is the one place this repository names this machine's PHP, and it is
+# read through the same renderer every settings file is rendered from, so the hook cannot come to
+# disagree with them about which interpreter this checkout uses.
+if [ -z "$php_bin" ] && [ -f .agents/machine.local.json ] && [ -f .agents/render_local.py ]; then
+    for candidate in python python3 py; do
+        if command -v "$candidate" >/dev/null 2>&1; then
+            resolved="$("$candidate" .agents/render_local.py --value __PHP_EXE__ 2>/dev/null || true)"
+
+            # A file test, not a string test: the renderer answers with a path when it can and with a
+            # sentence explaining what is missing when it cannot, and only one of those is a binary.
+            if [ -n "$resolved" ] && [ -f "$resolved" ]; then
+                php_bin="$resolved"
+                php_from=".agents/machine.local.json"
+            fi
+
+            break
+        fi
+    done
+fi
 
 if [ -z "$php_bin" ]; then
     php_bin="$(git config --get response-compression.php 2>/dev/null || true)"
+
+    if [ -n "$php_bin" ]; then
+        php_from="git config"
+    fi
 fi
 
 if [ -z "$php_bin" ]; then
     for candidate in php php.exe; do
         if command -v "$candidate" >/dev/null 2>&1; then
             php_bin="$candidate"
+            php_from="PATH"
             break
         fi
     done
@@ -52,8 +89,49 @@ fi
 
 if [ -z "$php_bin" ]; then
     echo "pre-commit: no PHP interpreter found, so the staged checks were skipped." >&2
-    echo "  name one with: git config response-compression.php \"<path to php>\"" >&2
+    echo "  name one with: python .agents/render_local.py --init" >&2
+    echo "  (for this command only: RESPONSE_COMPRESSION_PHP=<path to php>)" >&2
     exit 0
+fi
+
+# The difference is worth one line: the same commit checked under two interpreters is the failure
+# this file's first paragraph is about, and it is invisible unless it is said.
+if [ "$php_from" != ".agents/machine.local.json" ] && [ "$php_from" != "the environment" ]; then
+    echo "pre-commit: PHP came from $php_from, and .agents/machine.local.json is the file that names it." >&2
+    echo "  write it with: python .agents/render_local.py --init" >&2
+fi
+
+# The agentic layer, when this commit is about it: AGENTS.md, the skills, the pointer files, or the
+# checks in .agents/. It runs first and on its own, because it is about the commit's own contents and
+# not about the package - `bin/checks.php --staged` judges the package below.
+#
+# `--layer` is the subset with no PHP in it: this directory's own readings, a second or two. The
+# full run (`python .agents/verify.py`) also asks every tool and process the package needs to work,
+# runs the two path guards and runs the gate - which is the wrong thing to do again on the way
+# through a commit that is already running two of those three.
+#
+# Same rule as the interpreter above: a machine without Python loses this check rather than the
+# commit, and a finding is printed by the check itself before this says anything.
+agentic_staged="$(git diff --cached --name-only | grep -E '^(AGENTS\.md|CLAUDE\.md|GEMINI\.md|\.agents/|\.skills/|\.trae/|\.cursor/|\.continue/|\.junie/|\.kiro/|\.windsurf/|\.github/copilot-instructions\.md)' || true)"
+
+if [ -n "$agentic_staged" ] && [ -f .agents/verify.py ]; then
+    python_bin=""
+
+    for candidate in python python3 py; do
+        if command -v "$candidate" >/dev/null 2>&1; then
+            python_bin="$candidate"
+            break
+        fi
+    done
+
+    if [ -z "$python_bin" ]; then
+        echo "pre-commit: no Python found, so the agentic checks were skipped." >&2
+    elif ! "$python_bin" .agents/verify.py --layer; then
+        echo "" >&2
+        echo "pre-commit: the commit was stopped by the agentic checks above." >&2
+        echo "  fix them, or bypass this commit with: git commit --no-verify" >&2
+        exit 1
+    fi
 fi
 
 if "$php_bin" bin/checks.php --staged; then

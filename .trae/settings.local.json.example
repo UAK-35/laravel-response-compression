@@ -1,0 +1,9 @@
+{
+    "terminal": {
+        "shell": "__PWSH_EXE__",
+        "defaultDirectory": "__PACKAGE_DIR__"
+    },
+    "php": {
+        "executablePath": "__PHP_EXE__"
+    }
+}

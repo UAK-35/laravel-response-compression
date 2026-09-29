@@ -1,0 +1,11 @@
+{
+    "terminal": {
+        "shell": "__PWSH_EXE__"
+    },
+    "workspace": {
+        "root": "__PACKAGE_DIR__"
+    },
+    "php": {
+        "executable": "__PHP_EXE__"
+    }
+}

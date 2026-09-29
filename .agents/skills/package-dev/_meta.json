@@ -1,0 +1,24 @@
+{
+  "name": "package-dev",
+  "version": "1.0.0",
+  "description": "This package's daily loop: the nine check gate, the coverage floor, the dev tools, the lists of the guard index, and the check that asks whether the tools themselves still work. Commands - gate, gate-local, staged, checks-list, index, test, test-unit, test-types, test-lint, tidy, single-test, verify-tools, agentic-check, agentic-layer, agentic-fix, agentic-selftest. Invoke on mentions of a test run, a style fix, the gate, coverage, the guard index, a toolchain that misbehaves, or any change inside this repository.",
+  "author": "UAK35",
+  "license": "MIT",
+  "date": "2026-09-29",
+  "updated_at": 1790720059579,
+  "tags": [
+    "gate",
+    "testing",
+    "coverage",
+    "style",
+    "quality",
+    "package"
+  ],
+  "categories": [
+    "quality"
+  ],
+  "organization": "UAK35",
+  "platform": "codebuff",
+  "id": 2523353767,
+  "source_hash": "028cbda001e0bf86"
+}

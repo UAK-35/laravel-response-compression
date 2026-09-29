@@ -1,0 +1,24 @@
+{
+  "name": "package-release",
+  "version": "1.0.0",
+  "description": "Weigh what the tree adds up to, cut a version, and get the tag to the remote on the development lane. Commands - unreleased, weigh, weigh-dry-run, release-cut, prerelease, push, verify-runbooks. Invoke when a version is being decided, cut or pushed, or when the claims in a runbook about the remote are being checked again.",
+  "author": "UAK35",
+  "license": "MIT",
+  "date": "2026-09-29",
+  "updated_at": 1790718082990,
+  "tags": [
+    "release",
+    "semver",
+    "tags",
+    "packagist",
+    "runbooks",
+    "package"
+  ],
+  "categories": [
+    "release"
+  ],
+  "organization": "UAK35",
+  "platform": "codebuff",
+  "id": 4285132924,
+  "source_hash": "f9ec2bb123f0a860"
+}

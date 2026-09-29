@@ -1,0 +1,12 @@
+{
+    "php": {
+        "exe": "<absolute path to php.exe>",
+        "dir": "<the directory containing php.exe>"
+    },
+    "pwsh": {
+        "exe": "<absolute path to pwsh.exe>"
+    },
+    "package": {
+        "dir": "<absolute path to this checkout - the repository root>"
+    }
+}

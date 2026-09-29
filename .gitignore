@@ -19,3 +19,19 @@ composer[0-9].json
 # The editor's agent writes this the first time a checkout is opened as a workspace, and what
 # it holds is a project id: local to one machine and belonging to no version of this package.
 /.freebuff/
+
+# Machine-local settings. `.agents/machine.local.json` is the one file that names this machine's
+# PHP, PowerShell and package directory; each settings file below is rendered from the committed
+# `.example` template beside it by `python .agents/render_local.py`. Committing either one would
+# put a drive path in the repository, which is what the two path guards exist to refuse.
+/.agents/machine.local.json
+/.trae/settings.json
+/.trae/settings.local.json
+/.kiro/settings/local.json
+
+# The checks in `.agents/` are Python, and running one leaves the byte-code of the file it read
+# beside that file. It is not a source and not a fact about a machine — it is the one artefact
+# these checks produce themselves, and it is ignored rather than committed because the next run
+# writes it again.
+__pycache__/
+*.pyc

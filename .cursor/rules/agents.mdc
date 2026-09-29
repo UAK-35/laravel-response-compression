@@ -1,0 +1,32 @@
+---
+description: Canonical rules for this package live in AGENTS.md — read it before acting
+alwaysApply: true
+---
+
+# Read AGENTS.md first
+
+`AGENTS.md` is the single source of truth for agents and tools in this repository. This rule exists
+only so a Cursor session starts there; it restates nothing, so the two cannot drift.
+
+Read, in order:
+
+1. `AGENTS.md` — what this package is, the gate, the guards, the code rules, the release and push
+   runbooks, the commands.
+2. `.agents/README.md` — the index of skills, custom agents and commands.
+3. `.agents/toolchain.json` — the commands and tool pins `AGENTS.md` renders its table from.
+
+## Two things not to guess at
+
+- **This is a Composer package, not an application.** There is no `artisan`, no routes and no
+  database. Development runs through the Composer scripts and the gate in `bin/`.
+- **No agentic configuration from a parent folder.** This checkout is developed inside a larger
+  workspace with its own `AGENTS.md` and `.agents/`; none of it applies here, and
+  `python .agents/verify.py` fails on any file that points at it.
+
+## Before finishing
+
+```bash
+composer checks -- --require-all   # the nine checks, with a missing tool as a failure
+composer test:unit                 # the coverage floor
+python .agents/verify.py           # the agentic layer, checked against itself
+```
