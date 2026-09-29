@@ -10,10 +10,11 @@ use Uak35\ResponseCompression\Tests\Support\MachinePaths;
 |--------------------------------------------------------------------------
 |
 | PUSHING.md went into this repository — which is public — carrying two of them: a
-| `C:/Users/<name>/.gitconfig` in a table of evidence, and the `cd E:\_WORKS\...` line of its
-| push recipe. Neither is a credential and neither breaks a build, so neither would have been
-| caught by reading a diff; a path that works where it was written reads like a path. What
-| they cost is the reader, and the fix was a hand edit that could come back at any time.
+| `C:/Users/<name>/.gitconfig` in a table of evidence, and a `cd` line in its push recipe that
+| named a whole workspace on the author's disk. Neither is a credential and neither breaks a
+| build, so neither would have been caught by reading a diff; a path that works where it was
+| written reads like a path. What they cost is the reader, and the fix was a hand edit that
+| could come back at any time.
 |
 | So the paths are read out of the files a commit would carry, with the ones that name
 | nobody — `C:/Windows/...`, `/home/runner/...` — named in the detector rather than left to

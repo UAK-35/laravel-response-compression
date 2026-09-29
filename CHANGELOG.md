@@ -186,6 +186,25 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Changed
 
+- **Nothing in this repository names anything outside it any more, including the two records that
+  explain what such a name looks like.** `tests/Support/MachinePaths.php` and the test beside it
+  taught the shape of a finding with one: a workspace on a real disk, in an example whose whole
+  purpose was to show what a drive letter and the path after it look like. Both docblocks quoted
+  the `cd` line the push runbook used to open with, so the guard carried the very facts that had
+  just been removed from the runbook it was written about. The example is now a workspace that
+  belongs to nobody, and the two places that leaned on the old line say what happened without
+  naming it. `docs/env-types.md`
+  demonstrated the two variable types under names borrowed from another project — `LPR_INT` and
+  `LPR_TRUE` — which put a place this package has never heard of inside the evidence for a claim
+  about `env()`; the run was repeated under `DEMO_INT` and `DEMO_TRUE` on 2026-09-30 and came back
+  byte-identical, which is what makes that a rename rather than a new claim. And `.idea/php.xml`,
+  which this repository commits like the rest of the project's files, was re-read by the IDE once
+  the checkout had moved: what it wrote back is the two tool registrations the IDE re-added at
+  `$PROJECT_DIR$/vendor/bin/pint.bat` and `$PROJECT_DIR$/vendor/bin/phpstan.bat`, the two
+  `symfony/polyfill` include paths its interpreter now reports, and `phpstan.neon.dist` as the
+  config PHPStan is run under — every path in it relative to this checkout, which is the one form
+  an IDE's own file can be committed in.
+
 - **The desktop app's own directory is ignored, so its state cannot reach a commit.** `.freebuff/`
   appeared the first time this checkout was opened as a workspace by the editor's agent: one file
   holding a project id, naming nothing and belonging to no version of this package. Untracked and

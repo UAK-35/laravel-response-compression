@@ -6,12 +6,12 @@ one rather than merely declared as one.
 
 ## The evidence
 
-Run against this package's own dependency tree on 2026-09-27:
+Run against this package's own dependency tree on 2026-09-30:
 
 ```bash
 php -r 'require "vendor/autoload.php";
-        putenv("LPR_INT=9"); putenv("LPR_TRUE=true");
-        var_dump(env("LPR_INT", 5), env("LPR_TRUE", false));'
+        putenv("DEMO_INT=9"); putenv("DEMO_TRUE=true");
+        var_dump(env("DEMO_INT", 5), env("DEMO_TRUE", false));'
 ```
 
 ```

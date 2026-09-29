@@ -13,23 +13,23 @@ use RuntimeException;
  * WHY THIS EXISTS
  * ---------------
  * PUSHING.md went into this repository — which is public — carrying two of them: a
- * `C:/Users/<name>/.gitconfig` in a table of evidence, and the `cd E:\_WORKS\...` line of its
- * push recipe. Neither one is a credential and neither breaks a build, which is exactly why
- * neither would have been caught by reading a diff: a path that works on the machine it was
- * written on reads like a path.
+ * `C:/Users/<name>/.gitconfig` in a table of evidence, and a `cd` line in its push recipe that
+ * named a whole workspace on the author's disk. Neither one is a credential and neither breaks
+ * a build, which is exactly why neither would have been caught by reading a diff: a path that
+ * works on the machine it was written on reads like a path.
  *
- * What they cost is the reader. A runbook that says `cd E:\_WORKS\...` cannot be followed by
- * anyone else, so the line that makes the recipe usable is the one line that is wrong for
- * every other checkout — and the path in the evidence table says which account to look under,
- * which is a fact about a person rather than about the package. Both were removed by hand,
- * which is the kind of fix that comes back.
+ * What they cost is the reader. A runbook whose recipe opens with `cd` to a directory only its
+ * author has cannot be followed by anyone else, so the line that makes the recipe usable is the
+ * one line that is wrong for every other checkout — and the path in the evidence table says
+ * which account to look under, which is a fact about a person rather than about the package.
+ * Both were removed by hand, which is the kind of fix that comes back.
  *
  * WHAT IS A FINDING, AND WHAT IS NOT
  * ----------------------------------
  * A path is a finding when it names the machine it was written on. These do:
  *
  *   C:/Users/<name>/project     a drive letter and the path after it
- *   E:\_WORKS\lpr\work          the same, back-slashed, which is how a Windows recipe writes it
+ *   E:\workspace\project        the same, back-slashed, which is how a Windows recipe writes it
  *   /home/<name>/.gitconfig     an absolute home directory
  *   /Users/<name>/.gitconfig    the same, as macOS spells it
  *   \\fileserver\share          a network share, which resolves on one network
