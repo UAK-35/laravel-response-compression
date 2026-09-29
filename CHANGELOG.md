@@ -216,6 +216,25 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Fixed
 
+- **The push runbook describes this repository's lane, and its evidence table was re-read claim by
+  claim.** `PUSHING.md` was written from reads and said so — "no push was exercised" — and four of
+  its claims did not survive being checked against the tree as it is. The branch was recorded as
+  `main`, which made the recipe's `git push origin main --follow-tags` a command that could not
+  have pushed a release that exists: the lane is `development`, and every tag since `v0.0.9` was
+  cut there. The tag range stopped at `v0.0.9` where it reaches `v0.0.10` and `v0.0.10-alpha1`,
+  every hash of which matches this clone's, so nothing published was rewritten to say otherwise.
+  "The tags are annotated" was one tag too broad — `v0.0.1` is lightweight, which is what makes it
+  the single tag `--follow-tags` would not carry — and the closing section answered a question
+  about a tree that had moved on. What stands behind the recipe now is the push itself rather than
+  an assembly of verified parts: `git reflog show origin/development` is five `update by push`
+  entries, the newest carrying `f25d5c4` → `9e00b11`. Rows that were already true were left as
+  written, and the two a reader would otherwise assume backwards are said twice — the lane is
+  `development` and the release is cut from it, and `main` holds `v0.0.9` twelve commits back
+  rather than leading. The section answering what a push would send no longer answers "nothing" as
+  though that were a property of the repository: it says what was read, and hands over the three
+  commands that answer the question now, because the commit carrying the sentence is already past
+  the reading it reports.
+
 - **A pointer an installed package cannot follow is gone.** `RELEASING.md` and `PUSHING.md` are
   runbooks for whoever cuts a release, and `.gitattributes` leaves both out of the dist — while the
   README linked to each of them, and this file's own preamble named one as the place the numbering
