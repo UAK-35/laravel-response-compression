@@ -42,6 +42,21 @@ release — which is why it sits in the repository rather than in the package.
   being asked nothing. A mutation that stopped changing anything raises rather than planting nothing,
   so a needle that no longer matches is a failure instead of a green reading. 9 tests.
 
+- **A climb out of the repository is a finding, which is the half of the question the machine-path
+  guard could not see.** `.idea/php.xml` named Pint and PHPStan by climbing out of the checkout to
+  reach them, and it read as a path to everything that looked at it: it names no drive letter, no
+  home directory and no share, so the machine-path reading had nothing to fire at, and it is not a
+  link, so the docs guard had nothing to resolve either. It was found by moving the checkout, and
+  fixed by hand. What a relative path leaks is a layout rather than a machine — the one position a
+  checkout has to occupy for the path to resolve — so the reading is a *walk* rather than a pattern:
+  each path token is walked from the depth of the file that wrote it, and only a walk that ends above
+  the root is a finding. That is what lets a record in `docs/` keep its own link up a single level
+  while the identical climb written in a file at the root can only be a climb. The IDE's project
+  marker starts a walk at the root wherever it is written, and `dirname(__DIR__, n)` is walked too,
+  because a guard that can be walked around by writing the same location in the other language is a
+  guard that will be. The listing and the binary test come from `MachinePaths` rather than a second
+  copy of either, so the two readings cannot come to disagree about which files a commit would carry.
+
 - **A floor run says which PHP it is under, and whether anything can count a line.** Both are
   reasons a floor comes back red on a machine with no regression in it: the recorded floors were
   taken under one interpreter while `composer test:unit` runs the script under Composer's own, and

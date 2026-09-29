@@ -209,6 +209,20 @@ final class MachinePaths
     }
 
     /**
+     * Whether a file's contents are binary, read the way git reads them: a NUL byte in the
+     * opening bytes.
+     *
+     * Public because the repository-escape reading reads the same set of files and skips them
+     * the same way rather than keeping a second copy of either decision: what a commit would
+     * carry and what a text is are one question each, and a file is text whichever of the two
+     * is asking.
+     */
+    public static function binary(string $contents): bool
+    {
+        return str_contains(substr($contents, 0, 8000), "\0");
+    }
+
+    /**
      * The machine-local paths in one line, in the order they are written.
      *
      * @return list<string>
@@ -252,14 +266,5 @@ final class MachinePaths
 
         return preg_match('~^[A-Za-z]:/Windows(?:/|$)~i', $path) === 1
             || preg_match('~^/(?:Users|home)/runner(?:/|$)~i', $path) === 1;
-    }
-
-    /**
-     * Whether a file's contents are binary, read the way git reads them: a NUL byte in the
-     * opening bytes.
-     */
-    private static function binary(string $contents): bool
-    {
-        return str_contains(substr($contents, 0, 8000), "\0");
     }
 }
