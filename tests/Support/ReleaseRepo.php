@@ -113,6 +113,46 @@ final class ReleaseRepo
     }
 
     /**
+     * Remove a tree, chmod-ing as it goes: git writes its object files read-only, and Windows will
+     * not unlink a read-only file.
+     *
+     * The directory itself is retried rather than removed once. A handle can outlive the process
+     * that opened it for a moment on Windows, and a single `rmdir` then leaves an empty shell
+     * behind in the temp directory on every machine that happens to be busy — a leak nobody notices
+     * and nobody cleans up.
+     *
+     * Public because a second fixture removes a tree of its own: `MutationHarness` plants a copy of
+     * this checkout and takes it away again, and the two things that make this hard are the same
+     * two whatever the tree holds. A second copy of the loop is a second place for it to be wrong
+     * about a read-only object file, which is a failure nobody would connect to the harness.
+     */
+    public static function remove(string $path): void
+    {
+        if (is_link($path) || is_file($path)) {
+            @chmod($path, 0o777);
+            @unlink($path);
+
+            return;
+        }
+
+        if (! is_dir($path)) {
+            return;
+        }
+
+        foreach (array_diff(scandir($path) ?: [], ['.', '..']) as $entry) {
+            self::remove($path.'/'.$entry);
+        }
+
+        for ($attempt = 0; $attempt < 4; $attempt++) {
+            if (@rmdir($path)) {
+                return;
+            }
+
+            usleep(25_000);
+        }
+    }
+
+    /**
      * A fixture beside a bare repository, with the branch already pushed — which is what the CI
      * rail asks about. Called last in a test that also commits, because it pushes from HEAD.
      */
@@ -506,41 +546,6 @@ final class ReleaseRepo
                 self::remove($path);
             }
         });
-    }
-
-    /**
-     * Remove a tree, chmod-ing as it goes: git writes its object files read-only, and Windows will
-     * not unlink a read-only file.
-     *
-     * The directory itself is retried rather than removed once. A handle can outlive the process
-     * that opened it for a moment on Windows, and a single `rmdir` then leaves an empty shell
-     * behind in the temp directory on every machine that happens to be busy — a leak nobody notices
-     * and nobody cleans up.
-     */
-    private static function remove(string $path): void
-    {
-        if (is_link($path) || is_file($path)) {
-            @chmod($path, 0o777);
-            @unlink($path);
-
-            return;
-        }
-
-        if (! is_dir($path)) {
-            return;
-        }
-
-        foreach (array_diff(scandir($path) ?: [], ['.', '..']) as $entry) {
-            self::remove($path.'/'.$entry);
-        }
-
-        for ($attempt = 0; $attempt < 4; $attempt++) {
-            if (@rmdir($path)) {
-                return;
-            }
-
-            usleep(25_000);
-        }
     }
 
     /**

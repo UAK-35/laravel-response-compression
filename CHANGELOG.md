@@ -18,6 +18,30 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **A guard that stopped checking anything now fails here instead of reporting nothing forever.**
+  Every reading in this package answers "nothing is wrong" while it is working, and the same thing
+  once it is not: a pattern loosened until no path matches it, a class of file dropped from a walk,
+  a comparison changed to the operator that answers yes — all of them leave the suite green, because
+  a guard that reports nothing on a tree with nothing wrong is doing what it says on the tin. What
+  each reading is held to already is its own substance, which catches the half of that where the
+  input went empty: a glob that stopped matching, a listing that answered with nothing. What nothing
+  could catch is a reading that still has its input and stopped asking the right question of it, so
+  `tests/Support/MutationHarness.php` breaks this checkout on purpose, one way at a time, and
+  requires the guard's own reading to *name* the break — an empty answer from a broken tree is a
+  failure here rather than a pass. Six mutations, each on a copy of this checkout with a git index
+  of it: a machine path planted in a file of its own, a climb out of the repository beside it, a
+  version the changelog has released named above its first heading, a default moved in the config
+  file and left alone in the README's copy, a docblock that says nothing reads a key the source
+  reads, and two branches made to write the same log line. The reading is the call each guard's test
+  asserts on rather than a second implementation of it, which is why four guards are declined by
+  name and reason instead: the docs links, the guard index, the config keys and the tool paths each
+  compose their reading as a walk inside the test, and a second walk here would be a guard of its
+  own. The set is read from `docs/guards.md`, and both lists are read back against it — every guard
+  the index records is mutated or declined, nothing is accounted for that the index does not record,
+  and every file named is still there — so a guard added to the index fails this harness rather than
+  being asked nothing. A mutation that stopped changing anything raises rather than planting nothing,
+  so a needle that no longer matches is a failure instead of a green reading. 9 tests.
+
 - **A floor run says which PHP it is under, and whether anything can count a line.** Both are
   reasons a floor comes back red on a machine with no regression in it: the recorded floors were
   taken under one interpreter while `composer test:unit` runs the script under Composer's own, and
