@@ -269,6 +269,23 @@ release — which is why it sits in the repository rather than in the package.
   reason to write the rule down rather than remember it is the reason that file exists at all: the
   next machine writes its own.
 
+- **One file names this machine's PHP, and every command that needs an interpreter asks it.** The
+  machine file above covered the paths; the interpreter was still restated wherever a command was
+  written down, and `php bin/checks.php` is the same restatement as a drive path — it names whichever
+  interpreter happens to be first on `PATH`, which on this box is not the PHP that installed the
+  dependencies. `AGENTS.md` now carries the question as a row of its environment table, together
+  with the half of the answer that is *nothing*: most commands name no interpreter at all, because
+  Composer runs a script under the PHP that is running Composer. The pre-commit hook takes its
+  interpreter from `.agents/machine.local.json` before the environment, `.git/config` or `PATH` —
+  the last three survive so that a clone which has never run `render_local.py --init` still commits,
+  and the hook says which one answered, because a check run under a second PHP is the failure that
+  leaves no trace. The same reading is applied to the two staged commands in
+  `.agents/toolchain.json`, to the usage text of all three programs in `bin/` — `bin/tool.php`'s
+  usage line is asserted by `ToolTest`, which moved with it — to the two runbooks, to the hook
+  paragraph in `docs/guards.md`, to both skills' instructions, and to the command in
+  `docs/env-types.md` that produced that record's evidence: it runs under the token now, and was
+  re-run to confirm the output did not move (`string(1) "9"`, `bool(true)`).
+
 - **The guard index's two lists of files are rendered from the directory they describe.** The page
   below the table of guards is where `tests/Support/` is written down — the readings the guards are
   built from, and the files beside them that are fixtures rather than guards — and both lists were

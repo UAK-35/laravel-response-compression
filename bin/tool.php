@@ -27,7 +27,12 @@ declare(strict_types=1);
 |
 | USAGE
 | -----
-|   php bin/tool.php <tool> [arguments]
+|   bin/tool.php <tool> [arguments]
+|
+| The interpreter is the one that started it: `@php` is Composer's own, and a direct run is
+| started by whatever PHP the caller used. This machine's is named once, in
+| `.agents/machine.local.json`, and printed by `python .agents/render_local.py --value
+| __PHP_EXE__`.
 |
 | Exit code is the tool's own, or 2 for a usage error: no tool named, a name the manifest does not
 | have, a tool that is not installed, a manifest that cannot be read.
@@ -57,7 +62,7 @@ $arguments = array_slice($argv, 2);
 // A name is a tool; anything option-shaped is a usage error, including `--help`, which has nothing
 // to say that the list on the line below does not.
 if ($name === '' || str_starts_with($name, '-')) {
-    fwrite(STDERR, 'Usage: php bin/tool.php <tool> [arguments]'.PHP_EOL);
+    fwrite(STDERR, 'Usage: bin/tool.php <tool> [arguments]'.PHP_EOL);
     fwrite(STDERR, 'Tools: '.implode(', ', array_keys($paths)).PHP_EOL);
     exit(2);
 }

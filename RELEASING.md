@@ -23,9 +23,18 @@ composer release -- --weigh --dry-run
 composer release -- --weigh --push
 ```
 
-`composer release --` passes the rest of the line to the script; `php bin/release.php
---weigh --push` is the same thing run directly. Both work off-Windows, where Composer's
-argument passthrough is the only difference.
+`composer release --` passes the rest of the line to the script, and running the script itself is
+the same thing under the same interpreter:
+
+```bash
+composer release -- --weigh --push
+"$(python .agents/render_local.py --value __PHP_EXE__)" bin/release.php --weigh --push
+```
+
+The second form is the one to reach for where `composer` is not on `PATH`. Neither writes an
+interpreter's path down: `.agents/machine.local.json` names this machine's PHP once, and the hook
+and the suite resolve the same value from it. Both work off-Windows, where Composer's argument
+passthrough is the only difference.
 
 The script runs `composer checks` before it tags, so a red gate stops the release rather
 than being discovered afterwards — and it refuses to tag a commit the remote has not

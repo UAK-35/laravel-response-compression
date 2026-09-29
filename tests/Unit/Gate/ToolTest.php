@@ -154,7 +154,7 @@ it('says how it is used when it is given no tool, and runs one from this package
         $run = $repo->script('bin/tool.php', ...$arguments);
 
         expect($run->exitCode)->toBe(2)
-            ->and($run->error)->toContain('Usage: php bin/tool.php <tool>')
+            ->and($run->error)->toContain('Usage: bin/tool.php <tool>')
             ->and($run->error)->toContain('Tools: doer');
     }
 

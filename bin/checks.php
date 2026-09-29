@@ -35,14 +35,24 @@ use PhpParser\ParserFactory;
  *
  * USAGE
  * -----
- *   php bin/checks.php                  run everything, print only what failed
- *   php bin/checks.php --verbose        stream the output of every check
- *   php bin/checks.php --only=pint,tests
- *   php bin/checks.php --audit          add `composer audit` (needs the network)
- *   php bin/checks.php --require-all    fail instead of skipping when a tool is missing
- *   php bin/checks.php --list           list the checks without running anything
- *   php bin/checks.php --staged         check only what a commit carries
- *   php bin/checks.php --help
+ *   composer checks [-- options]     or, the same thing directly:
+ *
+ *   bin/checks.php                   run everything, print only what failed
+ *   bin/checks.php --verbose         stream the output of every check
+ *   bin/checks.php --only=pint,tests
+ *   bin/checks.php --audit           add `composer audit` (needs the network)
+ *   bin/checks.php --require-all     fail instead of skipping when a tool is missing
+ *   bin/checks.php --list            list the checks without running anything
+ *   bin/checks.php --staged          check only what a commit carries
+ *   bin/checks.php --help
+ *
+ * Neither form names an interpreter, and neither needs to. `composer checks` is run by
+ * Composer under the PHP that is running Composer; a direct run is started by whatever PHP
+ * the caller used, which on this machine is the one `.agents/machine.local.json` names —
+ * `python .agents/render_local.py --value __PHP_EXE__` prints it. Nothing here starts a
+ * child `php`: a tool runs under PHP_BINARY, so the gate is always measured by the
+ * interpreter that started it, and a run under a second one is not the same reading of
+ * this repository.
  *
  * Exit code is 0 when every check passed, 1 when any failed (or was skipped
  * under --require-all), 2 for a usage error.
@@ -490,7 +500,11 @@ function usage(): void
     bin/checks.php — run every check this package can run, with one summary.
 
     Usage:
-      php bin/checks.php [options]
+      composer checks [-- options]
+      bin/checks.php [options]
+
+    Either form runs under this machine's PHP — the one `.agents/machine.local.json`
+    names once, printed by `python .agents/render_local.py --value __PHP_EXE__`.
 
     Options:
       -v, --verbose     Stream the output of every check, not just failures.

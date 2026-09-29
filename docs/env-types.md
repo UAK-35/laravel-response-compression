@@ -9,7 +9,7 @@ one rather than merely declared as one.
 Run against this package's own dependency tree on 2026-09-30:
 
 ```bash
-php -r 'require "vendor/autoload.php";
+"$(python .agents/render_local.py --value __PHP_EXE__)" -r 'require "vendor/autoload.php";
         putenv("DEMO_INT=9"); putenv("DEMO_TRUE=true");
         var_dump(env("DEMO_INT", 5), env("DEMO_TRUE", false));'
 ```

@@ -60,9 +60,9 @@ declare(strict_types=1);
  *   so `0.0.1-dev.1` and `0.0.1-alpha.1` are refused here instead of being discovered
  *   downstream. `dev` takes no number, which is why a numbered dev lane is spelled `-alpha1`.
  *
- *     php bin/release.php --prerelease=alpha     # v0.0.9 -> v0.0.10-alpha1
- *     php bin/release.php --prerelease=alpha     # v0.0.10-alpha1 -> v0.0.10-alpha2
- *     php bin/release.php --weigh                # v0.0.10-alpha2 -> v0.0.10
+ *     bin/release.php --prerelease=alpha     # v0.0.9 -> v0.0.10-alpha1
+ *     bin/release.php --prerelease=alpha     # v0.0.10-alpha1 -> v0.0.10-alpha2
+ *     bin/release.php --weigh                # v0.0.10-alpha2 -> v0.0.10
  *
  *   The number is not remembered anywhere: asked for a lane, the script counts the tags
  *   already in it and takes the next free number, which is why a lane can be cut again and
@@ -110,13 +110,13 @@ declare(strict_types=1);
  *
  * USAGE
  * -----
- *   php bin/release.php --weigh --dry-run     print the plan, change nothing
- *   php bin/release.php --weigh               promote, commit, tag
- *   php bin/release.php --minor               declare the bump (never below the policy)
- *   php bin/release.php --prerelease=alpha    cut the next alpha in the current line
- *   php bin/release.php --version=0.2.1       release exactly this version
- *   php bin/release.php --inventory           write the inventory for the latest tag, and stop
- *   php bin/release.php --weigh --push        ...and push the branch and the tag
+ *   bin/release.php --weigh --dry-run     print the plan, change nothing
+ *   bin/release.php --weigh               promote, commit, tag
+ *   bin/release.php --minor               declare the bump (never below the policy)
+ *   bin/release.php --prerelease=alpha    cut the next alpha in the current line
+ *   bin/release.php --version=0.2.1       release exactly this version
+ *   bin/release.php --inventory           write the inventory for the latest tag, and stop
+ *   bin/release.php --weigh --push        ...and push the branch and the tag
  *
  * EXIT CODES
  * ----------
@@ -686,7 +686,11 @@ function usage(): void
     bin/release.php — cut a release, or a prerelease, from the git tags.
 
     Usage:
-      php bin/release.php --weigh [--dry-run] [--push]
+      composer release -- --weigh [--dry-run] [--push]
+      bin/release.php --weigh [--dry-run] [--push]
+
+    Either form runs under this machine's PHP — the one `.agents/machine.local.json`
+    names once, printed by `python .agents/render_local.py --value __PHP_EXE__`.
 
     Options:
           --weigh          Weigh the changes and take the bump they ask for.
