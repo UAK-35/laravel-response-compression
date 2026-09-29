@@ -269,6 +269,33 @@ release — which is why it sits in the repository rather than in the package.
   reason to write the rule down rather than remember it is the reason that file exists at all: the
   next machine writes its own.
 
+- **The guard index's two lists of files are rendered from the directory they describe.** The page
+  below the table of guards is where `tests/Support/` is written down — the readings the guards are
+  built from, and the files beside them that are fixtures rather than guards — and both lists were
+  prose. That is a copy of a directory: a file that moved had to be moved by hand here as well, a
+  file that arrived was in no list until somebody remembered it, and a row whose link still resolved
+  to a file still named was a row nothing could contradict. Each file now says which list it is in,
+  in its own header — `@guards-index reading` or `@guards-index support` — and the first sentence of
+  that header is the words beside its row, so which list a file is in, and what a reader is told
+  about it, are the file's own facts rather than the page's recollection of them. `bin/index.php` —
+  `composer index` — writes both tables from that, and `--check` is the same reading with nothing
+  written, which is what the suite asserts: the document and the directory cannot come to disagree,
+  because the directory is where the document comes from. A file that declares nothing, declares a
+  list the page does not have, or has no sentence to quote is refused by name instead of being
+  written around, because "in neither list" and "in it and correct" are the two answers a rendering
+  has to be able to tell apart — and a program that wrote the rows it could and said nothing about
+  the one it could not would publish a list with a hole in it.
+
+  The row for the guard-index guard itself had been sitting below a blank line of its own, which made
+  it a table of one that the reader of the guard table never read: the guard that checks this page
+  was the one row on it the page's own reading could not see. It moved back into the table it belongs
+  to. `GuardIndex::drift` is one call, so the mutation harness breaks the directory under it the way
+  it breaks the tree under every other reading — a file added to `tests/Support/` and left in neither
+  list — which retires the reason the harness used to decline the index, and the guard index's row in
+  `docs/guards.md` now names the program beside the test. The program carries a floor of its own in
+  `bin/coverage.php` at 83.3%, driven end to end in a planted tree, with the same two header lines
+  unreachable that every measured file in this repository carries.
+
 ### Fixed
 
 - **The push runbook describes this repository's lane, and its evidence table was re-read claim by

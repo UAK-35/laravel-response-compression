@@ -196,6 +196,12 @@ rejected, and the evidence behind the answer:
 - [What should happen to a configuration value that cannot be read?](docs/config-reading.md)
 - [Which guards does this package keep, and which did it refuse?](docs/guards.md)
 
+That last record is also the index a guard is added to, and the two lists of files under its table
+— the readings the guards are built from, and the fixtures beside them — are written rather than
+maintained: each file declares which list it is in, in its own header, and `composer index` writes
+the tables from `tests/Support/`. `bin/index.php --check` is the same reading with nothing written,
+which is what the suite asserts, so a file that moved without its row moving fails a test.
+
 Releasing and pushing have files of their own: `RELEASING.md` for what a version *is*, and
 `PUSHING.md` for getting it to the remote. Both are runbooks for whoever cuts the release, so
 both live in the repository rather than in the package — neither is a file `composer require`
@@ -218,8 +224,17 @@ AST parse of the same files by nikic/php-parser, `composer validate --strict`,
 `composer check-platform-reqs`, `yaml-lint` over `.github/`, PHPStan, Pint, Rector and
 Pest. `--list` names them, `--only=` runs a subset, `--verbose` streams their output, and
 `--require-all` turns a missing tool from a skip into a failure. Where `composer` is not on
-`PATH` — a checkout whose Composer is the `composer.phar` beside it — the same commands run as
-`php composer.phar <script>`, which is how the gate reaches Composer itself.
+`PATH` — a checkout whose Composer is the `composer.phar` beside it — the same scripts run under
+this machine's PHP instead:
+
+```bash
+"$(python .agents/render_local.py --value __PHP_EXE__)" composer.phar <script>
+```
+
+Most commands here do not have to say that much, because Composer runs a script under the
+interpreter that is running it: `composer checks` and `composer test` name no PHP at all, and the
+scripts themselves call tools as `PHP_BINARY <entry file>`. The one place an interpreter is written
+down is `.agents/machine.local.json` — section 3 of `AGENTS.md` — and everything else asks it.
 
 It calls each tool as `PHP_BINARY <entry file>` rather than through `vendor/bin`, so a
 checkout whose `vendor/` was installed on another platform still runs the same way: a
@@ -255,7 +270,7 @@ be raised and not lowered. Two files in `bin/` are outside the report — the ru
 the parent of the run it reads, and the manifest, which is a list rather than a script — and
 the guard record above says which is which and why.
 
-The two scripts cannot be measured from inside a test — they run on include, they call
+The scripts in `bin/` cannot be measured from inside a test — they run on include, they call
 `exit()`, and the release one commits and tags — so the suite reaches them as child
 processes, and a child's coverage is not in the parent's report. Pest is therefore run with
 a collector in front of every script the suite spawns, the coverage each child writes is
@@ -276,9 +291,16 @@ the run it starts has one.
 `.githooks/pre-commit` runs `bin/checks.php --staged`: the same tools pointed at the files a
 commit carries — syntax, Pint, and the docs-link test when markdown is staged — so those
 three cannot land broken. Enable it once per clone with `git config core.hooksPath .githooks`,
-and bypass it for one commit with `git commit --no-verify`. It looks for PHP on `PATH`, in
-`$RESPONSE_COMPRESSION_PHP`, or in `git config response-compression.php "<path to php>"`, and
-skips — saying so — rather than blocking when it finds none.
+and bypass it for one commit with `git commit --no-verify`.
+
+It resolves PHP from `.agents/machine.local.json` first — the same file the skills and the
+settings files read, through `python .agents/render_local.py --value __PHP_EXE__` — then
+`$RESPONSE_COMPRESSION_PHP`, then a `response-compression.php` entry in `.git/config`, then `php`
+on `PATH`. Two of those are the old ways of naming an interpreter, kept so that a clone which has
+not run `python .agents/render_local.py --init` still commits — and the hook **says which one it
+used** when the answer did not come from the machine file, because a commit checked under an
+interpreter nothing else agreed to is exactly the failure that is invisible. When it finds no PHP
+at all it skips, saying so, rather than blocking.
 
 ---
 

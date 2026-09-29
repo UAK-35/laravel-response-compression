@@ -43,6 +43,8 @@ use RuntimeException;
  * Every reader throws rather than answering with nothing when it cannot find what it reads. A
  * guard whose answer to "did you read anything?" is "no" reports agreement with a file it never
  * understood, which is the one way it could be worse than absent.
+ *
+ * @guards-index reading
  */
 final class ToolPaths
 {

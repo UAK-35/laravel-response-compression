@@ -38,6 +38,8 @@ namespace Uak35\ResponseCompression\Tests\Support;
  * single opaque shape `{}`. That is deliberately not a shape anything else can equal by accident: the
  * test refuses an opaque message rather than letting two of them compare equal here for the wrong
  * reason. A guard is only worth what the text it can see is worth, and two variables are not text.
+ *
+ * @guards-index reading
  */
 final class LogMessages
 {

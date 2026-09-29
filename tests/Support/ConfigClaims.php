@@ -42,6 +42,8 @@ namespace Uak35\ResponseCompression\Tests\Support;
  * The CHANGELOG is deliberately not read. It is a record of the past by construction, so every
  * claim in it is history; a surface this reader had to be told not to read would be a rule
  * that exists only to be worked around.
+ *
+ * @guards-index reading
  */
 final class ConfigClaims
 {

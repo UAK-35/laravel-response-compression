@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /*
 |--------------------------------------------------------------------------
-| The collector a spawned script runs under
+| The collector a spawned script runs under — an instrument rather than a reading
 |--------------------------------------------------------------------------
 |
 | `bin/release.php` and `bin/checks.php` are never reached from inside the suite: a test plants a
@@ -32,6 +32,7 @@ declare(strict_types=1);
 | is usually a three-line stub, and reading it as the gate would hand the gate 100.0% coverage for
 | a script that exits on line three. See `ScriptCoverage`.
 |
+| @guards-index support
 */
 
 $directory = getenv('RC_SCRIPT_COVERAGE_DIR');

@@ -37,16 +37,18 @@ answer is not always "port it".
 | CI on `tags: ["v*"]` | a published version — release or prerelease — with no CI record against it | [`../.github/workflows/main.yml`](../.github/workflows/main.yml) |
 | CI running the gate | CI that is weaker than the gate a tag is cut behind | [`the same workflow`](../.github/workflows/main.yml) |
 | `composer checks -- --require-all` in CI | a check that *skipped* on the runner — a tool that did not install is a hole in the build, not a fact about the machine | [`the same workflow`](../.github/workflows/main.yml) |
-
-| the guard-index test | a guard that is not in this table, and a row that links a file the repository no longer has — every row's `Where` cell is resolved, and every file in `tests/Support/` has to be named in this document, so the next guard cannot be added without a place in it | [`../tests/Unit/Docs/GuardIndexTest.php`](../tests/Unit/Docs/GuardIndexTest.php) |
+| the guard-index test | a guard that is not in this table, and a row that links a file the repository no longer has — every row's `Where` cell is resolved, so the next guard cannot be added without a place in it | [`../tests/Unit/Docs/GuardIndexTest.php`](../tests/Unit/Docs/GuardIndexTest.php) |
+| `bin/index.php` and the two rendered lists | a list of files that has stopped being a list of the files: which list a file in `tests/Support/` is in, and the words beside its row, are read from the file itself, this program writes the two tables below from that, and `--check` is what fails when the document and the directory disagree | [`../bin/index.php`](../bin/index.php) |
 
 The gate drops a check to a skip when a tool is missing, which is right on a developer's
 machine — half of these tools are `require-dev` — and wrong on a runner, where a tool that
 failed to install reads as a green build. That is why CI runs the gate with `--require-all`:
 it is the same gate, with the skips turned into failures where a skip can only be a mistake.
 
-The hook is that same gate, earlier and narrower. `php bin/checks.php --staged` — which is
-what `.githooks/pre-commit` runs — points three checks at the files a commit carries: syntax
+The hook is that same gate, earlier and narrower. `bin/checks.php --staged` — which is what
+`.githooks/pre-commit` runs, under the PHP that hook resolves from `.agents/machine.local.json`,
+the one file here that names this machine's interpreter — points three checks at the files a commit
+carries: syntax
 over the staged PHP, Pint over the staged PHP, and the docs-link test when markdown is staged.
 Those three are what a commit can break on its own; the rest of the gate is a tree-shaped
 question, because PHPStan and Rector read every file that references the ones you changed. It
@@ -163,6 +165,21 @@ section that says it is not a guard. The two rows whose `Where` cell said "the s
 prose now link the workflow they meant, which is the same rule applied to the table itself: a row
 that resolves nothing sends nobody.
 
+Naming every file was the first half of that question, and it left the second half in prose. Once
+every file has to be in one of the two lists below, each of those lists is a list of files — and a
+list of files written into a document is a copy of a directory, which is the thing this page exists
+to catch elsewhere. It went stale between releases: a file renamed in `tests/Support/` left its old
+name in a row and its new name nowhere, the reading resolved the row's link, and the page read as
+though a file that had moved had never existed. So the two lists are rendered now — the file says
+which one it is in, in its own header, and its own first sentence is the words beside its row — and
+the part that is left by hand is the part that is an argument. `bin/index.php` writes them; the
+reading above the write, `GuardIndex::drift`, is one call and is asserted empty by the suite; and
+the mutation harness breaks the directory under it the way it breaks it under every other reading,
+because a rendering that answered "nothing to write" for every tree would pass every assertion
+about a document in step. The one row this page had that the table reader could not see — the
+guard-index row, sitting below a blank line of its own — moved back into the table it belongs to
+for the same reason: a row no reader reads is a row that reads as though it were not there.
+
 The mutation harness is the one guard on this page that is about the other guards rather than about
 the package, and it exists because of the shape every reading here shares: a guard that stopped
 asking the right question does not fail. It reports the same nothing it reports when there is
@@ -173,8 +190,8 @@ it, twice on the same tree: once as it was planted, which is this checkout with 
 it, and once with the break in it, so the mutation is the only difference between the two answers.
 The reading is the call the guard's test asserts on rather than a second implementation of it,
 which is why the harness covers the guards whose answer is one call — the two path readings, the
-changelog preamble, the config claims, the README-versus-config comparison and the log messages —
-and declines the rest by name and reason. A guard whose reading is a walk composed in its test
+changelog preamble, the config claims, the README-versus-config comparison, the guard index and
+the log messages — and declines the rest by name and reason. A guard whose reading is a walk composed in its test
 would need that walk written out a second time, and a second walk is a guard of its own rather than
 a check on this one. Declining is a claim rather than a silence: every guard the table above records
 is either mutated or declined, both lists are read back against this document, and a guard added
@@ -184,24 +201,31 @@ without a decision fails there — the same rule this page imposes on itself, on
 
 A guard is two files: the test that asserts, and the reading it asserts with. The table above names
 the first — in this package a guard is at its test, or at its program — and this section names the
-second, so that a file in `tests/Support/` is never a thing nobody decided about. Every file in
-that directory is named here or in the section below, and the guard-index test is what refuses one
-that is in neither.
+second, so that a file in `tests/Support/` is never a thing nobody decided about.
+
+Which of the two lists a file is in, and the words beside its row, are the file's own: it declares
+itself in its header with `@guards-index reading` or `@guards-index support`, and the first
+sentence of that header is what the row says. Both tables are therefore written rather than
+maintained — `bin/index.php` renders them from the directory, and `bin/index.php --check`, which
+is what the suite runs, fails when the document and the directory disagree. A file that declares
+nothing, declares a list this page does not have, or has no sentence to quote is refused rather
+than left out, because "not in the list" and "in it and correct" are the two answers a rendering
+has to be able to tell apart.
 
 | Reading | What it reads |
 |---|---|
-| [`../tests/Support/ChangelogPreamble.php`](../tests/Support/ChangelogPreamble.php) | the versions the changelog's preamble names, and the versions the file has a second-level heading for |
-| [`../tests/Support/ConfigClaims.php`](../tests/Support/ConfigClaims.php) | the claims the README, the design records and a key's own docblock make about whether that key is read |
-| [`../tests/Support/ConfigDoc.php`](../tests/Support/ConfigDoc.php) | a config file, and the README's copy of it, as keys with the docblock above each one |
-| [`../tests/Support/ConfigKeys.php`](../tests/Support/ConfigKeys.php) | the keys the config publishes, and the keys the source reads |
-| [`../tests/Support/CoverageEnvironment.php`](../tests/Support/CoverageEnvironment.php) | the PHP a coverage run is under, and the driver that can count a line |
+| [`../tests/Support/ChangelogPreamble.php`](../tests/Support/ChangelogPreamble.php) | the changelog read for the claim its preamble makes about the versions it does not own |
+| [`../tests/Support/ConfigClaims.php`](../tests/Support/ConfigClaims.php) | the claims this package's documents make about which config keys are read |
+| [`../tests/Support/ConfigDoc.php`](../tests/Support/ConfigDoc.php) | a config file — or the README's copy of one — read as data |
+| [`../tests/Support/ConfigKeys.php`](../tests/Support/ConfigKeys.php) | the two halves of the package's own config contract: what the config file publishes, and what the source asks it for |
+| [`../tests/Support/CoverageEnvironment.php`](../tests/Support/CoverageEnvironment.php) | the PHP a coverage run is measured under, and the driver that can count a line |
 | [`../tests/Support/Docs.php`](../tests/Support/Docs.php) | the markdown this package ships, read for the links in it |
-| [`../tests/Support/GuardIndex.php`](../tests/Support/GuardIndex.php) | the table on this page, and the directory of readings it describes |
-| [`../tests/Support/LogMessages.php`](../tests/Support/LogMessages.php) | the diagnostics the middleware writes, as shapes with their values taken out |
-| [`../tests/Support/MachinePaths.php`](../tests/Support/MachinePaths.php) | the paths that only resolve on the machine they were written on, in the files a commit would carry |
-| [`../tests/Support/MutationHarness.php`](../tests/Support/MutationHarness.php) | one break at a time, planted in a copy of this checkout, and the reading each guard has to move for it |
-| [`../tests/Support/RepoEscapes.php`](../tests/Support/RepoEscapes.php) | the paths that climb out of this repository, in the files a commit would carry |
-| [`../tests/Support/ScriptCoverage.php`](../tests/Support/ScriptCoverage.php) | what a spawned script covered, mapped back onto the repository's own copy by content |
+| [`../tests/Support/GuardIndex.php`](../tests/Support/GuardIndex.php) | `docs/guards.md` read as a claim about a directory |
+| [`../tests/Support/LogMessages.php`](../tests/Support/LogMessages.php) | the diagnostics the compression middleware writes, read as shapes |
+| [`../tests/Support/MachinePaths.php`](../tests/Support/MachinePaths.php) | paths that only resolve on the machine they were written on, found in the files a commit would carry |
+| [`../tests/Support/MutationHarness.php`](../tests/Support/MutationHarness.php) | one break at a time, planted in a copy of this checkout, read back through the guard that is supposed to catch it |
+| [`../tests/Support/RepoEscapes.php`](../tests/Support/RepoEscapes.php) | paths that climb out of this repository, found in the files a commit would carry |
+| [`../tests/Support/ScriptCoverage.php`](../tests/Support/ScriptCoverage.php) | what the spawned scripts covered, read back out of the files they wrote and mapped onto the repository's own copies |
 | [`../tests/Support/ToolPaths.php`](../tests/Support/ToolPaths.php) | the one manifest of tool paths, and the three ways a second copy of a path could come back |
 
 ## Support that is not a guard
@@ -209,14 +233,16 @@ that is in neither.
 Not everything beside the readings is one. A fixture is a thing a guard is run against, and an
 instrument is a thing a guard is run through; neither decides anything the suite could disagree
 with. They are listed all the same, because a file in that directory that nothing records is a
-decision nobody made.
+decision nobody made — and the list is rendered from the files for the same reason it exists: a
+name that moved is a name a person has to remember, and this page has one of those already, in
+the table at the top.
 
 | File | What it is |
 |---|---|
-| [`../tests/Support/ReleaseRepo.php`](../tests/Support/ReleaseRepo.php) | a throwaway git repository with a real tag and a real remote, which the release rails are driven in |
-| [`../tests/Support/ReleaseRun.php`](../tests/Support/ReleaseRun.php) | what one run of a `bin/` script did: the exit code, and stdout and stderr kept apart |
-| [`../tests/Support/ResponseWithNoReadableContent.php`](../tests/Support/ResponseWithNoReadableContent.php) | a response that reports a body it will not hand over, standing in for anything else that answers `false` |
-| [`../tests/Support/collect-coverage.php`](../tests/Support/collect-coverage.php) | the collector a spawned script runs under, handed to it as `auto_prepend_file` — an instrument rather than a reading |
+| [`../tests/Support/ReleaseRepo.php`](../tests/Support/ReleaseRepo.php) | a throwaway git repository with a real tag and a real remote, holding this package's release script |
+| [`../tests/Support/ReleaseRun.php`](../tests/Support/ReleaseRun.php) | what one run of a `bin/` script did: its exit code and the two streams, kept apart on purpose |
+| [`../tests/Support/ResponseWithNoReadableContent.php`](../tests/Support/ResponseWithNoReadableContent.php) | a response that reports a body it will not hand over |
+| [`../tests/Support/collect-coverage.php`](../tests/Support/collect-coverage.php) | the collector a spawned script runs under — an instrument rather than a reading |
 
 ## Refused, and why
 
@@ -250,5 +276,9 @@ that would otherwise be re-argued. It has to fail loudly on the day the disagree
 config, README and docs guards all assert that they found something before they compare it.
 
 A guard is added in two places: a row in the table above, and — when it has a reading of its own —
-a line in the readings below it. The guard-index test refuses a guard that is in neither, which is
-the only part of this section that is checked rather than written down.
+a file in `tests/Support/` that says which of the two lists it is in — an `@guards-index` line in its
+header, reading `reading` or `support`. Then `bin/index.php` (or `composer index`)
+writes the row, and the suite refuses a document that has not caught up: the reading that compares
+the two is what the guard-index test asserts on, so the two places cannot drift apart. A file whose
+header carries no declaration is refused by name rather than left out of both lists, which is the
+one thing that would let a decision go unmade while the page still read as complete.

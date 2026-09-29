@@ -30,6 +30,8 @@ use RuntimeException;
  * reads it by, and it is written here rather than imported: the script is a program that runs on
  * include, so a test cannot call into it, and what belongs beside the document guards is a reader
  * of the document rather than a copy of the script's decisions.
+ *
+ * @guards-index reading
  */
 final class ChangelogPreamble
 {

@@ -61,6 +61,8 @@ use RuntimeException;
  *
  * It throws rather than reporting nothing when git cannot be asked. A guard whose answer to
  * "did you read anything?" is "no" is worth less than no guard at all.
+ *
+ * @guards-index reading
  */
 final class MachinePaths
 {

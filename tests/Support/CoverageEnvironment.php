@@ -27,6 +27,8 @@ namespace Uak35\ResponseCompression\Tests\Support;
  * else — a PCOV that is loaded but switched off, and an Xdebug left in `develop` mode, which covers
  * nothing while looking like a driver — and they are the two worth being sure of, because each one
  * is a floor of 0.0% that says "driver loaded" if the question is asked carelessly.
+ *
+ * @guards-index reading
  */
 final readonly class CoverageEnvironment
 {

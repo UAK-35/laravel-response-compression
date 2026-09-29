@@ -12,6 +12,8 @@ namespace Uak35\ResponseCompression\Tests\Support;
  * one passes for the wrong reason — a release that refused the wrong version still prints a
  * plan. Keeping them apart is what makes `refused()` mean something, and `plan()` reads the
  * value of a named line out of the plan rather than matching its spacing.
+ *
+ * @guards-index support
  */
 final readonly class ReleaseRun
 {

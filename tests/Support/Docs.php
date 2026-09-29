@@ -19,6 +19,8 @@ namespace Uak35\ResponseCompression\Tests\Support;
  * So the links are read out of the files as text and resolved against the file they were
  * written in, which is the only way to catch a path that is right relative to the package
  * root and wrong relative to the document.
+ *
+ * @guards-index reading
  */
 final class Docs
 {

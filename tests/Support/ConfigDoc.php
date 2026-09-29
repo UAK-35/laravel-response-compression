@@ -33,6 +33,8 @@ use RuntimeException;
  * The reader is deliberately strict about the shapes it accepts and raises on anything
  * else. A parser that quietly reads nothing is worse than no parser at all: it reports
  * agreement with a document it never understood.
+ *
+ * @guards-index reading
  */
 final class ConfigDoc
 {

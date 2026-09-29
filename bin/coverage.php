@@ -75,12 +75,15 @@ $root = str_replace('\\', '/', dirname(__DIR__));
  * worth more than a point or two.
  *
  * `bin/checks.php` measured 55.4% through Composer and 57.8% without it when this was written,
- * `bin/release.php` 79.7% either way, and `bin/tool.php` 87.5% either way, from
- * `tests/Unit/Gate/ChecksTest.php`, `tests/Unit/Gate/ToolTest.php` and the release rails together.
- * What `bin/tool.php` does not reach is what nothing can: the two header lines every measured file
- * carries — the shebang and `<?php` — and the body of a `proc_open` failure, which needs the
- * operating system to refuse a process that exists. The release script's remaining fifth is what
- * writing the release scenarios nobody has written yet would buy.
+ * `bin/release.php` 79.7% either way, `bin/tool.php` 87.5% either way, and `bin/index.php` 83.3%,
+ * from `tests/Unit/Gate/ChecksTest.php`, `tests/Unit/Gate/ToolTest.php`, `tests/Unit/Docs/` and the
+ * release rails together. What `bin/tool.php` does not reach is what nothing can: the two header
+ * lines every measured file carries — the shebang and `<?php` — and the body of a `proc_open`
+ * failure, which needs the operating system to refuse a process that exists. `bin/index.php` is
+ * driven end to end in a planted tree, so its remainder is the same two header lines, the branch
+ * that reports a write the operating system refused, and the reading it takes after writing — which
+ * fires only when the program itself is wrong, a defect rather than a scenario. The release
+ * script's remaining fifth is what writing the release scenarios nobody has written yet would buy.
  *
  * `bin/tool-paths.php` has no floor and needs none: it is a list rather than a script, and a line
  * count of a `return [...]` literal is a fact about how two tools count a statement rather than
@@ -91,6 +94,7 @@ $root = str_replace('\\', '/', dirname(__DIR__));
  */
 const FLOORS = [
     'bin/checks.php' => 54,
+    'bin/index.php' => 81,
     'bin/release.php' => 78,
     'bin/tool.php' => 86,
 ];

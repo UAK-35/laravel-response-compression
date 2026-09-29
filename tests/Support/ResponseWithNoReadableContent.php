@@ -15,6 +15,8 @@ use Symfony\Component\HttpFoundation\Response;
  * before the middleware reads anything. This stands in for anything else that answers the same
  * way, so the guard behind those two is exercised rather than assumed: what must not happen is
  * a `false` reaching an encoder as if it were a body.
+ *
+ * @guards-index support
  */
 final class ResponseWithNoReadableContent extends Response
 {

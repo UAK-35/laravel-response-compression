@@ -48,6 +48,8 @@ use SplFileInfo;
  * `'response-compression.'.$algorithm.'.non_supporting_user_agent_prefixes'` — so it is read
  * as a suffix and not as a path: reading it means some published key ends with it, and a key
  * is read by it when it does.
+ *
+ * @guards-index reading
  */
 final class ConfigKeys
 {

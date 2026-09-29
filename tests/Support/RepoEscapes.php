@@ -58,6 +58,8 @@ namespace Uak35\ResponseCompression\Tests\Support;
  * of that set rather than a second copy of it. The two share one answer to "which files are those" as well: the
  * listing and the binary test come from `MachinePaths`, so they cannot come to disagree about
  * what a commit would carry or about which files are text.
+ *
+ * @guards-index reading
  */
 final class RepoEscapes
 {

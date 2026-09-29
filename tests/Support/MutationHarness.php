@@ -35,14 +35,14 @@ use RuntimeException;
  * WHAT IS A MUTATION, AND WHAT IS NOT
  * -----------------------------------
  * The reading is the guard's own — the call its test asserts on, not a second implementation of
- * it. `MachinePaths::scan`, `RepoEscapes::scan`, `ChangelogPreamble::stale`, `ConfigClaims::all`
- * and `LogMessages`'s pair are one call each, and `ConfigDoc`'s two halves are one comparison, so
- * this class is a caller rather than a copy for each of them. The guards whose reading is a *walk*
- * composed in the test — the docs links, the guard index, the config keys, the tool paths — are
- * declined in `UNAUDITED`, with the reason: a walk written out here a second time would be a guard
- * of its own, which is the one thing this package's readings exist to avoid. `MutationHarnessTest`
- * checks both directions of that list, so a guard cannot be added without either a mutation or a
- * reason that is still true.
+ * it. `MachinePaths::scan`, `RepoEscapes::scan`, `ChangelogPreamble::stale`, `ConfigClaims::all`,
+ * `GuardIndex::drift` and `LogMessages`'s pair are one call each, and `ConfigDoc`'s two halves are
+ * one comparison, so this class is a caller rather than a copy for each of them. The guards whose
+ * reading is a *walk* composed in the test — the docs links, the config keys, the tool paths —
+ * are declined in `UNAUDITED`, with the reason: a walk written out here a second time would be a
+ * guard of its own, which is the one thing this package's readings exist to avoid.
+ * `MutationHarnessTest` checks both directions of that list, so a guard cannot be added without
+ * either a mutation or a reason that is still true.
  *
  * WHY THE TREE IS A COPY
  * ----------------------
@@ -58,6 +58,8 @@ use RuntimeException;
  * mutation wrote is written down as it is written — the bytes a file held before the change, and
  * `null` for a file the mutation is what put there — so putting the tree back is undoing the two
  * things a mutation can do rather than re-copying a tree that is otherwise untouched.
+ *
+ * @guards-index reading
  */
 final class MutationHarness
 {
@@ -75,7 +77,6 @@ final class MutationHarness
     public const array UNAUDITED = [
         'tests/Unit/Config/ConfigKeysTest.php' => 'the reading is not one call: the keys the config publishes and the keys each file in `src/` reads are two walks, and the comparison between them is written in the test — a second copy of it here would be a guard of its own',
         'tests/Unit/Docs/DocsLinksTest.php' => 'the reading is a walk over every markdown file, resolving each link against the file it was written in. The walk is the test, and a copy of it here would be a second guard wearing this one\'s name',
-        'tests/Unit/Docs/GuardIndexTest.php' => 'the same: the table, the listing of `tests/Support/` and the document\'s own links are combined in the test rather than in one call',
         'tests/Unit/Support/ToolPathsTest.php' => 'the same: five readings are composed in the test, and no single one of them is the guard',
         'tests/Unit/Gate/ChecksTest.php' => 'the guard is a program rather than a reading. `bin/checks.php` is run as a child process in a planted tree, which is what `ReleaseRepo` is for, and there is nothing in this checkout to break and ask again — the tree it is asked about already belongs to its own test',
         'tests/Unit/Gate/CoverageTest.php' => 'the same: `bin/coverage.php` is a program, and the fixture it is driven in is the test\'s own',
@@ -326,6 +327,23 @@ final class MutationHarness
                         ConfigClaims::all($root, $published),
                     );
                 },
+            ],
+            [
+                'guard' => 'the guard-index reading',
+                'test' => 'tests/Unit/Docs/GuardIndexTest.php',
+                'plant' => static function (string $root): string {
+                    // A file added to the directory the index describes: which is how a guard
+                    // arrives, and the one way the document can stop being a rendering of it. The
+                    // mutation is the whole point of the reading — a file that is in neither list
+                    // is a decision nobody made, and a rendering that answered "nothing to write"
+                    // for this tree would answer it for every tree.
+                    $file = 'tests/Support/MutationReading.php';
+
+                    self::add($root, $file, "<?php\n\ndeclare(strict_types=1);\n\n/**\n * A reading the index has no row for.\n *\n * @guards-index reading\n */\nfinal class MutationReading\n");
+
+                    return $file;
+                },
+                'read' => GuardIndex::drift(...),
             ],
             [
                 'guard' => 'the log-message reading',

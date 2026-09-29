@@ -38,6 +38,8 @@ namespace Uak35\ResponseCompression\Tests\Support;
  * the child hashed the file it was running, and the fixture that file lived in is swept when the
  * test that planted it ends. A merge that hashed the file it was told about would find it gone and
  * conclude — wrongly — that nothing was covered there.
+ *
+ * @guards-index reading
  */
 final class ScriptCoverage
 {

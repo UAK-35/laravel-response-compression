@@ -7,7 +7,8 @@ namespace Uak35\ResponseCompression\Tests\Support;
 use RuntimeException;
 
 /**
- * A throwaway git repository holding this package's release script.
+ * A throwaway git repository with a real tag and a real remote, holding this package's release
+ * script.
  *
  * WHY A REPOSITORY AND NOT A MOCK
  * -------------------------------
@@ -58,6 +59,8 @@ use RuntimeException;
  * the machine it happens to run on — a signing key, an `init.defaultBranch`, or a `core.hooksPath`
  * pointing at this package's own hooks. That file is shared rather than copied because a copy of a
  * constant is a constant.
+ *
+ * @guards-index support
  */
 final class ReleaseRepo
 {
