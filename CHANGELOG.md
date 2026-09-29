@@ -4,12 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-**Versions count on from the newest tag**, and the last two sections of this file are not part of
-that sequence: the ones for `0.2.0` and `0.1.0` were inherited from
-[`chr15k/laravel-response-compression`](https://github.com/chr15k/laravel-response-compression),
-the upstream this package was taken from, and no tag here corresponds to either. The tags are
-what Packagist publishes, so they are what the numbering follows. RELEASING.md records the
-decision and the one command that takes it.
+**Versions count on from the newest tag**, and the history this package inherited is not part of
+that sequence: the `0.2.0` and `0.1.0` releases were
+[`chr15k/laravel-response-compression`](https://github.com/chr15k/laravel-response-compression)'s
+own, the upstream this package was taken from, and no tag here carries either number. They are
+kept — the notes, the credits and the dates as that project wrote them — under
+[Inherited from upstream](#inherited-from-upstream) at the end of this file, in headings that are
+not versions of this one. The tags are what Packagist publishes, so they are what the numbering
+follows. How a number is worked out is recorded in `RELEASING.md`, a runbook for whoever cuts the
+release — which is why it sits in the repository rather than in the package.
 
 ## Unreleased
 
@@ -51,6 +54,17 @@ decision and the one command that takes it.
   have to agree, because a public constant or property is a symbol the inventory has no column for:
   a removal only one reading saw is left to the notes rather than turned into a refusal the next
   person works around.
+
+- **The changelog's opening paragraph is read against the file it opens.** It explains the
+  numbering by naming the versions that are not part of it — the two inherited from the upstream
+  this package was taken from — and names in prose go stale quietly. `0.1.0` is the next release
+  here, so the file is about to carry a released `0.1.0` while that paragraph still calls the
+  number someone else's, and nothing in the suite reads an opening paragraph.
+  `tests/Unit/Docs/ChangelogPreambleTest.php` reads the versions named above the first heading and
+  the versions the file has a second-level heading for, and fails when one is both. The level is
+  the whole distinction: the inherited `0.1.0` is a third-level heading under `## Inherited from
+  upstream`, which keeps the number readable and searchable without making it a release of this
+  package.
 
 - **A tool's path is written down once, in a manifest the scripts and the gate both read.** It was
   written down twice — once in `composer.json`, because a script is a shell string and cannot read
@@ -295,18 +309,37 @@ decision and the one command that takes it.
   ones earlier runs had left behind — about 1900 directories, some 105 MB of them — were cleared
   after the fix was proven: they were nobody's working state, and none has been created since.
 
-## [v0.2.0] - 2025-09-09
+## Inherited from upstream
 
-### Changed
+These releases are not this package's. They were cut from
+[`chr15k/laravel-response-compression`](https://github.com/chr15k/laravel-response-compression),
+the upstream this package was taken from, and they are kept whole — the notes, the credits and the
+dates exactly as that project wrote them — rather than renumbered into a sequence they were never
+part of. `0.1.0` was its first release, and `0.2.0` put Laravel 12 and PHP 8.2 support on top of
+it. Nothing in this repository tagged either one, so neither is a version of this package, and the
+numbers they used are not spent: the tags here count on from where this package's own line
+stopped, and `0.1.0` is a number the line may still reach.
+
+They sit at the third level rather than the second for that reason. `## [v0.1.0]` is a heading
+this repository *documents*, which is the whole of what the release script refuses over: promoting
+the notes in `## Unreleased` under it would leave one version with two sets of notes — the ones
+written there and the ones being released — where the ones written there came from a release this
+repository never made. Written as a sub-heading the history is still readable, the versions still
+searchable, and the numbering free to reach `0.1.0` on its own.
+
+### v0.2.0 - 2025-09-09
+
+#### Changed
 
 - Adds support for Laravel 12, PHP 8.2 onward, while maintaining full backwards compatibility with Laravel 11 by [@botnetdobbs](https://github.com/botnetdobbs) in https://github.com/chr15k/laravel-response-compression/pull/1
 - Updated Pint configuration to improve type safety
 
-### Added
+#### Added
+
 - Add GitHub Actions workflow for automated CI and repository checks
 
-## [v0.1.0] - 2024-12-29
+### v0.1.0 - 2024-12-29
 
-### Added
+#### Added
 
 - Initial release
