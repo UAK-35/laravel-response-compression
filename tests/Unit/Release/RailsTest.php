@@ -106,6 +106,61 @@ it('refuses a declared bump that undersells the changes', function (): void {
         ->and($overridden->plan('version'))->toBe('1.1.0');
 });
 
+it('refuses notes that leave out a removal the surface and the inventory agree on', function (): void {
+    $repo = ReleaseRepo::make();
+
+    // A release first, because the inventory is evidence only while its stamp names the tag being
+    // released from: a fixture that has never written one has nothing for the second reading to say.
+    $released = $repo->release('--weigh', '--skip-ci', '--yes');
+
+    expect($released->exitCode)->toBe(0, $released->describe());
+
+    // A public method gone, and the entry filed as a fix. The number is not what is wrong here — a
+    // removal weighs as breaking and the bump is a minor whatever the notes claim — the notes are.
+    $repo->withNotes("### Fixed\n\n- A defect, fixed.\n");
+    $repo->withoutPublicMethod();
+
+    // A plan is not a release: it reports the refusal it is avoiding rather than taking it.
+    $planned = $repo->release('--weigh', '--skip-ci', '--dry-run');
+
+    expect($planned->exitCode)->toBe(0, $planned->describe())
+        ->and($planned->said('a real run would refuse without --ignore-policy'))->toBeTrue();
+
+    $refused = $repo->release('--weigh', '--skip-ci', '--yes');
+
+    expect($refused->exitCode)->toBe(1)
+        ->and($refused->refused('`## Unreleased` does not declare a removal'))->toBeTrue()
+        // Both readings are named, because the refusal is worth listening to only while they agree.
+        ->and($refused->refused('removed public method Uak35\\ResponseCompression\\Thing::handle()'))->toBeTrue()
+        ->and($refused->refused('### Removed'))->toBeTrue()
+        ->and($refused->refused('--ignore-policy'))->toBeTrue();
+
+    // The escape is the one the policy rail takes, and the plan says what it was asked to pass.
+    $overridden = $repo->release('--weigh', '--ignore-policy', '--skip-ci', '--yes');
+
+    expect($overridden->exitCode)->toBe(0, $overridden->describe())
+        ->and($overridden->said('--ignore-policy: releasing with a removal the notes do not declare'))->toBeTrue()
+        ->and($overridden->plan('version'))->toBe('0.2.0');
+});
+
+it('leaves a removal only one reading saw to the notes', function (): void {
+    $repo = ReleaseRepo::make();
+    $repo->release('--weigh', '--skip-ci', '--yes');
+
+    // A public constant is a symbol the surface reads and the inventory has no column for: one
+    // reading rather than two, which is the state the rail above deliberately does not refuse. The
+    // weighing still calls it breaking, and the notes are still where it has to be declared.
+    $repo->withNotes("### Fixed\n\n- A defect, fixed.\n");
+    $repo->withoutPublicSymbol();
+
+    $run = $repo->release('--weigh', '--skip-ci', '--dry-run');
+
+    expect($run->exitCode)->toBe(0, $run->describe())
+        ->and($run->plan('surface'))->toContain('1 removed')
+        ->and($run->said('nothing removed, renamed or added since v0.1.0'))->toBeTrue()
+        ->and($run->plan('version'))->toBe('0.2.0');
+});
+
 it('holds a version named outright to the same floor as a declared bump', function (): void {
     $repo = ReleaseRepo::make();
 

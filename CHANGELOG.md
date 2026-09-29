@@ -42,6 +42,16 @@ decision and the one command that takes it.
   reader is exercised on that distinction, because a guard whose green tick is a scan that found
   no claims at all is a guard that would look the same if it were broken.
 
+- **A removal the notes leave out is refused, rather than only weighed.** The surface signal and
+  the inventory each read a symbol that is gone and each weigh it as breaking, so the release takes
+  the right number — while the notes, which are what a consumer upgrades on, can still file the
+  change as a fix. `bin/release.php` asks both readings before it commits: when they agree that a
+  public symbol was removed and `## Unreleased` declares no removal, the release stops, naming the
+  symbol and the reading that saw it, and `--ignore-policy` is what publishes notes that thin. Both
+  have to agree, because a public constant or property is a symbol the inventory has no column for:
+  a removal only one reading saw is left to the notes rather than turned into a refusal the next
+  person works around.
+
 - **A tool's path is written down once, in a manifest the scripts and the gate both read.** It was
   written down twice — once in `composer.json`, because a script is a shell string and cannot read
   a manifest, and once in `bin/checks.php`, which cannot be asked for its list because it runs on

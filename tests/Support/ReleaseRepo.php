@@ -253,6 +253,26 @@ final class ReleaseRepo
     }
 
     /**
+     * Take a public method away, so both signals — the surface, which reads symbols, and the
+     * inventory, which keeps a row per method — have a removal to agree on.
+     *
+     * A public constant goes the other way: `withoutPublicSymbol()` above removes one the inventory
+     * has no column for, which is the one-reading case the notes rail deliberately leaves alone.
+     */
+    public function withoutPublicMethod(string $method = 'handle'): self
+    {
+        $this->write('src/Thing.php', (string) preg_replace(
+            '/\n    public function '.preg_quote($method, '/').'\(.*?\n    }\n/s',
+            '',
+            $this->read('src/Thing.php'),
+        ));
+
+        $this->commit('refactor: drop a public method');
+
+        return $this;
+    }
+
+    /**
      * Remove the Unreleased section entirely, which is a changelog with nothing to promote.
      */
     public function withoutUnreleased(): self

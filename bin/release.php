@@ -98,6 +98,7 @@ declare(strict_types=1);
  *     no `## Unreleased` section       there is nothing to promote
  *     the Unreleased section is empty  the notes are what a release publishes
  *     the declared bump undersells     a `--minor`, `--major` or `--version` below the weighing
+ *     the notes leave out a removal    two signals agree a symbol is gone and the notes say nothing
  *     `composer checks` is red         the tag has to point at a commit the gate passed
  *     HEAD is not the remote's tip     the commit being released is one nothing has built
  *     not interactive, no `--yes`      it is about to commit and tag
@@ -298,6 +299,11 @@ $weighed = loudest($signals);
 $weighedKind = kindOf($weighed, $baseLine);
 $kind = $options['kind'] ?? $weighedKind;
 
+// A removal two of those readings agree on that the notes leave out. Read with the signals rather
+// than beside the plan, because it is a reading of them and not a line of the report — and because
+// the note it prints and the rail it feeds are two places that have to agree about it.
+$undeclared = undeclaredRemovals($signals);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // The version
 // ─────────────────────────────────────────────────────────────────────────────
@@ -408,9 +414,12 @@ if (in_array($version, $documented, true)) {
     ));
 }
 
-// The inherited-history case, reported rather than refused. This package's tags stop at
-// v0.0.9 while its changelog's newest section is v0.2.0, inherited from upstream;
-// RELEASING.md records both ways out, and which applies is a decision, not a fault.
+// The inherited-history case, reported rather than refused: a changelog can carry a section for a
+// version this repository never tagged, because it came from the upstream the package was taken
+// from. The rail above refuses the one number that matters — the version being cut — while this
+// says the rest of it is there, so a plan does not read as though every heading in the file is
+// this repository's own. Both ways out are recorded in RELEASING.md, and which applies is a
+// decision rather than a fault.
 if ($newest !== null) {
     $ahead = array_values(array_filter($documented, static fn (string $documented): bool => compareVersions($documented, $newest) > 0));
 
@@ -485,6 +494,14 @@ if ($undersold && ! $options['ignore-policy'] && $options['dry-run']) {
     note(sprintf('%s would be refused without --ignore-policy: the changes call for a %s release', $asked, $weighedKind));
 }
 
+if ($undeclared !== [] && $options['ignore-policy']) {
+    note('--ignore-policy: releasing with a removal the notes do not declare');
+}
+
+if ($undeclared !== [] && ! $options['ignore-policy'] && $options['dry-run']) {
+    note('the notes do not declare a removal the surface and the inventory both saw: a real run would refuse without --ignore-policy');
+}
+
 echo PHP_EOL;
 
 if ($promoted !== null) {
@@ -515,6 +532,15 @@ if ($undersold && ! $options['ignore-policy']) {
         $asked,
         $weighedKind,
         loudestEvidence($signals),
+    ));
+}
+
+// Asked after the rail above, because the number is what a reader installs and a run that trips
+// both is answered in that order — the version first, then the notes it publishes.
+if ($undeclared !== [] && ! $options['ignore-policy']) {
+    fail(sprintf(
+        "The surface and the inventory both read a public symbol removed, and `## Unreleased` does not declare a removal.\n\n%s\n\nA removal weighs as breaking, so the number this release takes is already the right one — what the notes leave out is the removal itself, and they are what a consumer upgrades on. File the entry under `### Removed`, or pass --ignore-policy to release the notes as they stand.",
+        indent(implode("\n", $undeclared)),
     ));
 }
 
@@ -1167,8 +1193,10 @@ function documentedVersions(string $content): array
  * section left above them.
  *
  * The notes are moved, not copied. The heading style follows the file: this changelog writes
- * `## [v0.2.0] - 2025-09-09`, so a promoted heading is bracketed and carries the `v` the tags
- * carry, and a file that writes neither keeps its own style.
+ * `## [v0.0.10] - 2026-09-28`, so a promoted heading is bracketed and carries the `v` the tags
+ * carry, and a file that writes neither keeps its own style. Sections that are not this
+ * repository's releases — an inherited history, say — are not read for style at all, because the
+ * reading takes the first matching heading and a section like that is deliberately not one.
  *
  * @return array{content: string, heading: string}|null
  */
@@ -1252,8 +1280,13 @@ function linkReferences(string $content, string $version): string
  * state beside its severity; a signal is either a reading or nothing at all, and "nothing at all"
  * is what a stale inventory is: it cannot tell "nothing changed" from "not refreshed".
  *
- * @param  array{severity: string, evidence: string}|null  $inventory
- * @return array<string, array{severity: string, evidence: string}|null>
+ * Two of the four carry a `removals` list beside their severity: the symbols — or files and
+ * methods — they read as gone. It is the same reading the severity is computed from, kept apart
+ * from the prose that reports it, because the notes rail compares two of those lists and a list
+ * read back out of a sentence would be a second guess at something already known.
+ *
+ * @param  array{severity: string, evidence: string, removals?: list<string>}|null  $inventory
+ * @return array<string, array{severity: string, evidence: string, removals?: list<string>}|null>
  */
 function weigh(string $root, ?string $base, string $unreleased, ?array $inventory): array
 {
@@ -1371,7 +1404,7 @@ function commitSignal(string $root, ?string $base): ?array
  * the one shape change the tokens are read for; a method whose *behaviour* changed is not
  * visible here at all, and the notes are where that is declared.
  *
- * @return array{severity: string, evidence: string}|null
+ * @return array{severity: string, evidence: string, removals?: list<string>}|null
  */
 function surfaceSignal(string $root, ?string $base): ?array
 {
@@ -1432,6 +1465,9 @@ function surfaceSignal(string $root, ?string $base): ?array
         return [
             'severity' => 'breaking',
             'evidence' => count($gone).' removed, '.count($narrowed).' narrowed: '.implode(', ', array_slice([...$gone, ...$narrowed], 0, 3)),
+            // What is gone, and not what narrowed: a required argument that appeared is breaking as
+            // well, but it is not a removal, and the inventory has no reading for one either.
+            'removals' => $gone,
         ];
     }
 
@@ -1904,6 +1940,54 @@ function loudestEvidence(array $signals): string
         : sprintf('%s (%s): %s', $worst['name'], $worst['severity'], $worst['evidence']);
 }
 
+/**
+ * The removals two readings agree on, that the notes say nothing about.
+ *
+ * A removal the notes pass over is the one defect a version number cannot answer for. The surface
+ * and the inventory each weigh a removal as breaking, so the bump is right and the release is not
+ * *undersold* by its number — while the notes, which are what a consumer upgrades on, can still
+ * list the change as a fix, and a reader has nothing telling them that a symbol they import is
+ * gone. RELEASING.md's policy puts the two halves together — a removed public symbol is a minor
+ * *and* called out in the changelog — and this is the half the plan cannot show.
+ *
+ * Both readings have to have seen it, rather than one of them and a strong suspicion. They read the
+ * same bytes through the same reader — the surface by name, the inventory by path and by method —
+ * so a removal in both is a removal, while one only the token reading saw is left to the notes to
+ * get right: a public constant or property is a symbol the inventory has no column for, and a rail
+ * that cannot tell a misread from a removal is one whose refusal gets worked around instead of
+ * read.
+ *
+ * @param  array<string, array{severity: string, evidence: string, removals?: list<string>}|null>  $signals
+ * @return list<string> one `signal  reading` row per removal, for the refusal
+ */
+function undeclaredRemovals(array $signals): array
+{
+    $surface = $signals['surface']['removals'] ?? [];
+    $inventory = $signals['inventory']['removals'] ?? [];
+
+    if ($surface === [] || $inventory === []) {
+        return [];
+    }
+
+    // The notes are the signal this one is about, and they declare a removal the way the policy is
+    // written: a `### Removed` heading, or `BREAKING` written anywhere in them.
+    $notes = $signals['CHANGELOG'];
+
+    if ($notes !== null && $notes['severity'] === 'breaking') {
+        return [];
+    }
+
+    $rows = [];
+
+    foreach (['surface' => $surface, 'inventory' => $inventory] as $reading => $removals) {
+        foreach ($removals as $removal) {
+            $rows[] = sprintf('%-10s %s', $reading, $removal);
+        }
+    }
+
+    return $rows;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers — the inventory
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2108,7 +2192,7 @@ function readInventory(string $path): ?array
  * This signal can therefore only raise the bump, and the tag diff stays the authority on the
  * surface whenever it cannot be read.
  *
- * @return array{signal: array{severity: string, evidence: string}|null, line: string, fresh: bool, stamp: string, counts: array{files: int, methods: int}}
+ * @return array{signal: array{severity: string, evidence: string, removals: list<string>}|null, line: string, fresh: bool, stamp: string, counts: array{files: int, methods: int}}
  */
 function inventoryState(string $root, ?string $base): array
 {
@@ -2168,6 +2252,7 @@ function inventoryState(string $root, ?string $base): array
             'evidence' => $diff['evidence'] === []
                 ? sprintf('%s, nothing removed, renamed or added since %s', $tally, $stamp)
                 : sprintf('%d change(s) since %s: ', count($diff['evidence']), $stamp).implode('; ', array_slice($diff['evidence'], 0, 3)),
+            'removals' => $diff['removals'],
         ],
         'line' => sprintf('%s  (fresh, weighed against %s)', $tally, $stamp),
         'fresh' => true,
@@ -2187,12 +2272,13 @@ function inventoryState(string $root, ?string $base): array
  *
  * @param  array{files: array{stamp: string, columns: list<string>, rows: list<array<string, string>>}|null, methods: array{stamp: string, columns: list<string>, rows: list<array<string, string>>}|null}  $stored
  * @param  array{files: list<array{name: string, path: string, symbol: string}>, methods: list<array{method: string, file: string, class: string, required: string}>}  $current
- * @return array{severity: string, evidence: list<string>}
+ * @return array{severity: string, evidence: list<string>, removals: list<string>}
  */
 function diffInventory(array $stored, array $current): array
 {
     $severity = 'patch';
     $evidence = [];
+    $removals = [];
 
     $storedFiles = [];
 
@@ -2223,7 +2309,9 @@ function diffInventory(array $stored, array $current): array
         }
 
         $severity = 'breaking';
-        $evidence[] = $symbol === '(none)' ? 'removed file '.$path : 'removed file '.$path.' ('.$symbol.')';
+        $removal = $symbol === '(none)' ? 'removed file '.$path : 'removed file '.$path.' ('.$symbol.')';
+        $evidence[] = $removal;
+        $removals[] = $removal;
     }
 
     foreach (array_diff_key($currentFiles, $storedFiles) as $path => $symbol) {
@@ -2247,6 +2335,13 @@ function diffInventory(array $stored, array $current): array
             $currentFiles[$path] === '(none)' ? 'nothing' : $currentFiles[$path],
             $symbol === '(none)' ? 'nothing' : $symbol,
         );
+
+        // A path that kept its file and lost its declaration is a removal as well, at the one level
+        // a name list cannot see — the file is still there and the symbol is not, and the surface
+        // reading the same symbol gone is what lets the two of them agree about it.
+        if ($currentFiles[$path] === '(none)') {
+            $removals[] = sprintf('%s now declares nothing, was %s', $path, $symbol);
+        }
     }
 
     $storedMethods = [];
@@ -2264,7 +2359,9 @@ function diffInventory(array $stored, array $current): array
     foreach ($storedMethods as $key => $required) {
         if (! array_key_exists($key, $currentMethods)) {
             $severity = 'breaking';
-            $evidence[] = 'removed public method '.$key.'()';
+            $removal = 'removed public method '.$key.'()';
+            $evidence[] = $removal;
+            $removals[] = $removal;
 
             continue;
         }
@@ -2295,7 +2392,7 @@ function diffInventory(array $stored, array $current): array
         $evidence[] = 'added public method '.$key.'()';
     }
 
-    return ['severity' => $severity, 'evidence' => $evidence];
+    return ['severity' => $severity, 'evidence' => $evidence, 'removals' => $removals];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
