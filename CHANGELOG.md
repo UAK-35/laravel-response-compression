@@ -29,6 +29,19 @@ decision and the one command that takes it.
   branch, including the two a runner cannot be made to have: a PCOV that is loaded and switched
   off, and an Xdebug left in `develop` — each a driver that is present and cannot count.
 
+- **A guard for the claims the documents make about the keys.** `ConfigKeys` compares the keys
+  the config publishes with the keys the source reads, and that comparison cannot see the third
+  place a key is described: the prose. `enable_logging` was published, read by nothing, and its
+  docblock in the config file and in the README both said so — the wiring made the comment
+  wrong and nothing noticed, because a claim and a reader are each correct about themselves.
+  `tests/Unit/Config/ConfigClaimsTest.php` reads the claims out of the docblock beside each key
+  (which `ConfigDoc` now reads in the same walk as the key) and out of the README and the design
+  records, and fails when one of them says a key is unread while the source reads it — naming
+  the reader, the file and the line. A sentence that accounts for the key having been wired
+  ("read by nobody, until the middleware was wired to it") is read as the history it is, and the
+  reader is exercised on that distinction, because a guard whose green tick is a scan that found
+  no claims at all is a guard that would look the same if it were broken.
+
 - **A tool's path is written down once, in a manifest the scripts and the gate both read.** It was
   written down twice — once in `composer.json`, because a script is a shell string and cannot read
   a manifest, and once in `bin/checks.php`, which cannot be asked for its list because it runs on

@@ -23,6 +23,13 @@ use RuntimeException;
  * compare the README with itself, and a default retyped into a test is a third copy of
  * the value rather than a check on the first two.
  *
+ * The comment above each key is read with it, as its `docblock`. A leaf and its list are
+ * where a key is *published*; the comment above it is where the key is *described*, and
+ * the two can disagree without either one looking wrong on its own — this package shipped
+ * a docblock saying a key was not yet read long after the middleware had started reading
+ * it. Reading the comment in the same walk is what lets a claim about a key be compared
+ * with the source that does or does not read it, without a second parser to keep in step.
+ *
  * The reader is deliberately strict about the shapes it accepts and raises on anything
  * else. A parser that quietly reads nothing is worse than no parser at all: it reports
  * agreement with a document it never understood.
@@ -38,7 +45,7 @@ final class ConfigDoc
     /**
      * The config file the package ships.
      *
-     * @return array{leaves: array<string, string>, lists: array<string, list<string>>}
+     * @return array{leaves: array<string, string>, lists: array<string, list<string>>, docblocks: array<string, string>}
      *
      * @throws RuntimeException when the file is missing or holds a shape this reader does not accept
      */
@@ -50,7 +57,7 @@ final class ConfigDoc
     /**
      * The fenced `php` block under `$heading` in the README.
      *
-     * @return array{leaves: array<string, string>, lists: array<string, list<string>>}
+     * @return array{leaves: array<string, string>, lists: array<string, list<string>>, docblocks: array<string, string>}
      *
      * @throws RuntimeException when the README, the heading or the fence is not there
      */
@@ -66,26 +73,41 @@ final class ConfigDoc
      * Every leaf and every list, keyed by its own dotted path.
      *
      * Leaves read as `env('NAME') => <default>` so a failure names the variable and the
-     * value rather than a position; lists read as the items in the order written.
+     * value rather than a position; lists read as the items in the order written. Every key
+     * also gets a `docblocks` slot, holding the comment written above it — empty when there
+     * is none, because "the key has no comment" and "the reader lost the key" are different
+     * facts and only one of them is a reason to change the file.
      *
      * @param  list<string>  $lines
-     * @return array{leaves: array<string, string>, lists: array<string, list<string>>}
+     * @return array{leaves: array<string, string>, lists: array<string, list<string>>, docblocks: array<string, string>}
      */
     private static function parse(array $lines, string $source): array
     {
         $path = [];
         $leaves = [];
         $lists = [];
+        $docblocks = [];
+        $comment = [];
 
         foreach ($lines as $index => $line) {
             $number = $index + 1;
             $line = rtrim(trim($line), ',');
 
+            // A blank line ends a comment block: the comment above a key and the comment
+            // above the key before it are then not the same comment.
             if ($line === '') {
+                $comment = [];
+
                 continue;
             }
 
             if (self::skip($line)) {
+                $text = self::comment($line);
+
+                // A comment is collected; the opening tag, `declare(` and the array brackets
+                // are not comments at all, so they end the block rather than extend it.
+                $comment = $text === null ? [] : [...$comment, $text];
+
                 continue;
             }
 
@@ -94,19 +116,26 @@ final class ConfigDoc
             // rather than tracked.
             if (preg_match('/^\](;)?$/', $line) === 1) {
                 $path = array_slice($path, 0, max(0, count($path) - 1));
+                $comment = [];
 
                 continue;
             }
 
             if (preg_match("/^'([^']+)'\s*=>\s*\[$/", $line, $match) === 1) {
                 $path[] = $match[1];
-                $lists[implode('.', $path)] ??= [];
+                $key = implode('.', $path);
+                $lists[$key] ??= [];
+                $docblocks[$key] = self::block($comment);
+                $comment = [];
 
                 continue;
             }
 
             if (preg_match("/^'([^']+)'\s*=>\s*(.+)$/", $line, $match) === 1) {
-                $leaves[implode('.', [...$path, $match[1]])] = self::value($match[2], $source, $number);
+                $key = implode('.', [...$path, $match[1]]);
+                $leaves[$key] = self::value($match[2], $source, $number);
+                $docblocks[$key] = self::block($comment);
+                $comment = [];
 
                 continue;
             }
@@ -134,7 +163,32 @@ final class ConfigDoc
         $lists = array_filter($lists, static fn (array $items): bool => $items !== []);
         ksort($lists);
 
-        return ['leaves' => $leaves, 'lists' => $lists];
+        return ['leaves' => $leaves, 'lists' => $lists, 'docblocks' => $docblocks];
+    }
+
+    /**
+     * One comment line's text, or null when the line is not a comment.
+     *
+     * The delimiters come off so the block reads as the sentence it was written as: a claim
+     * is matched against "Not yet wired.", not against " * Not yet wired.".
+     */
+    private static function comment(string $line): ?string
+    {
+        if (preg_match('#^(?://+|\#|/\*+|\*+)#', $line) !== 1) {
+            return null;
+        }
+
+        return trim((string) preg_replace('#^(?://+|\#+|/\*+|\*+/?)#', '', $line));
+    }
+
+    /**
+     * The collected comment as one block of text — empty when there was none.
+     *
+     * @param  list<string>  $comment
+     */
+    private static function block(array $comment): string
+    {
+        return trim(implode("\n", array_filter($comment, static fn (string $line): bool => $line !== '')));
     }
 
     /**
