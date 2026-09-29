@@ -66,6 +66,19 @@ release — which is why it sits in the repository rather than in the package.
   upstream`, which keeps the number readable and searchable without making it a release of this
   package.
 
+- **Two branches that report a skip with the same sentence are refused.** Two of the middleware's
+  checks sat next to each other and both wrote the same line, so an unsuccessful response was
+  recorded as a binary file — in the one output `enable_logging` exists to produce, which is where
+  anyone looks to find out why a response was left alone. It was found by reading the file and
+  fixed by hand, which is the kind of fix that comes back, because a test that pins a message pins
+  it one branch at a time: a third branch copied from one of them passes every one of them.
+  `tests/Unit/Middleware/LogMessagesTest.php` reads each `logDebugStatus(…)` call as the sentence
+  it writes with the values taken out, and fails when two of those sentences are the same, naming
+  both lines and the sentence they share. The reading is held to two things of its own as well: it
+  has to find every call in the file rather than the ones it understood, and the shapes it reasons
+  about are checked against the messages the middleware really composes when six of its branches
+  are driven through it in one test.
+
 - **A tool's path is written down once, in a manifest the scripts and the gate both read.** It was
   written down twice — once in `composer.json`, because a script is a shell string and cannot read
   a manifest, and once in `bin/checks.php`, which cannot be asked for its list because it runs on
