@@ -17,6 +17,7 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 | The runs after the first pass `--skip-ci`: a second release in the same fixture is a commit the
 | remote has not seen, and the rail that refuses that is tested on its own in RailsTest.
 |
+| @guards-index test
 */
 
 it('cuts the first alpha of a line', function (): void {

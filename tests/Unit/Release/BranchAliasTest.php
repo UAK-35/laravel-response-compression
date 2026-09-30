@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+/* @guards-index test */
+
 use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 
 /*

@@ -21,6 +21,7 @@ use Uak35\ResponseCompression\Tests\Support\Docs;
 | that is the only way to catch the second kind of mistake: a path that looks right and is
 | wrong.
 |
+| @guards-index guard
 */
 
 it('resolves every relative link in every markdown file the package ships', function (): void {

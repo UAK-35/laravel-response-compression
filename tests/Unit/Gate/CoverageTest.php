@@ -22,6 +22,7 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRun;
 | a machine with no driver produces. It is therefore also the failure this header has to survive —
 | the floor is not reported at all rather than reported as a floor of nothing.
 |
+| @guards-index guard
 */
 
 /**

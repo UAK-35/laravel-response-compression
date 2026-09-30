@@ -257,9 +257,10 @@ the gate and the full run would ask the same questions again.
 
 `docs/guards.md` is the index of every guard this package keeps, what each one catches, and which
 ones were considered and refused. It is not a summary written after the fact: `GuardIndexTest`
-reads the table as a claim about a directory — every row links a file that exists, and **every file
-in `tests/Support/` is named on that page** — so a new guard costs one line of the index, and a row
-that resolves nothing fails.
+reads the table as a claim about two directories — every row links a file that exists, **every file
+in `tests/Support/` is named on that page**, and **every test in `tests/Unit/` declares itself a
+`guard` the table links or a `test` the table is not about** — so a new guard costs one line of the
+index and one line in its own test's header, and a row that resolves nothing fails.
 
 The two lists of files below that table are **rendered rather than written**. A file in
 `tests/Support/` carries one line in its own header — `@guards-index` with either `reading` or
@@ -268,11 +269,18 @@ the two tables from that, and `bin/index.php --check` is what the suite asserts.
 declares nothing, or declares a list the page does not have, is refused by name — the two lists
 cannot come to disagree with the directory, because the directory is where they come from.
 
+The guard table's other side is the tests themselves, and it is written by hand rather than
+rendered, because what a guard refuses is an argument. What is enforced is the link: a test says
+`guard` in its own header and the table has to name it, and a test that says nothing at all is
+refused rather than read as one of them. `bin/index.php --check` reports a guard the table has no
+row for, and `GuardIndexTest` asserts on the same reading, so a guard cannot arrive with a test and
+no row — from the reading side or the test side.
+
 Two rules follow, and both are enforced rather than asked for:
 
-- **A guard is added with its row** in `docs/guards.md` and, when it has a reading of its own, a file
-  in `tests/Support/` that says which list it is in. Then run `composer index` (or `bin/index.php`)
-  to write the row.
+- **A guard is added with its row** in `docs/guards.md`, a test in `tests/Unit/` whose header says
+  `@guards-index guard`, and — when it has a reading of its own — a file in `tests/Support/` that
+  says which list it is in. Then run `composer index` (or `bin/index.php`) to write the row.
 - **A guard may not go quiet.** `tests/Support/MutationHarness.php` breaks this checkout one way at a
   time and requires the guard's own reading to *name* the break: a reading that stopped asking the
   right question answers with nothing both times, and an assertion on "something" would be answered
@@ -426,8 +434,10 @@ Before presenting completed work:
 - [ ] a contradiction with a `docs/` record is fixed in that record, in this commit
 - [ ] a new guard has its row in `docs/guards.md`, and the mutation harness either mutates or
       declines it by name
-- [ ] a new file in `tests/Support/` declares its `@guards-index` list, and `bin/index.php --check`
-      is quiet (the two lists in `docs/guards.md` are what the directory produces)
+- [ ] a new file in `tests/Support/` declares its `@guards-index` list, a new test in `tests/Unit/`
+      declares `@guards-index guard` or `@guards-index test`, and `bin/index.php --check` is quiet
+      (the two lists in `docs/guards.md` are what the directory produces, and every guard test is
+      in the table)
 - [ ] no drive path, home directory or network share was added (`python .agents/verify.py` delegates
       the reading to the two path guards, which own it)
 - [ ] no path in this change climbs above the repository root

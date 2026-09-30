@@ -15,15 +15,17 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRun;
 | `docs/guards.md` is where a guard is put in front of whoever adds the next one, and it had
 | one direction watched and one not. A row that links a test which has since been renamed is
 | caught already: the row's link is a link, and the docs-link guard resolves every link in every
-| document this package ships. A guard added with *no row at all* is caught by nothing, and
-| cannot be — no test knew what a guard is, so the next one could arrive unrecorded and read as
-| though it had always been part of the list.
+| document this package ships. A guard added with *no row at all* was caught by nothing, because
+| no test knew what a guard is — so the next one could arrive unrecorded and read as though it had
+| always been part of the list.
 |
-| So the table is read as a claim about a directory. Every row has to link a file the repository
-| has, and every file in `tests/Support/` has to be named in the document — a reading in the
-| section that lists them, or support in the section saying it is not a guard. The reading is
-| exercised on its own at the foot of this file, because a reader that found no rows agrees with
-| a table that has none.
+| So the table is read as a claim about two directories, one from each side. Every row has to link
+| a file the repository has; every file in `tests/Support/` has to be named in the document — a
+| reading in the section that lists them, or support in the section saying it is not a guard; and
+| every test in `tests/Unit/` has to declare itself a `guard` the table links, or a `test` the
+| table is not about. A file that declares nothing on either side is refused rather than left out,
+| which is what makes the decision impossible to leave unmade. The reading is exercised on its own
+| at the foot of this file, because a reader that found no rows agrees with a table that has none.
 |
 | The two lists below that table are the same question one step further on. They were prose, and
 | prose about a directory is a copy of it: a file that moved had to be moved by hand in the
@@ -34,6 +36,7 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRun;
 | under the reading for the same reason it breaks it under the others: a rendering that answered
 | "nothing to write" for every tree would pass every assertion about a document in step.
 |
+| @guards-index guard
 */
 
 it('links every row of the guard table to a file that exists', function (): void {
@@ -299,6 +302,40 @@ it('refuses a file that says nothing about which list it is in, or names one the
 
     expect(fn (): array => GuardIndex::declared($root))
         ->toThrow(RuntimeException::class, 'no first sentence');
+});
+
+it('refuses a test that says nothing, and names a guard the table has no row for', function (): void {
+    $tree = guardIndexTree();
+    $root = $tree['root'];
+
+    // A test whose header declares nothing: a guard that forgot and an ordinary test that stayed
+    // silent read the same from the outside, which is why neither is allowed to stay silent.
+    guardIndexWrite($root, 'tests/Unit/SilentTest.php', "<?php\n\ndeclare(strict_types=1);\n\n/*\n * A test that never says what it is.\n */\n");
+
+    expect(fn (): array => GuardIndex::drift($root))->toThrow(RuntimeException::class, '@guards-index');
+
+    unlink($root.'/tests/Unit/SilentTest.php');
+
+    // A test that declares itself a guard, with no row in the table: the guard that arrives
+    // unrecorded, which is the half the two rendered lists below cannot see.
+    guardIndexWrite($root, 'tests/Unit/LonelyTest.php', guardIndexHeader('A guard nobody recorded', 'guard'));
+
+    expect(implode(PHP_EOL, GuardIndex::drift($root)))
+        ->toContain('tests/Unit/LonelyTest.php')
+        ->toContain('no row for it');
+
+    // A test that declares itself a test of the code needs nothing more: the table is not about it.
+    guardIndexWrite($root, 'tests/Unit/PlainTest.php', guardIndexHeader('A test of the code', 'test'));
+
+    expect(implode(PHP_EOL, GuardIndex::drift($root)))
+        ->toContain('tests/Unit/LonelyTest.php')
+        ->not->toContain('tests/Unit/PlainTest.php');
+
+    // And a file that names something that is neither, which a typo would otherwise leave as a
+    // test the index silently agreed with.
+    guardIndexWrite($root, 'tests/Unit/OddTest.php', guardIndexHeader('A test that is neither', 'fixture'));
+
+    expect(fn (): array => GuardIndex::drift($root))->toThrow(RuntimeException::class, 'is either a');
 });
 
 it('is the same reading as a command, and the command writes the document it reported', function (): void {

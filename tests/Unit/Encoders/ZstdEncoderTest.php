@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+/* @guards-index test */
+
 use Symfony\Component\HttpFoundation\Response;
 use Uak35\ResponseCompression\Encoders\ZstdEncoder;
 use Uak35\ResponseCompression\Support\Enc;

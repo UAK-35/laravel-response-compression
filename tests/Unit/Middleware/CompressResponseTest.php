@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+/* @guards-index test */
+
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;

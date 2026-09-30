@@ -21,6 +21,7 @@ use Uak35\ResponseCompression\Exceptions\InvalidConfigurationException;
 | readers treat `null` as absent before they refuse anything, and only a value that is present
 | and unreadable reaches this method.
 |
+| @guards-index test
 */
 
 it('says the key is not set, and where the key comes from', function (): void {

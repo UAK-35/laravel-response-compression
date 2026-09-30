@@ -21,6 +21,7 @@ use Uak35\ResponseCompression\Tests\Support\MachinePaths;
 | the eye. Three things are asserted rather than one: that nothing leaks, that the detector
 | fires at all, and that the two files allowed to hold samples still need to.
 |
+| @guards-index guard
 */
 
 it('reports no machine-local path in the files a commit would carry', function (): void {

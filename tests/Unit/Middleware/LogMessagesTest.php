@@ -29,6 +29,7 @@ use Uak35\ResponseCompression\Tests\Support\ResponseWithNoReadableContent;
 | write the same line, that the reading is complete enough to be trusted, and that the shapes it
 | reasons about are the ones the middleware really emits.
 |
+| @guards-index guard
 */
 
 it('writes a different line for every branch that reports one', function (): void {

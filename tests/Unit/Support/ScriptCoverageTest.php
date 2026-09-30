@@ -22,6 +22,7 @@ use Uak35\ResponseCompression\Tests\Support\ScriptCoverage;
 | The second is the shape. `pcov\collect()` answers with a negative count for a line that never
 | ran, so a merge that keeps every entry reports a file as read because it was parsed.
 |
+| @guards-index test
 */
 
 /**

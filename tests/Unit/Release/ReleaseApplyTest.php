@@ -18,6 +18,7 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 | stdin is closed for every run, so every run is non-interactive: `--yes` is what a test that
 | wants the apply path passes, and it is the same flag CI has to pass.
 |
+| @guards-index test
 */
 
 it('promotes the notes, commits and tags', function (): void {

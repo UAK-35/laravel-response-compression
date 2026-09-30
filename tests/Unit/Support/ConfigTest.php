@@ -35,6 +35,7 @@ function validateConfiguration(): void
 | precise about: refusing every string would break the package's own published `env()`
 | defaults, and accepting every string would be the silent substitution over again.
 |
+| @guards-index test
 */
 
 it('reads an integer', function (): void {

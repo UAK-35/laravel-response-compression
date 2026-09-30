@@ -18,6 +18,7 @@ use Uak35\ResponseCompression\Tests\Support\ConfigKeys;
 | So the two sets are read and compared in both directions. A typo in a key is one failing
 | assertion instead of a setting that quietly does nothing.
 |
+| @guards-index guard
 */
 
 beforeEach(function (): void {

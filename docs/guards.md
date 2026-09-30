@@ -40,7 +40,7 @@ in the third.
 | CI on `tags: ["v*"]` | a published version — release or prerelease — with no CI record against it | [`../.github/workflows/main.yml`](../.github/workflows/main.yml) |
 | CI running the gate | CI that is weaker than the gate a tag is cut behind | [`the same workflow`](../.github/workflows/main.yml) |
 | `composer checks -- --require-all` in CI | a check that *skipped* on the runner — a tool that did not install is a hole in the build, not a fact about the machine | [`the same workflow`](../.github/workflows/main.yml) |
-| the guard-index test | a guard that is not in this table, and a row that links a file the repository no longer has — every row's `Where` cell is resolved, so the next guard cannot be added without a place in it | [`../tests/Unit/Docs/GuardIndexTest.php`](../tests/Unit/Docs/GuardIndexTest.php) |
+| the guard-index test | a guard that is not in this table, and a row that links a file the repository no longer has — every row's `Where` cell is resolved, every file in `tests/Support/` says which list it is in, and every test in `tests/Unit/` says whether it is a guard — so the next guard cannot be added without a place in the index, from either side | [`../tests/Unit/Docs/GuardIndexTest.php`](../tests/Unit/Docs/GuardIndexTest.php) |
 | `bin/index.php` and the two rendered lists | a list of files that has stopped being a list of the files: which list a file in `tests/Support/` is in, and the words beside its row, are read from the file itself, this program writes the two tables below from that, and `--check` is what fails when the document and the directory disagree | [`../bin/index.php`](../bin/index.php) |
 | the number-claims test | a number this page states having stopped matching the code that produces it — how many checks the gate runs, the floor every file is held to, and how many guards and files the page is about — read out of the document and out of `bin/checks.php`, `bin/coverage.php` and the directory | [`../tests/Unit/Docs/IndexNumbersTest.php`](../tests/Unit/Docs/IndexNumbersTest.php) |
 
@@ -319,3 +319,11 @@ writes the row, and the suite refuses a document that has not caught up: the rea
 the two is what the guard-index test asserts on, so the two places cannot drift apart. A file whose
 header carries no declaration is refused by name rather than left out of both lists, which is the
 one thing that would let a decision go unmade while the page still read as complete.
+
+The test side is the same question the other way. The table is hand-written, because what a guard
+refuses is an argument, so it cannot be rendered from a directory the way the two lists are — but it
+is still a claim about one. Every test under `tests/Unit/` declares itself a `guard`, which the table
+has to link from a row, or a `test` of the code, which the table is not about; a test that declares
+nothing is refused rather than read as one of them, because an ordinary test that stayed silent and
+a guard that forgot are the same file from the outside. So a guard cannot arrive with a test, a
+reading and a real defect behind it and read as though it had always been part of the list.

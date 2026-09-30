@@ -347,6 +347,23 @@ final class MutationHarness
                 'read' => GuardIndex::drift(...),
             ],
             [
+                'guard' => 'the guard index, read from the test side',
+                'test' => 'tests/Unit/Docs/GuardIndexTest.php',
+                'plant' => static function (string $root): string {
+                    // A test that declares itself a guard and has no row in the table: the guard
+                    // that arrived unrecorded, which is the half the two rendered lists cannot
+                    // see. The file is the marker, so a reading that answered "nothing" for every
+                    // tree is told apart from one that answered "nothing" because it never looked
+                    // at the tests at all.
+                    $file = 'tests/Unit/Support/MutationGuardTest.php';
+
+                    self::add($root, $file, "<?php\n\ndeclare(strict_types=1);\n\n/*\n * A guard the table has no row for.\n *\n * @guards-index guard\n */\nfinal class MutationGuardTest\n");
+
+                    return $file;
+                },
+                'read' => GuardIndex::drift(...),
+            ],
+            [
                 'guard' => 'the number-claims reading',
                 'test' => 'tests/Unit/Docs/IndexNumbersTest.php',
                 'plant' => static function (string $root): string {

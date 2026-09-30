@@ -21,6 +21,11 @@ use Uak35\ResponseCompression\Tests\Support\GuardIndex;
 | sentence of that header. The directory is the list of files, the file is the decision about
 | itself, and this program writes the document from the two.
 |
+| The guard table's other side is not rendered — what a guard refuses is an argument — but it is
+| checked. Every test in `tests/Unit/` declares `@guards-index guard` or `@guards-index test`, and
+| `--check` refuses a guard the table has no row for, so a guard cannot arrive unrecorded from
+| either side.
+|
 |   composer index            rewrite the two lists
 |   bin/index.php --check     report the differences, and write nothing
 |
@@ -78,11 +83,16 @@ if ($markdown === false) {
 }
 
 try {
-    $drift = GuardIndex::drift($root);
+    $lists = GuardIndex::lists($root, $markdown);
 
     if ($check) {
+        // The whole reading rather than only the half this program writes: `--check` is how a
+        // person asks whether the index is in step, and a guard test the table has no row for is
+        // as much a difference as a row that names a file the directory does not have.
+        $drift = [...$lists, ...GuardIndex::unrecorded($root, $markdown)];
+
         if ($drift === []) {
-            fwrite(STDOUT, GuardIndex::DOCUMENT.' lists exactly what '.GuardIndex::DIRECTORY.'/ declares.'.PHP_EOL);
+            fwrite(STDOUT, GuardIndex::DOCUMENT.' lists exactly what '.GuardIndex::DIRECTORY.'/ declares, and every guard test is in the table.'.PHP_EOL);
             exit(0);
         }
 
@@ -108,14 +118,16 @@ try {
     // was touched. Read before the write, because after it there is nothing left to say.
     fwrite(STDOUT, 'Rewrote the two lists in '.GuardIndex::DOCUMENT.':'.PHP_EOL);
 
-    foreach ($drift as $finding) {
+    foreach ($lists as $finding) {
         fwrite(STDOUT, '  - '.$finding.PHP_EOL);
     }
 
-    // And the reading is asked again, because a program that writes what it just reported should be
-    // able to say that the two agree now. A document that was written and still disagrees is a
-    // defect in this program rather than in the tree, and it must not read as a success.
-    if (GuardIndex::drift($root) !== []) {
+    // And the two lists are asked again, because a program that writes what it just reported should
+    // be able to say that they agree now. A document that was written and still disagrees about its
+    // rows is a defect in this program rather than in the tree, and it must not read as a success.
+    // A guard test the table has no row for is not asked of here: the table is hand-written, so
+    // that row is a person's to write and is reported by `--check` and by the suite instead.
+    if (GuardIndex::lists($root, (string) file_get_contents($document)) !== []) {
         fwrite(STDERR, PHP_EOL.GuardIndex::DOCUMENT.' was written and still disagrees with '.GuardIndex::DIRECTORY.'/. That is a defect in this program.'.PHP_EOL);
         exit(1);
     }
@@ -144,9 +156,10 @@ function usage(): void
 
     A file in tests/Support/ says which list it is in with `@guards-index reading` or
     `@guards-index support` in its header, and the first sentence of that header is
-    the words its row carries. Run either form under this machine's PHP — the one
-    `.agents/machine.local.json` names, printed by
-    `python .agents/render_local.py --value __PHP_EXE__`.
+    the words its row carries. A test in tests/Unit/ says whether it is a guard with
+    `@guards-index guard` or `@guards-index test`, and a guard has to be linked from a
+    row of the guard table. Run either form under this machine's PHP — `.agents/php-bin.sh`
+    decides which that is, and `sh .agents/php-bin.sh --show` says so.
 
     Exit code: 0 in step or rewritten, 1 a difference or a file that cannot be read
     as a row, 2 a usage error.

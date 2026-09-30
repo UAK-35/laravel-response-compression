@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Uak35\ResponseCompression\Tests\Support;
 
+use FilesystemIterator;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use RuntimeException;
 
 /**
@@ -23,6 +26,19 @@ use RuntimeException;
  * a reading in the section it is listed in, or support in the section saying it is not a guard.
  * A new file in that directory therefore costs one line of the index, and that line is the decision
  * the index exists to record.
+ *
+ * THE OTHER SIDE OF THE SAME CLAIM
+ * --------------------------------
+ * That was the guard's *reading* side. The guard's *test* side was open the other way: the table
+ * links a guard's test in its `Where` cell, and nothing required a test in `tests/Unit/` to be in
+ * the table — so a guard could arrive with a test, a reading and a real defect behind it, and read
+ * as though it had always been part of the list. The table cannot be rendered from a directory (a
+ * guard's argument is hand-written), so the decision has to come from the file: every test under
+ * `tests/Unit/` declares `@guards-index guard` or `@guards-index test` in its own header, and a
+ * declared guard whose test the table links nowhere is a finding. A test that declares nothing is
+ * refused rather than left out, because an ordinary test that stayed silent and a guard that forgot
+ * to speak are the same file read from the outside — and the second is the one that would land
+ * unrecorded.
  *
  * THE TWO LISTS OF FILES
  * ----------------------
@@ -91,6 +107,22 @@ final class GuardIndex
      */
     public const string DECLARATION = '@guards-index';
 
+    /** The directory of tests the `## Kept` table is a claim about. */
+    public const string TESTS = 'tests/Unit';
+
+    /** A test that is a guard: the table has to link it, or it cannot be found. */
+    public const string GUARD = 'guard';
+
+    /** A test of the code: what the table is not about, and what a guard's reading is not. */
+    public const string TEST = 'test';
+
+    /**
+     * The two things a test under `tests/Unit/` can declare itself to be.
+     *
+     * @var list<string>
+     */
+    public const array KINDS = [self::GUARD, self::TEST];
+
     /**
      * The table's rows, in the order the document has them.
      *
@@ -158,6 +190,16 @@ final class GuardIndex
         sort($files);
 
         return $files;
+    }
+
+    /**
+     * Every test under `tests/Unit/`, as a path from the package root.
+     *
+     * @return list<string>
+     */
+    public static function tests(string $root): array
+    {
+        return self::php(self::root($root), self::TESTS);
     }
 
     /**
@@ -244,6 +286,71 @@ final class GuardIndex
     }
 
     /**
+     * Every test under `tests/Unit/`, by what it says it is.
+     *
+     * The declaration is where a test answers the one question the index cannot: whether it is a
+     * guard, which the table has to record, or a test of the code, which the table is not about.
+     * A file that declares nothing is refused rather than left out — an ordinary test that stayed
+     * silent and a guard that forgot are the same file read from the outside, and the second is
+     * the one that would land unrecorded.
+     *
+     * @return array<string, array{kind: string, line: int}>
+     *
+     * @throws RuntimeException when a test declares nothing, or declares something that is neither
+     *                          a guard nor a test of the code
+     */
+    public static function guards(string $root): array
+    {
+        $root = self::root($root);
+        $entries = [];
+
+        foreach (self::tests($root) as $file) {
+            $contents = (string) file_get_contents($root.'/'.$file);
+            $declaration = null;
+
+            // The declaring block rather than the first block: a helper's docblock can sit above
+            // the banner, and a reading that stopped at the first block would find the helper and
+            // refuse the test for declaring nothing.
+            foreach (self::blocks($contents) as $block) {
+                $found = self::declaration($contents, $block);
+
+                if ($found !== null) {
+                    $declaration = $found;
+
+                    break;
+                }
+            }
+
+            if ($declaration === null) {
+                throw new RuntimeException(sprintf(
+                    '%s carries no `%s` line, so it says nothing about whether it is a guard. Add `%s %s` for a test the table records, or `%s %s` for a test of the code.',
+                    $file,
+                    self::DECLARATION,
+                    self::DECLARATION,
+                    self::GUARD,
+                    self::DECLARATION,
+                    self::TEST,
+                ));
+            }
+
+            if (! in_array($declaration['section'], self::KINDS, true)) {
+                throw new RuntimeException(sprintf(
+                    '%s declares `%s`, and a test under %s/ is either a %s or a %s.',
+                    $file,
+                    $declaration['section'],
+                    self::TESTS,
+                    self::GUARD,
+                    self::TEST,
+                ));
+            }
+
+            $entries[$file] = ['kind' => $declaration['section'], 'line' => $declaration['line']];
+        }
+
+        return $entries;
+    }
+
+    /**
      * What the two tables in the document would say, from the directory alone.
      *
      * @return array<string, array<string, string>> the section, then the file, then the words
@@ -296,8 +403,72 @@ final class GuardIndex
     }
 
     /**
+     * Every file the guard table's `Where` cells link, as paths from the package root.
+     *
+     * A cell links what a reader is sent to, which is a guard's test or the program it is — so the
+     * table and the test side are compared through the links the page already carries, rather than
+     * through a second list of the guards kept beside it.
+     *
+     * @return list<string>
+     */
+    public static function named(string $root, string $markdown): array
+    {
+        $root = self::root($root);
+        $document = $root.'/'.self::DOCUMENT;
+        $named = [];
+
+        foreach (self::rows($markdown) as $row) {
+            foreach (Docs::linksIn($row['where']) as $link) {
+                $path = Docs::resolve($root, $document, $link['target']);
+
+                if ($path !== null) {
+                    $named[] = Docs::relative($root, $path);
+                }
+            }
+        }
+
+        $named = array_values(array_unique($named));
+        sort($named);
+
+        return $named;
+    }
+
+    /**
+     * The guards a test declares that the table has no row for.
+     *
+     * This is what the two lists below cannot see: a rendering describes `tests/Support/`, and a
+     * guard test is a file in `tests/Unit/` that says so in its own header. Without this, a guard
+     * could arrive with a test, a reading and a real defect behind it and read as though it had
+     * always been part of the list — the one thing the table exists to prevent.
+     *
+     * @return list<string>
+     */
+    public static function unrecorded(string $root, string $markdown): array
+    {
+        $root = self::root($root);
+        $named = self::header($markdown) === [] ? [] : self::named($root, $markdown);
+        $findings = [];
+
+        foreach (self::guards($root) as $file => $entry) {
+            if ($entry['kind'] !== self::GUARD) {
+                continue;
+            }
+
+            if (! in_array($file, $named, true)) {
+                $findings[] = sprintf(
+                    '%s: %s declares itself a guard and the table above has no row for it, so a guard can be added without a place in the index.',
+                    self::DOCUMENT,
+                    $file,
+                );
+            }
+        }
+
+        return $findings;
+    }
+
+    /**
      * The one reading the suite asserts on: what the document lists, against what the directory
-     * says — empty when the two agree.
+     * says, and which guards the table has no row for — empty when all three agree.
      *
      * Every finding names the file it is about, or the table, so that a document which has stopped
      * being a rendering of the directory cannot be read as an answer of "nothing is wrong".
@@ -313,6 +484,24 @@ final class GuardIndex
             return [sprintf('%s is not here, so there is nothing holding the two lists', self::DOCUMENT)];
         }
 
+        return [
+            ...self::lists($root, $markdown),
+            ...self::unrecorded($root, $markdown),
+        ];
+    }
+
+    /**
+     * What the two rendered lists disagree about, against the directory that declares them.
+     *
+     * This is the half a program can repair: `bin/index.php` writes these rows from
+     * `tests/Support/`, so a document that has stopped agreeing with the directory is a document it
+     * can write again. A guard test the table has no row for is reported beside this, and is not
+     * this half — the table is hand-written, so that row is a person's to write.
+     *
+     * @return list<string>
+     */
+    public static function lists(string $root, string $markdown): array
+    {
         return self::compare(self::rendered($root), self::listed($root, $markdown));
     }
 
@@ -339,6 +528,39 @@ final class GuardIndex
         $rewritten = implode("\n", $lines);
 
         return $eol === "\n" ? $rewritten : str_replace("\n", "\r\n", $rewritten);
+    }
+
+    /**
+     * Every PHP file under a directory of the package, as paths from the package root.
+     *
+     * The walk is recursive because a test is a file at whatever depth the suite puts it —
+     * `tests/Unit/Docs/`, `tests/Unit/Support/` — and a listing that stopped at one level would
+     * read as a directory with no tests in it rather than as a walk that went wrong.
+     *
+     * @return list<string>
+     */
+    private static function php(string $root, string $directory): array
+    {
+        $base = $root.'/'.$directory;
+
+        if (! is_dir($base)) {
+            return [];
+        }
+
+        $files = [];
+        $walker = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($base, FilesystemIterator::SKIP_DOTS),
+        );
+
+        foreach ($walker as $file) {
+            if ($file->isFile() && str_ends_with($file->getFilename(), '.php')) {
+                $files[] = Docs::relative($root, $file->getPathname());
+            }
+        }
+
+        sort($files);
+
+        return $files;
     }
 
     /**
@@ -591,19 +813,39 @@ final class GuardIndex
      */
     private static function block(string $contents): ?array
     {
-        $at = strpos($contents, '/*');
+        return self::blocks($contents)[0] ?? null;
+    }
 
-        if ($at === false) {
-            return null;
+    /**
+     * Every comment block in a file that opens at the start of a line, in the order they are
+     * written.
+     *
+     * A block that opens mid-line is not a header: a `/**` written inside a string literal is text
+     * a fixture carries rather than a comment about the file, and reading it as a block would let a
+     * test's own fixture decide what the test declares. A file's header, and every banner beside
+     * it, opens at the start of a line.
+     *
+     * @return list<array{text: string, at: int}>
+     */
+    private static function blocks(string $contents): array
+    {
+        $blocks = [];
+
+        if (preg_match_all('/^[ \t]*\/\*/m', $contents, $matches, PREG_OFFSET_CAPTURE) === 0) {
+            return $blocks;
         }
 
-        $end = strpos($contents, '*/', $at);
+        foreach ($matches[0] as [$open, $at]) {
+            $end = strpos($contents, '*/', $at + strlen($open));
 
-        if ($end === false) {
-            return null;
+            if ($end === false) {
+                continue;
+            }
+
+            $blocks[] = ['text' => substr($contents, $at, $end - $at), 'at' => $at];
         }
 
-        return ['text' => substr($contents, $at, $end - $at), 'at' => $at];
+        return $blocks;
     }
 
     /**

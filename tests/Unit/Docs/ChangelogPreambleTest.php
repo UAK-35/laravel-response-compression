@@ -19,6 +19,7 @@ use Uak35\ResponseCompression\Tests\Support\ChangelogPreamble;
 | readable and is not a release of this package — and the level is what lets the guard tell one
 | from the other, which is also the level the preamble is written at.
 |
+| @guards-index guard
 */
 
 it('keeps the changelog preamble from naming a version the file has released', function (): void {

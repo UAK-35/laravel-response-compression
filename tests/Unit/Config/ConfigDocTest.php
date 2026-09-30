@@ -18,6 +18,7 @@ use Uak35\ResponseCompression\Tests\Support\ConfigDoc;
 | Both sides are read by the same reader, so this compares the README with the config
 | file rather than comparing a test's own retyped copy with either.
 |
+| @guards-index guard
 */
 
 it('documents every config key with the value the config file ships', function (): void {

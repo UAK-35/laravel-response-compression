@@ -21,6 +21,7 @@ use Uak35\ResponseCompression\Tests\Support\RepoEscapes;
 | asserted rather than one: that nothing climbs out, that the detector fires at all, and that
 | the two files allowed to hold samples still need to.
 |
+| @guards-index guard
 */
 
 it('reports no path that climbs out of the repository', function (): void {

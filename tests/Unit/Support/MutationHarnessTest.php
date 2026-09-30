@@ -32,6 +32,7 @@ use Uak35\ResponseCompression\Tests\Support\MutationHarness;
 | here or declined with a reason, and both lists are read back against the index, so adding a
 | guard is a decision rather than a silence.
 |
+| @guards-index guard
 */
 
 beforeEach(function (): void {

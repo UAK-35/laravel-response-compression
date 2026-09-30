@@ -255,6 +255,18 @@ release — which is why it sits in the repository rather than in the package.
   rather than a rendering — and `tests/Unit/Docs/IndexNumbersTest.php` pulls the document and the
   code apart one number at a time to prove each of them is read.
 
+- **The guard index checks its other side, so a guard test cannot land without a row either.** The
+  two lists in `docs/guards.md` are a rendering of `tests/Support/`, so a reading cannot be added
+  without a place in the index — but the guards' *tests* had no such rule, and a guard could arrive
+  with a test, a reading and a real defect behind it and read as though it had always been part of
+  the list. Every test under `tests/Unit/` now declares `@guards-index guard` for a test the table
+  records or `@guards-index test` for a test of the code, and `GuardIndex` refuses one that declares
+  nothing, because a guard that forgot and an ordinary test that stayed silent are the same file from
+  the outside. A declared guard whose test the table's `Where` cells link nowhere is a finding from
+  both `bin/index.php --check` and `GuardIndexTest`. The table stays hand-written — what a guard
+  refuses is an argument — so the row is a person's to write and the declaration is the file's own;
+  the writing form of `bin/index.php` still repairs only the two lists it renders.
+
 ### Changed
 
 - **A tool is a record now rather than a path, and the two facts beside the path are checked.** An

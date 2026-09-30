@@ -28,6 +28,7 @@ use Uak35\ResponseCompression\Tests\Support\ConfigKeys;
 | defect — and the reader behind this is exercised on that distinction below, because its
 | green tick here is a scan that found no claims at all.
 |
+| @guards-index guard
 */
 
 beforeEach(function (): void {

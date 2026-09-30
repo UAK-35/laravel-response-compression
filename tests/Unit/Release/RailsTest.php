@@ -18,6 +18,7 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 | (where the rail has an escape) that the escape releases. The condition is a fact about a real
 | repository, which is why the fixture is one.
 |
+| @guards-index test
 */
 
 it('refuses to release where there is no repository', function (): void {
