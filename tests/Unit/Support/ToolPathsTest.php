@@ -23,6 +23,15 @@ use Uak35\ResponseCompression\Tests\Support\ToolPaths;
 | one copy rather than with two: a path written down again in a script or a program, a path that
 | resolves nowhere or to a shim, and a name that nothing has or nothing uses.
 |
+| An entry carries two more facts than a path — the version the package pins the tool at, and what
+| the tool is for — and they are held the same way. The pin is a statement about the tool this
+| repository pins itself to, so it is read against `composer.json`'s `require-dev` and against
+| what `vendor/composer/installed.json` says is here: a pin that disagrees with either is the gate
+| measuring a different tool than the one it names, which is the shim failure one level up and just
+| as invisible in a path. `why` is why the gate can print what each tool is for without saying it
+| twice.
+|
+| @guards-index guard
 */
 
 /** The package's own programs that run a tool, as path => its text. */
@@ -41,6 +50,30 @@ function toolReaders(): array
 function toolManifest(): array
 {
     return ToolPaths::manifest(packageRoot().'/'.ToolPaths::MANIFEST);
+}
+
+/**
+ * An entry as the manifest writes one, for a fixture that is about something else.
+ *
+ * @return array{path: string, pin: string, why: string}
+ */
+function toolEntry(string $path, string $pin = '1.0.0', string $why = 'a fixture'): array
+{
+    return ['path' => $path, 'pin' => $pin, 'why' => $why];
+}
+
+/** What `composer.json` asks for, which is the first half a pin is compared with. */
+function toolRequired(): array
+{
+    $composer = json_decode((string) file_get_contents(packageRoot().'/composer.json'), true);
+
+    return is_array($composer) && is_array($composer['require-dev'] ?? null) ? $composer['require-dev'] : [];
+}
+
+/** Where Composer records what it installed, which is the other half. */
+function toolInstalledFile(): string
+{
+    return packageRoot().'/vendor/composer/installed.json';
 }
 
 /** Every command the package's scripts run. */
@@ -99,17 +132,24 @@ it('names a file inside vendor/ that is on disk, and never a vendor/bin shim', f
     expect(ToolPaths::problems(toolManifest(), packageRoot()))->toBe([]);
 
     // Each rule on a fixture of its own, because the real manifest passes all of them and a reader
-    // that found nothing would pass it too.
+    // that found nothing would pass it too. Two of them are about the path and two about the facts
+    // beside it, and the two beside it are what an entry gained: a pin is the version itself rather
+    // than a range (a range is what `composer.json` already says), and a tool with no line saying
+    // what it is for is a tool the gate would list with nothing to say about it.
     $problems = implode("\n", ToolPaths::problems([
-        'pest' => 'vendor/bin/pest',
-        'pint' => 'node_modules/pint',
-        'rector' => 'vendor/rector/rector/bin/nope.php',
+        'pest' => toolEntry('vendor/bin/pest'),
+        'pint' => toolEntry('node_modules/pint'),
+        'rector' => toolEntry('vendor/rector/rector/bin/nope.php'),
+        'phpstan' => toolEntry('vendor/phpstan/phpstan/phpstan.phar', '^2.2'),
+        'yaml-lint' => toolEntry('vendor/symfony/yaml/Resources/bin/yaml-lint', '8.1.6', '   '),
     ], packageRoot()));
 
     expect($problems)
         ->toContain('pest names the vendor/bin/pest shim, which runs whichever php is first on PATH')
         ->toContain('pint names node_modules/pint, which is not a file inside vendor/')
-        ->toContain('rector names vendor/rector/rector/bin/nope.php, which is not there');
+        ->toContain('rector names vendor/rector/rector/bin/nope.php, which is not there')
+        ->toContain('phpstan pins phpstan/phpstan at ^2.2, which is not the version itself')
+        ->toContain('bin/tool-paths.php does not say what yaml-lint is for');
 });
 
 it('has a name for every tool something asks for, and no name nothing runs', function (): void {
@@ -124,8 +164,8 @@ it('has a name for every tool something asks for, and no name nothing runs', fun
 
 it('reports a name nobody has, and an entry nothing runs, in the words of what asked', function (): void {
     expect(ToolPaths::unshared([
-        'pint' => 'vendor/laravel/pint/builds/pint',
-        'yaml-lint' => 'vendor/symfony/yaml/Resources/bin/yaml-lint',
+        'pint' => toolEntry('vendor/laravel/pint/builds/pint'),
+        'yaml-lint' => toolEntry('vendor/symfony/yaml/Resources/bin/yaml-lint'),
     ], [
         ['from' => 'the lint script', 'tool' => 'pint'],
         ['from' => 'bin/checks.php', 'tool' => 'phpstan'],
@@ -167,4 +207,72 @@ it('reads a call and a name, and refuses to report agreement with a file it coul
         ->toThrow(RuntimeException::class, 'is not there')
         ->and(fn (): array => ToolPaths::scriptsIn('{"name": "uak35/laravel-response-compression"}'))
         ->toThrow(RuntimeException::class, 'no `scripts` block');
+});
+
+it('takes the package a tool lives in out of the path, and reads no version of its own', function (): void {
+    // The package is derived rather than carried, because an entry that named it a second time
+    // would be one more copy of what the path already says — and it is the name the pin is looked
+    // up by on both sides.
+    expect(ToolPaths::package('vendor/pestphp/pest/bin/pest'))->toBe('pestphp/pest')
+        ->and(ToolPaths::package('vendor/symfony/yaml/Resources/bin/yaml-lint'))->toBe('symfony/yaml')
+        ->and(ToolPaths::package('/vendor/rector/rector/bin/rector'))->toBe('rector/rector')
+
+        // Composer writes some versions with the `v` their tag carries and some without, and
+        // `composer.json` is written without it. One spelling is the pin's, and it is this one —
+        // so the real record is read rather than a fixture of it, which is the half a fixture
+        // could not have told us was being normalised.
+        ->and(ToolPaths::installed(toolInstalledFile())['pestphp/pest'])->toBe('4.7.8')
+        ->and(ToolPaths::installed(toolInstalledFile())['laravel/pint'])->toBe('1.32.1')
+
+        // A record with no packages in it is not a tree with nothing installed: it is a reader
+        // that found nothing, and it says so rather than agreeing with everything.
+        ->and(fn (): array => ToolPaths::installed(packageRoot().'/'.ToolPaths::MANIFEST.'.gone'))
+        ->toThrow(RuntimeException::class, 'is not there');
+});
+
+it('holds every pin to what composer.json requires and to what is installed here', function (): void {
+    $manifest = toolManifest();
+    $required = toolRequired();
+    $installed = ToolPaths::installed(toolInstalledFile());
+
+    // Both halves have to have found something before their agreement means anything: a
+    // `require-dev` that came back empty, or a record with no packages in it, would let the
+    // comparison below pass for a tree where nothing was compared.
+    expect($required)->not->toBeEmpty()
+        ->and($installed)->not->toBeEmpty()
+        ->and(ToolPaths::drift($manifest, $required, $installed))->toBe([]);
+
+    // And each way it can disagree, on a fixture of its own, because a tree where all three agree
+    // passes whether or not the reading looks at any of them.
+    $fixture = ['pest' => toolEntry('vendor/pestphp/pest/bin/pest', '4.7.8', 'the suite')];
+
+    expect(ToolPaths::drift($fixture, ['pestphp/pest' => '4.7.7'], ['pestphp/pest' => '4.7.8']))
+        ->toBe(['composer.json requires pestphp/pest at 4.7.7, and bin/tool-paths.php pins pest at 4.7.8'])
+        ->and(ToolPaths::drift($fixture, ['pestphp/pest' => '4.7.8'], ['pestphp/pest' => '4.7.9']))
+        ->toBe(['bin/tool-paths.php pins pest at 4.7.8, and 4.7.9 is installed — a tool that moved measures something else'])
+        ->and(ToolPaths::drift($fixture, ['pestphp/pest' => '4.7.8'], ['phpstan/phpstan' => '2.2.16']))
+        ->toBe(['bin/tool-paths.php pins pest at 4.7.8, and no version of pestphp/pest is installed here'])
+        ->and(ToolPaths::drift($fixture, ['phpstan/phpstan' => '2.2.16'], ['pestphp/pest' => '4.7.8']))
+        ->toBe(['bin/tool-paths.php runs pestphp/pest, which composer.json does not require at a version']);
+});
+
+it('refuses an entry that is not a record with all three facts in it', function (): void {
+    // The shape is the half of this a caller cannot invent: `bin/checks.php` and `bin/tool.php`
+    // read the path out of an entry, and a manifest that answered with a bare string would leave
+    // them reading a character of a path. Each fixture below is a file on disk because the manifest
+    // is required rather than parsed, which is the reason it is a file of its own.
+    $file = sys_get_temp_dir().'/rc-manifest-'.bin2hex(random_bytes(6)).'.php';
+
+    foreach ([
+        "<?php\n\nreturn ['pest' => 'vendor/pestphp/pest/bin/pest'];\n" => 'missing: path, pin, why',
+        "<?php\n\nreturn ['pest' => ['path' => 'vendor/pestphp/pest/bin/pest', 'pin' => '4.7.8']];\n" => 'missing: why',
+        "<?php\n\nreturn ['pest' => ['path' => 'vendor/pestphp/pest/bin/pest', 'pin' => '', 'why' => 'the suite']];\n" => 'missing: pin',
+    ] as $source => $expected) {
+        file_put_contents($file, $source);
+
+        expect(fn (): array => ToolPaths::manifest($file))
+            ->toThrow(RuntimeException::class, $expected);
+    }
+
+    @unlink($file);
 });

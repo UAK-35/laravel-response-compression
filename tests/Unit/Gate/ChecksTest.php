@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 use Uak35\ResponseCompression\Tests\Support\ReleaseRun;
+use Uak35\ResponseCompression\Tests\Support\ToolPaths;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,6 +25,7 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRun;
 | the tool paths are the planted tree's own — the manifest is copied in beside the gate — and a
 | tree that was never installed has none of them on any platform.
 |
+| @guards-index guard
 */
 
 /**
@@ -48,12 +50,22 @@ function gate(ReleaseRepo $repo, string ...$arguments): ReleaseRun
     return $repo->script('bin/checks.php', ...$arguments);
 }
 
-it('lists what it would run without running any of it', function (): void {
+it('lists what it would run, and the tools it would run them with', function (): void {
     $run = gate(gateRepo(), '--list');
 
     expect($run->exitCode)->toBe(0)
         ->and($run->said('PHP syntax (php -l)'))->toBeTrue()
         ->and($run->said('Test suite (pest)'))->toBeTrue();
+
+    // And the tools behind those checks, out of the manifest rather than out of a sentence beside
+    // the gate: the version each is pinned at, and what it is for. The words come from the manifest
+    // here rather than being written a second time in this assertion, which is what makes it a
+    // check on the reading rather than on the sentence.
+    $manifest = ToolPaths::manifest(ReleaseRepo::package().'/'.ToolPaths::MANIFEST);
+
+    expect($run->said($manifest['pest']['why']))->toBeTrue()
+        ->and($run->said($manifest['pest']['pin']))->toBeTrue()
+        ->and($run->said($manifest['yaml-lint']['why']))->toBeTrue();
 });
 
 it('refuses an option it does not have, and says what it does have', function (): void {

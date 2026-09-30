@@ -48,11 +48,11 @@ use PhpParser\ParserFactory;
  *
  * Neither form names an interpreter, and neither needs to. `composer checks` is run by
  * Composer under the PHP that is running Composer; a direct run is started by whatever PHP
- * the caller used, which on this machine is the one `.agents/machine.local.json` names —
- * `python .agents/render_local.py --value __PHP_EXE__` prints it. Nothing here starts a
- * child `php`: a tool runs under PHP_BINARY, so the gate is always measured by the
- * interpreter that started it, and a run under a second one is not the same reading of
- * this repository.
+ * the caller used. Which one that *should* be is decided in one place, `.agents/php-bin.sh`
+ * — `sh .agents/php-bin.sh --show` says which interpreter this machine names — and this file
+ * stays out of that question: nothing here starts a child `php`, so a tool runs under
+ * PHP_BINARY and the gate is always measured by the interpreter that started it, and a run
+ * under a second one is not the same reading of this repository.
  *
  * Exit code is 0 when every check passed, 1 when any failed (or was skipped
  * under --require-all), 2 for a usage error.
@@ -78,7 +78,10 @@ use PhpParser\ParserFactory;
  *
  * Which file each tool is comes from `bin/tool-paths.php`, and from nowhere else. This gate used
  * to keep its own copy of those five paths, because it cannot ask the composer scripts for theirs
- * — a script is a shell string — and the copies had drifted by the time anyone compared them.
+ * — a script is a shell string — and the copies had drifted by the time anyone compared them. An
+ * entry there is a record rather than a path, and `--list` prints the whole of each one: the tool,
+ * the version it is pinned at and what it is for. That is the gate describing itself out of the
+ * manifest rather than out of a sentence beside this file that nothing compares with it.
  */
 $root = str_replace('\\', '/', dirname(__DIR__));
 
@@ -165,7 +168,7 @@ $yamlFiles = yamlFiles($root);
 // checkout has and the repository does not — see composerValidateCommand().
 $lockIsShipped = commitsLockFile($root);
 
-$tools = toolPaths($root);
+$tools = toolEntries($root);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The checks
@@ -279,11 +282,11 @@ $checks = [
         'title' => 'Workflow YAML (yaml-lint)',
         'skip' => match (true) {
             $yamlFiles === [] => 'no YAML outside vendor/',
-            ! is_file($tools['yaml-lint'] ?? '') => 'symfony/yaml is not installed',
+            ! is_file($tools['yaml-lint']['path'] ?? '') => 'symfony/yaml is not installed',
             default => null,
         },
         'run' => static fn (): array => runCommand(
-            [PHP_BINARY, $tools['yaml-lint'], '--no-ansi', ...$yamlFiles],
+            [PHP_BINARY, $tools['yaml-lint']['path'], '--no-ansi', ...$yamlFiles],
             $root,
         ),
         'note' => static function (array $result) use ($yamlFiles): string {
@@ -296,40 +299,40 @@ $checks = [
     ],
     'phpstan' => [
         'title' => "Static analysis (phpstan, level {$level})",
-        'skip' => is_file($tools['phpstan'] ?? '') ? null : 'phpstan is not installed',
+        'skip' => is_file($tools['phpstan']['path'] ?? '') ? null : 'phpstan is not installed',
         'run' => static fn (): array => runCommand(
-            [PHP_BINARY, $tools['phpstan'], 'analyse', '--no-progress', '--no-ansi'],
+            [PHP_BINARY, $tools['phpstan']['path'], 'analyse', '--no-progress', '--no-ansi'],
             $root,
         ),
     ],
     'pint' => [
         'title' => 'Code style (pint --test)',
         'skip' => match (true) {
-            ! is_file($tools['pint'] ?? '') => 'laravel/pint is not installed',
+            ! is_file($tools['pint']['path'] ?? '') => 'laravel/pint is not installed',
             $stagedMode && $pintPaths === [] => 'no staged PHP files for Pint to read',
             default => null,
         },
         'run' => static fn (): array => runCommand(
-            [PHP_BINARY, $tools['pint'], '--test', ...$pintPaths],
+            [PHP_BINARY, $tools['pint']['path'], '--test', ...$pintPaths],
             $root,
         ),
     ],
     'rector' => [
         'title' => 'Automated refactoring (rector --dry-run)',
-        'skip' => is_file($tools['rector'] ?? '') ? null : 'rector is not installed',
+        'skip' => is_file($tools['rector']['path'] ?? '') ? null : 'rector is not installed',
         'run' => static fn (): array => runCommand(
-            [PHP_BINARY, $tools['rector'], '--dry-run', '--no-progress-bar'],
+            [PHP_BINARY, $tools['rector']['path'], '--dry-run', '--no-progress-bar'],
             $root,
         ),
     ],
     'tests' => [
         'title' => $testsTitle,
         'skip' => match (true) {
-            ! is_file($tools['pest'] ?? '') => 'pest is not installed',
+            ! is_file($tools['pest']['path'] ?? '') => 'pest is not installed',
             $testsSkip !== null => $testsSkip,
             default => null,
         },
-        'run' => static fn (): array => runCommand([PHP_BINARY, $tools['pest'], ...$pestParallel, ...$pestPaths], $root),
+        'run' => static fn (): array => runCommand([PHP_BINARY, $tools['pest']['path'], ...$pestParallel, ...$pestPaths], $root),
         'note' => static function (array $result): string {
             // Pest ends with its duration, which says nothing about whether it
             // passed; the count it printed a line earlier does.
@@ -378,6 +381,19 @@ if ($options['list']) {
         $skip = $check['skip'] === null ? '' : "  (skipped when: {$check['skip']})";
 
         printf('%-10s %s%s%s', $key, $check['title'], $skip, PHP_EOL);
+    }
+
+    // The tools behind those checks, read out of the manifest rather than described again here:
+    // the file each one is, the version this package pins it at, and what it is for. It is the
+    // listing that answers "what would this run?", so a tool that moved belongs in the answer to
+    // that question, and it is the only place these three facts are written down.
+    if ($tools !== []) {
+        echo PHP_EOL.str_repeat('─', 84).PHP_EOL;
+        echo 'Tools, pinned by bin/tool-paths.php:'.PHP_EOL;
+
+        foreach ($tools as $name => $tool) {
+            printf('  %-10s %-9s %s%s', $name, $tool['pin'], $tool['why'], PHP_EOL);
+        }
     }
 
     exit(0);
@@ -503,8 +519,8 @@ function usage(): void
       composer checks [-- options]
       bin/checks.php [options]
 
-    Either form runs under this machine's PHP — the one `.agents/machine.local.json`
-    names once, printed by `python .agents/render_local.py --value __PHP_EXE__`.
+    Either form runs under this machine's PHP — `.agents/php-bin.sh` is what decides
+    which that is, and `sh .agents/php-bin.sh --show` says so.
 
     Options:
       -v, --verbose     Stream the output of every check, not just failures.
@@ -560,20 +576,26 @@ function runCommand(array $command, string $cwd): array
 }
 
 /**
- * Every tool this package runs, as name => the absolute path of the entry file that runs it.
+ * Every tool this package runs, as name => its entry from the manifest, with the path resolved.
  *
- * From `bin/tool-paths.php`, which is the only place a tool's path is written: the composer
- * scripts reach their tools through `bin/tool.php`, which reads the same manifest, so the two
- * sides cannot disagree about which file a tool is.
+ * From `bin/tool-paths.php`, which is the only place a tool is written down: the composer scripts
+ * reach their tools through `bin/tool.php`, which reads the same manifest, so the two sides cannot
+ * disagree about which file a tool is. The other two facts an entry carries come along because
+ * `--list` prints them — the version the tool is pinned at, and what it is for — and a reader that
+ * dropped them would be this gate keeping its own copy of something the manifest already says.
+ *
+ * An entry without a path in it is dropped, which reads here as a tool this tree does not have:
+ * every check that would have run it skips, which is what the skip column is for, and the reading
+ * that refuses an entry in that shape is `tests/Unit/Support/ToolPathsTest.php`.
  *
  * An empty answer is not an error here. A tree with no manifest is a tree with no tools — a
  * checkout whose `vendor/` was never installed, and the planted fixtures this gate is tested in —
- * and a check whose tool is missing skips, which is what the skip column is for. A name the
- * manifest does not have reads the same way rather than as an undefined index.
+ * and a check whose tool is missing skips. A name the manifest does not have reads the same way
+ * rather than as an undefined index.
  *
- * @return array<string, string>
+ * @return array<string, array{path: string, pin: string, why: string}>
  */
-function toolPaths(string $root): array
+function toolEntries(string $root): array
 {
     $manifest = $root.'/bin/tool-paths.php';
 
@@ -583,10 +605,25 @@ function toolPaths(string $root): array
 
     $paths = require $manifest;
 
-    return array_map(
-        static fn (string $path): string => $root.'/'.ltrim($path, '/'),
-        is_array($paths) ? array_filter($paths, 'is_string') : [],
-    );
+    if (! is_array($paths)) {
+        return [];
+    }
+
+    $tools = [];
+
+    foreach ($paths as $name => $entry) {
+        if (! is_string($name) || ! is_array($entry) || ! is_string($entry['path'] ?? null) || $entry['path'] === '') {
+            continue;
+        }
+
+        $tools[$name] = [
+            'path' => $root.'/'.ltrim($entry['path'], '/'),
+            'pin' => is_string($entry['pin'] ?? null) ? $entry['pin'] : '',
+            'why' => is_string($entry['why'] ?? null) ? $entry['why'] : '',
+        ];
+    }
+
+    return $tools;
 }
 
 /**

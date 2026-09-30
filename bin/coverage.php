@@ -4,6 +4,7 @@
 declare(strict_types=1);
 
 use Uak35\ResponseCompression\Tests\Support\CoverageEnvironment;
+use Uak35\ResponseCompression\Tests\Support\PhpBinary;
 use Uak35\ResponseCompression\Tests\Support\ScriptCoverage;
 
 /*
@@ -49,6 +50,13 @@ use Uak35\ResponseCompression\Tests\Support\ScriptCoverage;
 | and the driver — and the two failures that are about a floor repeat that line at the foot, because
 | a red build is read at the bottom of two minutes of test output rather than at the top.
 |
+| The interpreter is named twice over, because there are two of them to tell apart: the one this
+| run happens to be under, and the one this repository means. Which PHP this checkout uses is decided
+| in one place, `.agents/php-bin.sh`, and `PhpBinary` asks it; when the two differ the header says
+| so, since a floor recorded under one install and measured under another is the first explanation
+| to rule out and the last one a reader would think of. A rung that is a fallback - the `php` on a
+| runner's PATH - is not printed: that is the arrangement on a runner rather than a second opinion.
+|
 | The naming is where it stops. A machine with no driver is named and the run goes on rather than
 | being refused, because the process that measures is not this one: the suite is started as a child
 | with the same ini and none of this invocation's flags, so a run begun with `-n` has no driver here
@@ -85,10 +93,12 @@ $root = str_replace('\\', '/', dirname(__DIR__));
  * fires only when the program itself is wrong, a defect rather than a scenario. The release
  * script's remaining fifth is what writing the release scenarios nobody has written yet would buy.
  *
- * `bin/tool-paths.php` has no floor and needs none: it is a list rather than a script, and a line
- * count of a `return [...]` literal is a fact about how two tools count a statement rather than
- * about the file. It is left out of the report in `phpunit.xml.dist` for that reason, and
- * `tests/Unit/Support/ToolPathsTest.php` is what reads it.
+ * `bin/tool-paths.php` has no floor and needs none: it is a list of records rather than a script,
+ * and a line count of a `return [...]` literal is a fact about how two tools count a statement
+ * rather than about the file. It is left out of the report in `phpunit.xml.dist` for that reason,
+ * and `tests/Unit/Support/ToolPathsTest.php` is what reads it — the paths, and the version each
+ * tool is pinned at, which that reading holds against what `composer.json` requires and against
+ * what is installed here.
  *
  * @var array<string, int>
  */
@@ -114,15 +124,21 @@ if (! is_file($autoload)) {
 require $autoload;
 
 // Which Pest to run comes from the manifest the gate reads: a tool's path is written down in one
-// place, and both halves of this package's test story have to be running the same one. A manifest
-// that is not there is a damaged checkout rather than a missing install, and the fatal names it.
+// place, and both halves of this package's test story have to be running the same one. An entry is
+// a record rather than a path — the tool's path, the version it is pinned at, and what it is for —
+// and this half needs the first of the three. A manifest that is not there is a damaged checkout
+// rather than a missing install, and the fatal names it.
 $tools = require $root.'/bin/tool-paths.php';
-$pest = $root.'/'.ltrim((string) ($tools['pest'] ?? ''), '/');
+$pest = $root.'/'.ltrim((string) ($tools['pest']['path'] ?? ''), '/');
 
-// Before the suite, not after it fails: both answers are about the machine this happens to be
-// running on, and neither is in the number a floor reads. The note at the top of this file says why
+// Before the suite, not after it fails: every answer here is about the machine this happens to be
+// running on, and none is in the number a floor reads. The note at the top of this file says why
 // they are named here rather than acted on.
-$environment = CoverageEnvironment::detect();
+//
+// The repository's own answer is asked rather than assumed: `$root` is this checkout, and a fixture
+// copy of this script sits in a tree with no resolver in it, which `PhpBinary` reports as unknown
+// rather than as a disagreement.
+$environment = CoverageEnvironment::detect(repository: PhpBinary::named($root));
 
 fwrite(STDOUT, PHP_EOL.$environment->describe().PHP_EOL);
 

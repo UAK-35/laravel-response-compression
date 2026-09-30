@@ -30,6 +30,7 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRun;
 | resolves, so that is asked of the real tree too: a path that is not there fails in the tool's own
 | words rather than reading as a check that was skipped.
 |
+| @guards-index test
 */
 
 /**
@@ -40,7 +41,11 @@ function toolRepo(): ReleaseRepo
     $repo = ReleaseRepo::plain();
 
     $repo->write('bin/tool.php', (string) file_get_contents(ReleaseRepo::package().'/bin/tool.php'));
-    $repo->write('bin/tool-paths.php', "<?php\n\ndeclare(strict_types=1);\n\nreturn ['doer' => 'vendor/doer/bin/doer'];\n");
+    // An entry as the manifest writes one — a path, a pin and a line saying what it is for — because
+    // this program reads the first of the three. The other two are here so the fixture is the shape
+    // the reading in `tests/Support/ToolPaths.php` accepts rather than a shape of its own.
+    $repo->write('bin/tool-paths.php', "<?php\n\ndeclare(strict_types=1);\n\nreturn ['doer' => ["
+        ."'path' => 'vendor/doer/bin/doer', 'pin' => '1.0.0', 'why' => 'the tool this fixture runs']];\n");
     // Written as a string rather than a nowdoc because the content has no indentation of its own
     // and none is wanted: this file runs as a script, and its lines start where a script's do.
     $repo->write('vendor/doer/bin/doer', "<?php\n\n"
@@ -143,6 +148,17 @@ it('refuses a manifest it cannot read, rather than quietly having no tools', fun
         expect($empty->exitCode)->toBe(2)
             ->and($empty->error)->toContain('bin/tool-paths.php names no tool');
     }
+
+    // And a name the manifest does hold without a path to run. That is a different refusal from
+    // the one above: the entry is there and half of it is missing, so the answer is not "run
+    // composer install" — there is nothing for that to install.
+    $repo->write('bin/tool-paths.php', "<?php\n\nreturn ['doer' => ['pin' => '1.0.0', 'why' => 'no path at all']];\n");
+
+    $headless = $repo->script('bin/tool.php', 'doer');
+
+    expect($headless->exitCode)->toBe(2)
+        ->and($headless->error)->toContain('doer is named by bin/tool-paths.php without a path to run')
+        ->and($headless->error)->not->toContain('composer install');
 });
 
 it('says how it is used when it is given no tool, and runs one from this package when it is', function (): void {

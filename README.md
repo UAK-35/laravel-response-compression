@@ -244,8 +244,9 @@ executable from another process.
 The scripts hold to the same rule, and none of them writes a path down. A composer script is a
 shell string and cannot read a manifest, so the one command a script contains that runs a tool
 names `bin/tool.php` and the tool — `@php bin/tool.php pint` — and `bin/tool.php` looks the path
-up in `bin/tool-paths.php`, which is the only file in this repository where a tool's path is
-written. `bin/checks.php` reads the same manifest, so the gate and the scripts cannot disagree
+up in `bin/tool-paths.php`, which is the only file in this repository where a tool is written
+down: the entry file that runs it, the version this package pins it at, and one line saying what it
+is for. `bin/checks.php` reads the same manifest, so the gate and the scripts cannot disagree
 about which file a tool is; the two copies that could are gone.
 
 What the manifest holds is the entry file inside `vendor/`, never the `vendor/bin` shim beside
@@ -259,7 +260,13 @@ platform that installed the dependencies, so one generated for another platform 
 reach the tool. `tests/Unit/Support/ToolPathsTest.php` reads the manifest and everything that
 names a tool, and fails on a path written down a second time — in a script, or in one of the
 three programs that run a tool — on a `vendor/bin` shim, on a path that is not on disk, and on a
-name nothing has or nothing runs.
+name nothing has or nothing runs. The pin is held the same way, in the two directions it can move:
+it is read against what `composer.json`'s `require-dev` asks Composer for and against what
+`vendor/composer/installed.json` says is actually here, so a tool updated on one side and not the
+other is a failure rather than a gate that goes on measuring this repository with it. Each tool is
+read for what it is for as well, and `bin/checks.php --list` prints every one of them with its pin
+and that line out of the manifest — the gate describing itself out of the single place those facts
+are written rather than out of a sentence beside it that nothing compares with them.
 
 It runs Pest *without* coverage on purpose. The same gate is run on machines that have no
 coverage driver, where a report would fail the whole run for a reason about the machine

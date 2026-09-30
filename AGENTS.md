@@ -194,6 +194,13 @@ template would produce rather than overwriting it.
 | `rector` | the refactorings Rector would make (`--dry-run`) |
 | `tests` | the Pest suite |
 
+The tools behind five of those rows — `yaml-lint`, `phpstan`, `pint`, `rector` and `pest` — are
+`bin/tool-paths.php`'s, with the version this package pins each one at and one line saying what it
+is for, and `bin/checks.php --list` prints that table: the gate describing itself out of the one
+place those facts are written down. The row above says what a check *proves*, which is a fact about
+the check rather than about the tool it runs — `syntax`, `ast`, `schema` and `platform` run no tool
+in that manifest.
+
 ```bash
 # __PHP_EXE__ is this machine's PHP: python .agents/render_local.py --value __PHP_EXE__
 composer checks                          # a workstation: a missing tool is a skip

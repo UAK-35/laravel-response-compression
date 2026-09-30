@@ -24,7 +24,7 @@ answer is not always "port it".
 | the repository-escape test | a relative path that climbs above the repository root — written out, or computed as `dirname(__DIR__, n)` — in any file a commit would carry | [`../tests/Unit/Support/RepoEscapesTest.php`](../tests/Unit/Support/RepoEscapesTest.php) |
 | the log-message test | two branches that report a skip with the same sentence, which is a line the log cannot tell apart — read from what the branches write, not from what they do | [`../tests/Unit/Middleware/LogMessagesTest.php`](../tests/Unit/Middleware/LogMessagesTest.php) |
 | the mutation harness | the guards above, going quiet: one break at a time is planted in a copy of this checkout, and the guard's own reading has to name it — so a reading that stopped asking the right question fails there instead of reporting nothing forever | [`../tests/Support/MutationHarness.php`](../tests/Support/MutationHarness.php), [`../tests/Unit/Support/MutationHarnessTest.php`](../tests/Unit/Support/MutationHarnessTest.php) |
-| the tool-path test | a tool's path written down in a second place — in a composer script, or in one of the three programs that runs a tool — a `vendor/bin` shim, which is a second interpreter, a path that is not on disk, a name nothing asks for, an entry nothing runs | [`../tests/Unit/Support/ToolPathsTest.php`](../tests/Unit/Support/ToolPathsTest.php) |
+| the tool-path test | a tool's path written down in a second place — in a composer script, or in one of the three programs that runs a tool — a `vendor/bin` shim, which is a second interpreter, a path that is not on disk, a name nothing asks for, an entry nothing runs, and the two facts an entry carries beside the path: a pin that is not the version `composer.json` requires or not the one installed, and an entry with no line saying what its tool is for | [`../tests/Unit/Support/ToolPathsTest.php`](../tests/Unit/Support/ToolPathsTest.php) |
 | `bin/tool.php` | a composer script that writes a tool's path down instead of naming a tool: the script names this program and the tool, the manifest answers with the path, and the exit code is the tool's own — a wrapper that swallowed it would report every script as passing | [`../bin/tool.php`](../bin/tool.php) |
 | the gate's own tests | the script everything else is measured by, which no test had ever run — its exit codes, its skips and its refusals, in a planted tree | [`../tests/Unit/Gate/ChecksTest.php`](../tests/Unit/Gate/ChecksTest.php) |
 | `bin/coverage.php` | the two scripts in `bin/` that no test can run directly: the coverage each child process writes is collected, mapped back onto the file it was copied from, and merged before the floor is read — 100.0% for every `src/` file on its own, a ratchet per script that may only rise, and a header naming the PHP and the coverage driver the run is under | [`../bin/coverage.php`](../bin/coverage.php) |
@@ -128,10 +128,10 @@ out of the report, each for a reason of its own. `bin/coverage.php` is the paren
 reads, so its own lines are in no file any child writes; it opens by naming the machine instead:
 the PHP it is under — version, path, and whether Composer started it, since `@php` is Composer's
 own binary — and the coverage driver, or the sentence saying there is none and what would give
-this machine one. `bin/tool-paths.php` is a list rather than a script — a `return [name => path]`
-whose seven lines PHPUnit counts as seven statements while PCOV reports the one statement once —
-so it reads 14.3% however many processes read it, and a floor that cannot rise is noise; what can
-be wrong with it is which entries it holds, which the tool-path test asserts. Neither file has a
+this machine one. `bin/tool-paths.php` is a list rather than a script — a `return [...]` of records,
+whose lines PHPUnit counts as statements while PCOV reports the one statement once — so it reads
+one low number however many processes read it, and a floor that cannot rise is noise; what can be
+wrong with it is which entries it holds, which the tool-path test asserts. Neither file has a
 number, and a floor that fails is either the code or the interpreter that ran it.
 
 The tool-path guard is the third one that came from a defect rather than from the comparison
@@ -145,13 +145,28 @@ and visible only in what it does: the shim is a `.bat` that runs whichever `php`
 `PATH`, and on a machine with two installs that is the interpreter without the coverage
 driver.
 
-The two lists are gone rather than reconciled: `bin/tool-paths.php` is the one place a tool's
-path is written, the scripts reach a tool by naming it to `bin/tool.php`, and the gate asks the
-same manifest. What one file cannot say about itself is what the guard reads — that nobody has
-written a path down again, that every path is the entry file inside `vendor/` and is on disk,
-and that every name is one something asks for and every asker's name exists. A name that is not
-there is the quiet failure of the three: it reads as "not installed", which is a skip in the
-summary that looks like a machine without the tool rather than a typo in a script.
+The two lists are gone rather than reconciled: `bin/tool-paths.php` is the one place a tool is
+written, the scripts reach a tool by naming it to `bin/tool.php`, and the gate asks the same
+manifest. What one file cannot say about itself is what the guard reads — that nobody has written
+a path down again, that every path is the entry file inside `vendor/` and is on disk, and that
+every name is one something asks for and every asker's name exists. A name that is not there is
+the quiet failure of the three: it reads as "not installed", which is a skip in the summary that
+looks like a machine without the tool rather than a typo in a script.
+
+An entry is a record rather than a path, and the same question is asked of the rest of it. A tool
+is what the gate measures this repository with, so the version belongs beside the file: each entry
+names the file that runs it, the version the package pins the tool at, and one line saying what it
+is for. The pin is then read in both directions it can drift — against `composer.json`'s
+`require-dev`, which is what this package asks Composer for, and against
+`vendor/composer/installed.json`, which is what it got — because a tool that moved measures
+something other than this tree, which is the `vendor/bin` failure one level up and just as
+invisible in a path: a Pint that formats differently and a Pest that counts differently both read
+as the tool that was named. The pin is the version of the package a tool's file lives in, and that
+package is derived from the path — `vendor/acme/thing/bin/thing` is inside `acme/thing` — rather
+than written beside it, so the path and the version cannot disagree about which tool they are
+about. The third fact is what the gate reads: `bin/checks.php --list` prints each tool with its pin
+and its purpose out of the manifest, so what the gate says about a tool is what the manifest says
+about it rather than a sentence beside the gate that nothing holds it to.
 
 The guard-index guard is the one that reads this file. A guard is only information about the
 future if it is in front of whoever adds the next one, and this document is where that happens —
@@ -227,7 +242,7 @@ has to be able to tell apart.
 | [`../tests/Support/PhpBinary.php`](../tests/Support/PhpBinary.php) | which PHP this repository runs, read the one way it is decided |
 | [`../tests/Support/RepoEscapes.php`](../tests/Support/RepoEscapes.php) | paths that climb out of this repository, found in the files a commit would carry |
 | [`../tests/Support/ScriptCoverage.php`](../tests/Support/ScriptCoverage.php) | what the spawned scripts covered, read back out of the files they wrote and mapped onto the repository's own copies |
-| [`../tests/Support/ToolPaths.php`](../tests/Support/ToolPaths.php) | the one manifest of tool paths, and the three ways a second copy of a path could come back |
+| [`../tests/Support/ToolPaths.php`](../tests/Support/ToolPaths.php) | the one manifest of the tools this package runs, and every way a fact in it could be stated twice |
 
 ## Support that is not a guard
 

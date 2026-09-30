@@ -33,14 +33,14 @@ release — which is why it sits in the repository rather than in the package.
   PHP file but the reading.
 
 - **The repository can be asked whether the tools it needs still work.** `python .agents/verify.py`
-  runs twelve readings in two halves, and only one of them is about the agentic layer. The `tools`
+  runs thirteen readings in two halves, and only one of them is about the agentic layer. The `tools`
   step asks programs rather than reading files: which PHP is being used here and does its version
   answer the pin in `.agents/toolchain.json`, are the three extensions `composer.json` requires
   loaded, can a coverage driver count a line for the floor, what composer reports, is Python new
   enough, is PowerShell 7 where the Windows snippets expect it, is git runnable, does every tool in
   `bin/tool-paths.php` still start through `bin/tool.php` — which is the process rather than the tool
   — is the hook this repository documents actually enabled in this clone, and is there a `vendor/` at
-  all to run any of it from. The layer's nine readings follow, and the package's own two path guards
+  all to run any of it from. The layer's ten readings follow, and the package's own two path guards
   and its gate are steps of the same run rather than something it re-implements. `--layer` is the
   fast subset the pre-commit hook now runs, `--package` is the tools and the two package readings, and
   `--only=STEP` runs one. The first run of it found the check's own bug: Composer colourises
@@ -241,6 +241,25 @@ release — which is why it sits in the repository rather than in the package.
   has to be able to tell apart: 2 for an option it does not have, 1 for a tree that fails.
 
 ### Changed
+
+- **A tool is a record now rather than a path, and the two facts beside the path are checked.** An
+  entry in `bin/tool-paths.php` carries the version the package pins the tool at and one line saying
+  what it is for, beside the file that runs it, and the readers follow: `bin/tool.php` runs an
+  entry's `path` and refuses a name it holds without one — its own answer, rather than "not
+  installed", because `composer install` is not what would fix it — `bin/checks.php` and
+  `bin/coverage.php` read the same field, and `python .agents/verify.py`'s `tools` step asks PHP for
+  the manifest as data rather than reading records out of the source with a pattern. The two new
+  facts are what the rest is for: `bin/checks.php --list` prints every tool with its pin and its
+  purpose out of the manifest, so what the gate says about a tool is the manifest's own sentence
+  rather than one beside the gate that nothing compares with it, and `ToolPaths::drift` holds each
+  pin in the two directions it can move — against `composer.json`'s `require-dev`, which is what the
+  package asks Composer for, and against `vendor/composer/installed.json`, which is what it got —
+  because a tool that moved measures something other than this tree, which is the `vendor/bin` shim
+  failure one level up and just as invisible in a path. The package a tool lives in is derived from
+  the path (`vendor/acme/thing/bin/thing` is inside `acme/thing`) rather than written beside it, so
+  the three facts cannot disagree about which tool they describe, and `symfony/yaml` is a
+  `require-dev` entry now: the workflow YAML the gate lints is a tool this package runs, so its
+  version is asked for rather than inherited from whichever dependency happens to bring it.
 
 - **The hook, CI and the two PHP programs that need an interpreter no longer decide one.** The
   pre-commit hook asks `.agents/php-bin.sh` and keeps only the part that is about committing: it

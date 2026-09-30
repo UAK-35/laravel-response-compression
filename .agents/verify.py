@@ -5,7 +5,7 @@ TWO HALVES, ASKED IN ONE RUN
 ----------------------------
 The `tools` step runs programs. It asks whether PHP is there and whether it carries the extensions
 `composer.json` requires, whether a coverage driver can count a line for the floor, whether the one
-manifest of tool paths still resolves to four tools that start, whether the hook this repository
+manifest of tools still resolves to the tools it records, whether the hook this repository
 documents is enabled in this clone, and whether there is a `vendor/` to run any of it from. A
 toolchain that half works is the failure mode this is for: it does not look like a bug in the
 package, it looks like a bad day.
@@ -768,15 +768,49 @@ def satisfies(version: str, pin: str) -> bool:
     return found[: len(wanted)] >= wanted
 
 
-def manifest_tools(root: Path) -> dict[str, str]:
-    """The tool manifest the package runs its tools from: `bin/tool-paths.php`, read as data.
+def manifest_tools(root: Path) -> dict[str, dict[str, str]]:
+    """The tool manifest the package runs its tools from: `bin/tool-paths.php`, asked as data.
 
-    It is read rather than restated because it is the repository's own answer to "where is Pest" -
-    `tests/Unit/Support/ToolPathsTest.php` owns the rules about what may be in it, and a second copy
-    of the map here would be the very thing that guard refuses.
+    An entry there is a record rather than a path - the file that runs a tool, the version the
+    package pins it at, and what it is for - so the manifest is *asked* rather than parsed: PHP is
+    run on a line that requires it and prints it as JSON, which is the same thing `bin/tool.php`
+    does with it a line later, where a pattern over the source would be a reading of the syntax
+    those records happen to be written in. `tests/Unit/Support/ToolPathsTest.php` owns the rules
+    about what may be in it, and a second copy of the map here would be the very thing that guard
+    refuses - which is also why the pins are not compared here: that comparison is the guard's own
+    reading (`ToolPaths::drift`), reached by the `gate` step.
     """
-    text = read(root / "bin" / "tool-paths.php")
-    return {name: path for name, path in re.findall(r"'([a-z0-9-]+)'\s*=>\s*'([^']+)'", text)}
+    php = php_binary(root)
+    manifest = root / "bin" / "tool-paths.php"
+
+    if php is None or not manifest.is_file():
+        return {}
+
+    # Named as PHP's own source rather than as a path this program opens: single quotes, so a `$` in
+    # a directory name is a character rather than the start of a variable.
+    target = str(manifest).replace("\\", "/").replace("'", "\\\\'")
+    output = capture(root, php, "-r", f"echo json_encode(require '{target}');")
+
+    if output is None:
+        return {}
+
+    try:
+        data = json.JSONDecoder().raw_decode(output.lstrip())[0]
+    except json.JSONDecodeError:
+        return {}
+
+    if not isinstance(data, dict):
+        return {}
+
+    return {
+        str(name): {
+            "path": entry["path"],
+            "pin": str(entry.get("pin", "")),
+            "why": str(entry.get("why", "")),
+        }
+        for name, entry in data.items()
+        if isinstance(entry, dict) and isinstance(entry.get("path"), str) and entry["path"] != ""
+    }
 
 
 def step_tools(root: Path) -> list[str]:
@@ -785,7 +819,7 @@ def step_tools(root: Path) -> list[str]:
     The layer steps above read files; this one runs programs. Each thing it asks is a question the
     package's own commands depend on the answer to: which PHP is being used and does it carry the
     extensions `composer.json` requires, is there a coverage driver for the floor, does the tool
-    manifest still resolve to four tools that start, is the hook this repository documents actually
+    manifest still resolve to the tools it records, is the hook this repository documents actually
     enabled in this clone, and is there a `vendor/` at all.
 
     A missing tool is a finding here, not a skip: the gate can skip a check on a machine that lacks
@@ -906,22 +940,25 @@ def step_tools(root: Path) -> list[str]:
                 "this commit - enable it with: git config core.hooksPath .githooks"
             )
 
-    # 5. The tools themselves. Without a vendor/ there is nothing to run them from, which is a state
-    #    a fresh clone is in rather than a defect: it is reported so a green run cannot be mistaken
-    #    for "the tools were checked".
-    paths = manifest_tools(root)
+    # 5. The tools themselves, as the manifest records them. Without a vendor/ there is nothing to
+    #    run them from, which is a state a fresh clone is in rather than a defect: it is reported so
+    #    a green run cannot be mistaken for "the tools were checked".
+    entries = manifest_tools(root)
 
-    if not paths:
-        findings.append("bin/tool-paths.php: no tool paths could be read - the manifest is what runs a tool")
-    elif php is None:
-        NOTES.append("tools: there is no PHP to run the four dev tools under")
+    if not entries:
+        if php is None:
+            NOTES.append("tools: there is no PHP here, so bin/tool-paths.php could not be asked what its tools are")
+        else:
+            findings.append("bin/tool-paths.php: no tool entries could be read - the manifest is what runs a tool")
     elif not (root / "vendor").is_dir():
         NOTES.append(
-            "tools: no vendor/ beside this checkout, so the four dev tools were not run - "
+            "tools: no vendor/ beside this checkout, so the tools were not run - "
             "composer install puts them there"
         )
     else:
-        for name, path in sorted(paths.items()):
+        for name, entry in sorted(entries.items()):
+            path = entry["path"]
+
             if not (root / path).is_file():
                 findings.append(
                     f"bin/tool-paths.php: `{name}` names {path}, which is not on disk - a caller that "

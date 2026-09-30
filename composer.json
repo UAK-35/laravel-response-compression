@@ -33,7 +33,8 @@
         "pestphp/pest-plugin-type-coverage": "4.0.4",
         "phpstan/phpstan": "2.2.16",
         "rector/rector": "2.6.7",
-        "symfony/var-dumper": "8.1.7"
+        "symfony/var-dumper": "8.1.7",
+        "symfony/yaml": "8.1.6"
     },
     "autoload": {
         "psr-4": {

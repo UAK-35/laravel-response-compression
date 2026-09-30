@@ -28,13 +28,16 @@
           - `bin/coverage.php` is the parent of this run, so its own lines are in no file any child
             writes. Excluding it is the difference between a floor that measures the scripts and one
             that also asks a script to cover itself;
-          - `bin/tool-paths.php` is a list rather than a program. It is a `return [name => path]`,
-            and the two halves of this report disagree about it: PHPUnit counts each line of the
-            array as a statement while PCOV reports the statement once, so the file reads 14.3%
-            however many processes read it, and a floor that cannot rise is noise. What can be
-            wrong with it is which entries it holds — a name nothing asks for, an entry nothing
-            runs, a path that is not the entry file inside `vendor/` or not on disk at all — and
-            `tests/Unit/Support/ToolPathsTest.php` is where that is asserted.
+          - `bin/tool-paths.php` is a list of records rather than a program. It is a
+            `return [...]` of entries — the file that runs a tool, the version the package pins
+            it at, and what it is for — and the two halves of this report disagree about it:
+            PHPUnit counts each line of the array as a statement while PCOV reports the statement
+            once, so the file reads one low number however many processes read it, and a floor
+            that cannot rise is noise. What can be wrong with it is which entries it holds — a
+            name nothing asks for, an entry nothing runs, a path that is not the entry file
+            inside `vendor/` or not on disk at all, a pin that is not the version `composer.json`
+            requires or not the one installed — and `tests/Unit/Support/ToolPathsTest.php` is
+            where that is asserted.
     -->
     <source>
         <include>

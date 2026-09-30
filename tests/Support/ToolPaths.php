@@ -7,7 +7,7 @@ namespace Uak35\ResponseCompression\Tests\Support;
 use RuntimeException;
 
 /**
- * The one manifest of tool paths, and the three ways a second copy of a path could come back.
+ * The one manifest of the tools this package runs, and every way a fact in it could be stated twice.
  *
  * WHY THIS EXISTS
  * ---------------
@@ -32,13 +32,30 @@ use RuntimeException;
  *     what the gate asks the manifest for, and a name that is not in it reads as "not installed"
  *     — a skip in the summary that looks like a machine without the tool rather than a typo.
  *
+ * An entry is more than a path, and the two facts beside it drift in the same way. A tool is what
+ * the gate measures this repository with, so the version matters as much as the file: an entry
+ * carries the version the package pins the tool at, and that pin is compared with what
+ * `composer.json` requires and with what `vendor/composer/installed.json` says is here. A pin
+ * that moved on one side and not the other is a tool measuring something other than this tree,
+ * which is the failure the paths came from, one level up — and it is checked in the direction a
+ * path cannot be, because the installed side is a fact about this machine rather than about the
+ * repository. What a tool is *for* is the third fact, because it is written beside the tool in
+ * three places and only one of them can be right.
+ *
  * WHAT IS READ, AND WHAT IS NOT
  * -----------------------------
  * The manifest is *asked*, by requiring it, rather than parsed out of its source: it returns an
  * array and does nothing else, which is the reason it is a file of its own. The programs that read
  * it cannot be asked — they run on include — so they are read as text: the names they ask for, the
  * paths the scripts write, and, for every entry the manifest holds, whether a reader writes that
- * path or the `vendor/bin` shim of that name down again.
+ * path or the `vendor/bin` shim of that name down again. The two versions a pin is compared with
+ * are read the same way the manifest is: `composer.json` and Composer's own `installed.json`, both
+ * handed in rather than looked up, so this reads one tree at a time.
+ *
+ * The package a path is inside is derived from the path rather than carried beside it:
+ * `vendor/acme/thing/bin/thing` is inside `acme/thing`, and an entry that said so a second time
+ * would be one more copy to drift. It is what makes the pin one fact — the version of the package
+ * a tool's file lives in — rather than a name and a version that can disagree.
  *
  * Every reader throws rather than answering with nothing when it cannot find what it reads. A
  * guard whose answer to "did you read anything?" is "no" reports agreement with a file it never
@@ -55,6 +72,13 @@ final class ToolPaths
     public const array READERS = ['bin/checks.php', 'bin/coverage.php', 'bin/tool.php'];
 
     /**
+     * What an entry holds: the file that runs the tool, the version it is pinned at, and what it
+     * is for. `manifest()` refuses an entry missing any of them, because a caller that read one
+     * of the three out of a full entry would otherwise have to invent the other two.
+     */
+    public const array KEYS = ['path', 'pin', 'why'];
+
+    /**
      * A command that runs a program under the interpreter Composer is running under.
      *
      * `@php` is the whole reason a script does not need a shim: Composer expands it to the binary
@@ -64,13 +88,14 @@ final class ToolPaths
     private const string CALL = '~^@php\s+(?<path>\S+)(?:\s+(?<arguments>.*))?$~';
 
     /**
-     * The manifest, as name => path.
+     * The manifest, as name => its entry.
      *
-     * @return array<string, string>
+     * @return array<string, array{path: string, pin: string, why: string}>
      *
      * @throws RuntimeException when the file is not there, returns something that is not an array,
-     *                          or returns none — the three ways this guard could read nothing and
-     *                          call it agreement
+     *                          or returns none — the ways this guard could read nothing and call
+     *                          it agreement — and when an entry is not a record with all three
+     *                          facts in it, which is a shape no caller can read a path out of
      */
     public static function manifest(string $file): array
     {
@@ -81,10 +106,160 @@ final class ToolPaths
         $paths = require $file;
 
         if (! is_array($paths) || $paths === []) {
-            throw new RuntimeException($file.' returns no name => path array to read.');
+            throw new RuntimeException($file.' returns no name => entry array to read.');
         }
 
-        return $paths;
+        $manifest = [];
+
+        foreach ($paths as $name => $entry) {
+            $missing = [];
+
+            foreach (self::KEYS as $key) {
+                if (! is_array($entry) || ! is_string($entry[$key] ?? null) || trim($entry[$key]) === '') {
+                    $missing[] = $key;
+                }
+            }
+
+            if (! is_string($name) || $missing !== []) {
+                throw new RuntimeException(sprintf(
+                    '%s: %s is not an entry with a path, a pin and what it is for (missing: %s).',
+                    $file,
+                    is_string($name) ? $name : gettype($name),
+                    implode(', ', $missing),
+                ));
+            }
+
+            $manifest[$name] = [
+                'path' => (string) $entry['path'],
+                'pin' => (string) $entry['pin'],
+                'why' => (string) $entry['why'],
+            ];
+        }
+
+        return $manifest;
+    }
+
+    /**
+     * The package a tool's file is inside, derived from the path itself.
+     *
+     * A path inside `vendor/` starts with the two segments every Composer package is named by, so
+     * `vendor/acme/thing/bin/thing` is inside `acme/thing` — and an entry that carried the package
+     * name beside the path would be a second copy of what the path already says. A path this rule
+     * cannot answer for is one no package is inside, which is a path `problems()` refuses: it is
+     * not a file inside `vendor/`, or it is the `vendor/bin` shim, which is not inside a package at
+     * all. The answer for such a path is therefore never read — it is only ever a name to print.
+     */
+    public static function package(string $path): string
+    {
+        $segments = array_values(array_filter(
+            explode('/', str_replace('\\', '/', ltrim($path, '/'))),
+            static fn (string $segment): bool => $segment !== '',
+        ));
+
+        return implode('/', array_slice($segments, 1, 2));
+    }
+
+    /**
+     * What `composer install` put in the tree, as package => version.
+     *
+     * Composer's own record rather than a second reading of a directory, and it is the only side of
+     * a pin that is a fact about this machine: `composer.json` says what this package asks for, and
+     * this says what it got. Composer writes the list under `packages` in Composer 2; a bare list is
+     * the older shape, and both are read for the same reason.
+     *
+     * @return array<string, string>
+     *
+     * @throws RuntimeException when the file is not there, is not a list of packages, or names no
+     *                          package — the ways this could answer "nothing is installed" for a
+     *                          tree that has everything installed
+     */
+    public static function installed(string $installedJson): array
+    {
+        if (! is_file($installedJson)) {
+            throw new RuntimeException($installedJson.' is not there.');
+        }
+
+        $data = json_decode((string) file_get_contents($installedJson), true);
+        $packages = is_array($data) && is_array($data['packages'] ?? null) ? $data['packages'] : $data;
+
+        if (! is_array($packages)) {
+            throw new RuntimeException($installedJson.' is not a list of installed packages to read.');
+        }
+
+        $versions = [];
+
+        foreach ($packages as $package) {
+            if (is_array($package) && is_string($package['name'] ?? null) && is_string($package['version'] ?? null)) {
+                $versions[$package['name']] = self::version($package['version']);
+            }
+        }
+
+        if ($versions === []) {
+            throw new RuntimeException($installedJson.' names no installed package.');
+        }
+
+        return $versions;
+    }
+
+    /**
+     * The pin compared with the two versions it is a statement about.
+     *
+     * An entry's `pin` is the version of the package its `path` is inside, and it is one fact
+     * written down where two other files already state it: `composer.json`'s `require-dev` is what
+     * this package asks Composer for, and `installed.json` is what it got. Either half disagreeing
+     * means the gate would measure this repository with a tool other than the one it pinned — with
+     * a linter that formats differently, a Pest that counts differently — and neither half is
+     * visible in the path.
+     *
+     * @param  array<string, array{path: string, pin: string, why: string}>  $manifest
+     * @param  array<string, string>  $required  `composer.json`'s `require-dev`
+     * @param  array<string, string>  $installed  what `composer install` put in `vendor/`
+     * @return list<string>
+     */
+    public static function drift(array $manifest, array $required, array $installed): array
+    {
+        $found = [];
+
+        foreach ($manifest as $name => $entry) {
+            $package = self::package($entry['path']);
+
+            if (! array_key_exists($package, $required)) {
+                $found[] = sprintf(
+                    '%s runs %s, which composer.json does not require at a version',
+                    self::MANIFEST,
+                    $package,
+                );
+            } elseif (self::version($required[$package]) !== $entry['pin']) {
+                $found[] = sprintf(
+                    'composer.json requires %s at %s, and %s pins %s at %s',
+                    $package,
+                    $required[$package],
+                    self::MANIFEST,
+                    $name,
+                    $entry['pin'],
+                );
+            }
+
+            if (! array_key_exists($package, $installed)) {
+                $found[] = sprintf(
+                    '%s pins %s at %s, and no version of %s is installed here',
+                    self::MANIFEST,
+                    $name,
+                    $entry['pin'],
+                    $package,
+                );
+            } elseif ($installed[$package] !== $entry['pin']) {
+                $found[] = sprintf(
+                    '%s pins %s at %s, and %s is installed — a tool that moved measures something else',
+                    self::MANIFEST,
+                    $name,
+                    $entry['pin'],
+                    $installed[$package],
+                );
+            }
+        }
+
+        return $found;
     }
 
     /**
@@ -176,7 +351,7 @@ final class ToolPaths
      * that started this. Both are matched as the strings they are, which is what keeps a sentence
      * in a docblock from being read as a path.
      *
-     * @param  array<string, string>  $manifest
+     * @param  array<string, array{path: string, pin: string, why: string}>  $manifest
      * @param  array<string, string>  $sources  reader => its text
      * @return list<string>
      */
@@ -185,8 +360,8 @@ final class ToolPaths
         $found = [];
 
         foreach ($sources as $reader => $source) {
-            foreach ($manifest as $name => $path) {
-                foreach ([$path, 'vendor/bin/'.$name] as $written) {
+            foreach ($manifest as $name => $entry) {
+                foreach ([$entry['path'], 'vendor/bin/'.$name] as $written) {
                     if (str_contains($source, $written)) {
                         $found[] = sprintf(
                             '%s writes %s down; %s is where a tool path is written',
@@ -203,16 +378,24 @@ final class ToolPaths
     }
 
     /**
-     * The manifest's own rules: an entry file inside `vendor/`, not a shim, and on disk.
+     * The manifest's own rules: a path inside `vendor/`, not a shim, on disk, an exact pin, and a
+     * line saying what the tool is for.
      *
-     * @param  array<string, string>  $manifest
+     * The pin is read as an exact version rather than as a constraint, because it is the version a
+     * tool is run at: `^4.7` describes a set, and a set is what `composer.json` already states. The
+     * line about what a tool is for is read for the same reason it exists — the gate prints it, so
+     * an entry without one is a tool the gate has nothing to say about.
+     *
+     * @param  array<string, array{path: string, pin: string, why: string}>  $manifest
      * @return list<string>
      */
     public static function problems(array $manifest, string $root): array
     {
         $found = [];
 
-        foreach ($manifest as $name => $path) {
+        foreach ($manifest as $name => $entry) {
+            $path = $entry['path'];
+
             if (! str_starts_with($path, 'vendor/')) {
                 $found[] = sprintf('%s names %s, which is not a file inside vendor/', $name, $path);
             } elseif (str_starts_with($path, 'vendor/bin/')) {
@@ -224,6 +407,14 @@ final class ToolPaths
             if (! is_file($root.'/'.ltrim($path, '/'))) {
                 $found[] = sprintf('%s names %s, which is not there', $name, $path);
             }
+
+            if (preg_match('/^[0-9]+(?:\.[0-9]+)*$/', $entry['pin']) !== 1) {
+                $found[] = sprintf('%s pins %s at %s, which is not the version itself', $name, self::package($path), $entry['pin']);
+            }
+
+            if (trim($entry['why']) === '') {
+                $found[] = sprintf('%s does not say what %s is for', self::MANIFEST, $name);
+            }
         }
 
         return $found;
@@ -232,7 +423,7 @@ final class ToolPaths
     /**
      * Names something asks for that the manifest does not hold, and names nothing asks for.
      *
-     * @param  array<string, string>  $manifest
+     * @param  array<string, array{path: string, pin: string, why: string}>  $manifest
      * @param  list<array{from: string, tool: string}>  $asked
      * @return list<string>
      */
@@ -261,5 +452,16 @@ final class ToolPaths
         }
 
         return $found;
+    }
+
+    /**
+     * A version as Composer writes it, in the form the pin is written in.
+     *
+     * Composer records some packages with the `v` their tag carries and some without, and
+     * `composer.json` is written without it. One spelling is the version's, and this is the one.
+     */
+    private static function version(string $version): string
+    {
+        return ltrim($version, 'v');
     }
 }
