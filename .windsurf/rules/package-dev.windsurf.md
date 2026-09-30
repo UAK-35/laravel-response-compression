@@ -1,6 +1,6 @@
 ---
 trigger: model_decision
-description: "This package's daily loop: the nine check gate, the coverage floor, the dev tools, the lists of the guard index, and the check that asks whether the tools themselves still work. Commands - gate, gate-"
+description: "This package's daily loop: the nine check gate, the coverage floor, the dev tools, the lists of the guard index, which interpreter the checkout runs, and the check that asks whether the tools themselv"
 ---
 
 # package-dev

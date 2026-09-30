@@ -314,6 +314,19 @@ release — which is why it sits in the repository rather than in the package.
   header names both interpreters when they differ, since a floor recorded under one and measured
   under another is the first thing to rule out when it moves.
 
+- **A command a skill or an agent hands over renders this machine's PHP in the line itself, rather
+  than leaving the token in front of a program for a reader to substitute.** The four commands that
+  need an interpreter — `staged`, `checks-list`, `index` and `index-check` — now read
+  `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged`: in the
+  `.agents/toolchain.json` they are declared in, in section 13 of `AGENTS.md` that is rendered from
+  it, in both skill targets, and in the `.skills/` sources those are generated from.
+  `__PHP_EXE__ bin/checks.php --staged` is not a command, it is a placeholder, and a skill that
+  states one hands over a line somebody has to edit before anything runs — which is the difference
+  between a skill and a note about a skill. Nothing committed carries a drive path either way, and
+  that was never in question; what the token needed was the renderer named inside it.
+  `step_toolchain` in `.agents/verify.py` was taught to read through the rendered prefix, so the
+  program behind it is still checked to be here rather than becoming the one line nothing looks at.
+
 - **This machine's paths live in one gitignored file, and nothing committed names them.**
   `.agents/render_local.py` owns `.agents/machine.local.json`: `--init` asks for the PHP binary,
   PowerShell 7 and the package root, `--value` answers a token for a reader who needs one spelled

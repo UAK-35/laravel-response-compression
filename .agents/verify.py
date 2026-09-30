@@ -467,17 +467,21 @@ def step_toolchain(root: Path) -> list[str]:
 
     for name, entry in manifest.get("commands", {}).items():
         line = str(entry.get("line", ""))
-        head = line.split()[0] if line else ""
+        renders_php = bool(PHP_RENDER.match(line))
+        parts = PHP_RENDER.sub("", line).split()
+        head = parts[0] if parts else ""
 
         if head == "composer":
-            script = line.split()[1] if len(line.split()) > 1 else ""
+            script = parts[1] if len(parts) > 1 else ""
             if script and script not in script_names:
                 findings.append(f".agents/toolchain.json: `{name}` runs `{line}`, which no composer.json script provides")
         elif head == "python":
-            if not (root / line.split()[1]).is_file():
-                findings.append(f".agents/toolchain.json: `{name}` names {line.split()[1]}, which is not here")
-        elif head in ("php", "__PHP_EXE__"):
-            program = line.split()[1] if len(line.split()) > 1 else ""
+            if len(parts) > 1 and not (root / parts[1]).is_file():
+                findings.append(f".agents/toolchain.json: `{name}` names {parts[1]}, which is not here")
+        elif renders_php or head in ("php", "__PHP_EXE__"):
+            # Both forms name an interpreter over a program, so both are read to the program: the
+            # rendered prefix is the interpreter, and the token form is the word after the token.
+            program = head if renders_php else (parts[1] if len(parts) > 1 else "")
             if program and not (root / program).is_file():
                 findings.append(f".agents/toolchain.json: `{name}` names {program}, which is not here")
 

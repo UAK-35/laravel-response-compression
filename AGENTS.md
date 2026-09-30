@@ -64,8 +64,8 @@ Two consequences worth stating before anything else:
 | Project root | `__PACKAGE_DIR__` (a token — section 3 has the file it comes from) |
 | Windows shell (mandatory) | PowerShell 7, by the token `__PWSH_EXE__` |
 | Linux shell (mandatory) | `bash` |
-| PHP binary | `__PHP_EXE__` — and the one file in this repository that names it is `.agents/machine.local.json` |
-| Package manager | `composer`, or `__PHP_EXE__ composer.phar <script>` where `composer` is not on `PATH` |
+| PHP binary | `__PHP_EXE__` — named by `.agents/machine.local.json`, and decided by `.agents/php-bin.sh` |
+| Package manager | `composer`, or `"$(python .agents/render_local.py --value __PHP_EXE__)" composer.phar <script>` where `composer` is not on `PATH` |
 | How a command reaches PHP | the token, resolved per command. Most commands name none at all: Composer runs a script under the interpreter already running it, so `composer checks` and `composer test` are interpreter-free |
 | Search utility (mandatory) | `rg` (ripgrep); `git grep` where a shell has no `rg` |
 
@@ -77,12 +77,33 @@ are named once, in the gitignored `.agents/machine.local.json`, and `python .age
 "$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged
 ```
 
-Nothing else in this repository writes an interpreter down. A composer script runs under
-`PHP_BINARY`, every tool in `bin/` runs a vendor entry file the same way
-(`.agents/toolchain.json` has the rule), the hook resolves the machine file before anything else,
-and `python .agents/verify.py`'s `tools` step reads it before falling back to `PATH` — a fallback it
-reports rather than lets pass, because the same commit checked under a second interpreter is the
-failure that leaves no trace.
+A command a skill or an agent hands over **carries that rendering, not the placeholder**. The four
+commands in section 13 that need an interpreter render it from `.agents/machine.local.json` in the
+line itself; `__PHP_EXE__ bin/checks.php --staged` is a line a reader has to substitute before
+anything runs, which is not a command. The token belongs where it is being defined - the `PHP binary`
+row above, and the token table in section 3 - and in prose about resolving it; in front of a program
+it is a placeholder pretending to be a command.
+
+Nothing else in this repository writes an interpreter down, and nothing else decides one either.
+`.agents/php-bin.sh` is the one place that answers "which PHP", in this order: `$RESPONSE_COMPRESSION_PHP`,
+then `.agents/machine.local.json` read through `python .agents/render_local.py --value __PHP_EXE__`,
+then `git config --get response-compression.php`, then `php` on `PATH`. `sh .agents/php-bin.sh --show`
+says which rung answered about this checkout, and four things ask rather than deciding again:
+
+- the **pre-commit hook**, which skips rather than blocking when no interpreter is found — a machine
+  without PHP must not become a machine that cannot commit — and says so when a fallback answered;
+- **CI**, which runs `sh .agents/php-bin.sh --matrix` to get the version it installs, so
+  composer.json's `require.php` is not written into the workflow as a second copy of itself;
+- **`bin/tool.php`**, which prints one line when the tool is about to run under an interpreter other
+  than the one this machine names — the vendor/bin failure one layer up;
+- **`bin/coverage.php`**, whose header names both interpreters when they differ, because a floor
+  recorded under one and measured under another is the first thing to rule out when one moves.
+
+A composer script runs under `PHP_BINARY` and names none, and every tool in `bin/` runs a vendor
+entry file the same way (`.agents/toolchain.json` has the rule). `python .agents/verify.py`'s
+`interpreter` step refuses a second copy of any of the four, and `tools` asks the resolver to prove
+its own ladder — four rungs is four chances to answer something else, and the shell file is what
+`Tests\Support\PhpBinary` and the hook both believe.
 
 Wrap every command in the mandated shell for the platform:
 
@@ -202,11 +223,12 @@ the check rather than about the tool it runs — `syntax`, `ast`, `schema` and `
 in that manifest.
 
 ```bash
-# __PHP_EXE__ is this machine's PHP: python .agents/render_local.py --value __PHP_EXE__
 composer checks                          # a workstation: a missing tool is a skip
 composer checks -- --require-all         # CI and a release: a missing tool is a failure
-__PHP_EXE__ bin/checks.php --list        # the nine, with each one's skip condition
-__PHP_EXE__ bin/checks.php --staged      # staged files only — what the pre-commit hook runs
+
+# __PHP_EXE__ is this machine's PHP, rendered from .agents/machine.local.json in the line itself:
+"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --list    # the nine, each one's skip condition, and the tools the manifest pins
+"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged  # staged files only — what the pre-commit hook runs
 ```
 
 **The gate is not the cover.** `composer checks` runs Pest without a coverage driver on purpose, so
@@ -395,10 +417,12 @@ rendered from it, and `verify.py` refuses a restatement of any of them elsewhere
 | --- | --- | --- |
 | `gate` | `composer checks -- --require-all` | the whole gate, with a missing tool as a failure instead of a skip - what CI and a release use |
 | `gate-local` | `composer checks` | the same nine checks on a workstation, where half the tools are require-dev and a missing one is a skip |
-| `staged` | `__PHP_EXE__ bin/checks.php --staged` | the staged files only - syntax, style and the links between the docs - which is what the pre-commit hook runs, under the PHP it resolves from .agents/machine.local.json |
-| `checks-list` | `__PHP_EXE__ bin/checks.php --list` | the nine checks and the condition each one skips on, under this machine's PHP rather than whichever `php` happens to be first on PATH |
-| `index` | `__PHP_EXE__ bin/index.php` | render the two lists of files in docs/guards.md from tests/Support/, where each file declares its own row - the composer.json script `index` is the same program |
-| `index-check` | `__PHP_EXE__ bin/index.php --check` | the same reading with nothing written: what tests/Unit/Docs/GuardIndexTest.php asserts, and the form that fails a document which has drifted from the directory |
+| `staged` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged` | the staged files only - syntax, style and the links between the docs - which is what the pre-commit hook runs, under the PHP it resolves from .agents/machine.local.json |
+| `checks-list` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --list` | the nine checks, the condition each one skips on, and the tools the manifest pins - each one's path, the version it is pinned at and what it is for - under this machine's PHP rather than whichever `php` happens to be first on PATH |
+| `which-php` | `sh .agents/php-bin.sh --show` | which interpreter this checkout runs, which rung answered, and the version composer.json requires - the one place all three are decided, and what the hook, the workflow and the coverage runner ask |
+| `index` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/index.php` | render the two lists of files in docs/guards.md from tests/Support/, where each file declares its own row - the composer.json script `index` is the same program |
+| `index-check` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/index.php --check` | the same reading with nothing written: what tests/Unit/Docs/GuardIndexTest.php asserts, and the form that fails a document which has drifted from the directory |
+| `push` | `composer push` | push the current branch and read the GitHub Actions run it started to a verdict - only `success` exits 0, so the run is read before the push is reported as done |
 | `test` | `composer test` | Rector dry-run, Pint in test mode, PHPStan and the coverage floor, in that order |
 | `test-unit` | `composer test:unit` | Pest under coverage, holding every src/ file at 100.0% and a ratchet per program in bin/ |
 | `test-types` | `composer test:types` | PHPStan at max, through bin/tool.php |
@@ -415,7 +439,7 @@ rendered from it, and `verify.py` refuses a restatement of any of them elsewhere
 
 | Tool | Runs as | Version asked for | For |
 | --- | --- | --- | --- |
-| `php` | `__PHP_EXE__` | `^8.4` | runs the gate, the suite, and the five programs in bin/ |
+| `php` | `__PHP_EXE__` | `^8.4` | runs the gate, the suite, and the programs in bin/ |
 | `composer` | `composer` | `^2` | the scripts in composer.json are where the gate, the tool wrappers and the coverage floor live |
 | `pwsh` | `__PWSH_EXE__` | `7` | the Windows shell every command runs through - PowerShell 7, never cmd.exe and never MSYS |
 | `python` | `python` | `3` | runs the agentic consistency check and the two generators beside it |

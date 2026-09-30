@@ -11,7 +11,9 @@ branch is invisible to a consumer, which is the fact every step below is arrange
   `composer` is not on `PATH`. Neither form writes an interpreter down: Composer runs the script
   under `PHP_BINARY`, and the machine file names this machine's PHP once.
 - Machine-local paths are tokens; resolve one with `python .agents/render_local.py --value __TOKEN__`.
-  `.agents/machine.local.json` is the only file in this repository that carries a PHP path.
+  `.agents/machine.local.json` is the only file in this repository that carries a PHP path, and
+  `.agents/php-bin.sh` is the one place that decides which interpreter runs here — `sh
+  .agents/php-bin.sh --show` prints it, and the hook and the workflow ask the same file.
 - The lane is `development`. `bin/release.php` defaults to `main` and refuses a cut anywhere it was
   not told to expect one, so every run passes `--branch=development`.
 

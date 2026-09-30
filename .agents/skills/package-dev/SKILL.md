@@ -1,6 +1,6 @@
 ---
 name: package-dev
-description: "This package's daily loop: the nine check gate, the coverage floor, the dev tools, the lists of the guard index, and the check that asks whether the tools themselves still work. Commands - gate, gate-local, staged, checks-list, index, test, test-unit, test-types, test-lint, tidy, single-test, verify-tools, agentic-check, agentic-layer, agentic-fix, agentic-selftest. Invoke on mentions of a test run, a style fix, the gate, coverage, the guard index, a toolchain that misbehaves, or any change inside this repository."
+description: "This package's daily loop: the nine check gate, the coverage floor, the dev tools, the lists of the guard index, which interpreter the checkout runs, and the check that asks whether the tools themselves still work. Commands - gate, gate-local, staged, which-php, checks-list, index, test, test-unit, test-types, test-lint, tidy, single-test, verify-tools, agentic-check, agentic-layer, agentic-fix, agentic-selftest. Invoke on mentions of a test run, a style fix, the gate, coverage, the guard index, a toolchain that misbehaves, or any change inside this repository."
 license: "MIT"
 ---
 
@@ -25,13 +25,17 @@ python .agents/render_local.py --value               # every token and its value
   which is most machines here. A bare `composer` may be a different installation with a different PHP.
 - Most commands below name **no** interpreter, and that is the point: Composer runs a script under the
   interpreter that is already running it, so `composer checks` is whatever PHP invoked Composer, and a
-  direct `bin/checks.php` or `bin/release.php` run is the one case that needs the token spelled out.
+  direct `bin/checks.php` or `bin/index.php` run is the case that renders this machine's PHP in the
+  line itself — `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged` —
+  rather than naming a `php` for the reader to guess at or leaving a token for the reader to substitute.
 - The Windows shell is PowerShell 7 (`__PWSH_EXE__`); on Linux, `bash`.
 - Nothing here is run through a `vendor/bin` shim. `bin/tool.php` runs a tool under `PHP_BINARY`,
   which is the interpreter that installed the dependencies.
-- `.agents/machine.local.json` is the only file in this repository that names an interpreter. The
-  pre-commit hook resolves it first and says so when it had to fall back, and
-  `python .agents/verify.py` reads it before it looks on `PATH`.
+- Which interpreter any of this runs is decided in one place: `.agents/php-bin.sh`, and `which-php`
+  below prints the answer. `.agents/machine.local.json` is the only file here that names one, and
+  the hook, the workflow and the two programs that need the answer all ask that file rather than
+  resolving again — the hook saying so when it had to fall back, and `bin/tool.php` saying so when
+  the tool is about to run under an interpreter other than the one this machine names.
 
 ## Commands
 
@@ -42,15 +46,24 @@ Each of these is a command this skill defines. They are thin on purpose: the gat
   rather than a skip. This is what CI and a release run.
 - `gate-local`: run `composer checks` — the same nine, where a missing `require-dev` tool is a skip.
   Use it while iterating; report a skip as a skip rather than as a pass.
-- `staged`: run `__PHP_EXE__ bin/checks.php --staged` — syntax, style and the links between the docs,
-  on the staged files only. It is what the pre-commit hook runs under the same interpreter, and it is
-  the fastest useful answer.
-- `checks-list`: run `__PHP_EXE__ bin/checks.php --list` — the nine checks and the condition each one
-  skips on, under this machine's PHP rather than whichever `php` is first on `PATH`.
-- `index`: run `composer index` (`__PHP_EXE__ bin/index.php`) — rewrite the two lists of files in
-  `docs/guards.md` from `tests/Support/`, where each file declares its own row and its own words.
-  `__PHP_EXE__ bin/index.php --check` is the same reading with nothing written, which is what the
-  suite asserts: use it after adding, renaming or moving a file in `tests/Support/`.
+- `staged`: run `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged` —
+  syntax, style and the links between the docs, on the staged files only. It is what the pre-commit
+  hook runs under the same interpreter, and it is the fastest useful answer.
+- `which-php`: run `sh .agents/php-bin.sh --show` — the interpreter this checkout runs, the rung of
+  the ladder that answered (the `RESPONSE_COMPRESSION_PHP` override, `.agents/machine.local.json`, `git
+  config`, or `PATH`), and the version `composer.json` requires, which is what CI installs.
+  `sh .agents/php-bin.sh --selftest` plants a fault per rung and requires each one to be answered,
+  which is what the `tools` step of `python .agents/verify.py` asks it to do on every run.
+- `checks-list`: run `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --list` —
+  the nine checks, the condition each one skips on, and the tools out of `bin/tool-paths.php` with
+  the version each is pinned at and what it is for, under this machine's PHP rather than whichever
+  `php` is first on `PATH`.
+- `index`: run `composer index` (the same program as
+  `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/index.php`) — rewrite the two lists of
+  files in `docs/guards.md` from `tests/Support/`, where each file declares its own row and its own
+  words. `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/index.php --check` is the same
+  reading with nothing written, which is what the suite asserts: use it after adding, renaming or
+  moving a file in `tests/Support/`.
 - `test`: run `composer test` — Rector dry-run, Pint in test mode, PHPStan and the coverage floor, in
   that order. The order matters: style before analysis means a formatting complaint is not reported
   as a type error.
