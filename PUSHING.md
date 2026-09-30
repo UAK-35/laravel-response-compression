@@ -50,6 +50,33 @@ kind every tag here but `v0.0.1` is — so a release tag travels with its commit
 command is needed. It is the same command the releaser runs for the branch it released, so a
 cut and a push by hand cannot disagree about what goes out.
 
+### Then read the run
+
+`git push` answers one question — did the bytes leave this machine — and it answers it in a
+second. The question a reader has is whether the run they started passed, and that answer arrives
+somewhere else, minutes later. `composer push` is that push with the reading made part of it: it
+pushes the branch, finds the Actions run GitHub started for the commit it pushed, waits for that
+run to finish, and exits 0 only when it concluded `success`.
+
+```powershell
+cd <the package root>          # the directory holding this file
+
+composer push                  # push the current branch and read its run
+composer push -- --dry-run     # what would be pushed and read; changes nothing
+composer push -- --no-watch    # push and stop, saying the run was not read
+```
+
+It reads the run through `gh`, which is the tool here that already knows who you are
+(`gh auth login`), so nothing holds a token and none is written down. A push that started no run
+is a refusal rather than a pass: the workflow gates `main`, `development` and `v*` tags, so a push
+to any other branch builds nothing, and "nothing ran" cannot be read as a verdict. `--gh=COMMAND`
+names the reader instead, if your GitHub is not the one the CLI knows.
+
+The release lane already assumes this run exists — `bin/release.php` refuses a release whose
+commit is not the tip of the remote branch, precisely because that commit is one *nothing has
+built*. This is the other half of that sentence: the commit is built, and this is whether it
+passed.
+
 Push before tagging and the tag stays local: Packagist derives every published version
 from tags on the remote, so a release is not published until its tag is there. See
 [RELEASING.md](RELEASING.md).

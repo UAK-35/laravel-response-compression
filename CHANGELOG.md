@@ -267,6 +267,22 @@ release — which is why it sits in the repository rather than in the package.
   refuses is an argument — so the row is a person's to write and the declaration is the file's own;
   the writing form of `bin/index.php` still repairs only the two lists it renders.
 
+- **A push is not done until its run is read.** `composer push` pushes the current branch and
+  then waits on the GitHub Actions run that push started: it finds the run for the commit it
+  pushed through `gh` — already authenticated on the machine, so no token is held and none is
+  written down — prints the run's URL, and exits 0 only when that run concluded `success`. Every
+  other ending — a failure, a cancellation, a timeout, a reader that could not be asked, or a
+  push that started no run at all — exits 1 and says what it read, because a push reported as
+  done at the moment `git` returns is a claim about the future. A push that built nothing is a
+  refusal rather than a pass, since "nothing ran" is not the same answer as "it passed".
+  `bin/release.php` already assumes the run exists — its CI rail refuses a commit that is one
+  *nothing has built* — and this is the other half of that sentence: the commit is built, and
+  here is whether it passed. The command is `bin/push.php`, declared as the `push` composer
+  script: `--branch`, `--remote`, `--gh`, `--timeout`, `--interval` and `--grace` shape the
+  wait, `--dry-run` prints the plan instead, and `--no-watch` pushes and says plainly that the
+  run was not read. The reader is a command rather than a hard-wired client, which is what lets
+  the tests stand in for `gh` and read a run that never touches the network.
+
 ### Changed
 
 - **A tool is a record now rather than a path, and the two facts beside the path are checked.** An

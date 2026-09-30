@@ -69,6 +69,7 @@
     "scripts": {
         "checks": "@php bin/checks.php",
         "index": "@php bin/index.php",
+        "push": "@php bin/push.php",
         "release": "@php bin/release.php",
         "refactor": "@php bin/tool.php rector",
         "tidy": [
