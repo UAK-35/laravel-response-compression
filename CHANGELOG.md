@@ -240,6 +240,21 @@ release — which is why it sits in the repository rather than in the package.
   manifest at all — taking it from 0.0% to 55.4% of its lines and pinning the two codes a caller
   has to be able to tell apart: 2 for an option it does not have, 1 for a tree that fails.
 
+- **The numbers the index states are read out of the code that produces them rather than written
+  down and trusted.** The two lists under the table are rendered now, so a file that moves cannot
+  leave a stale row; the numbers in the prose were left out of that, and a number in a sentence is
+  the same defect one layer up. `IndexNumbers` reads "nine checks in one process" out of the
+  `$checks` array in `bin/checks.php`, the floor every file is held to out of `bin/coverage.php`,
+  and the counts the page is about — the guards the table records, the two lists' 15 readings and
+  4 files, the 19 files in `tests/Support/` and the 11 `docs/` records — out of the directory and
+  the table itself, then compares each with the sentence that states it. The phrase that names the
+  gate's size is read wherever a commit would carry it, so the README, the rules, the gate's
+  command and the workflow cannot go on saying nine while the gate runs ten. A number that is no
+  longer stated at all is a finding rather than a silence, which is the rule `GuardIndex` already
+  makes about a row. It reports rather than rewrites, because a number inside a sentence is prose
+  rather than a rendering — and `tests/Unit/Docs/IndexNumbersTest.php` pulls the document and the
+  code apart one number at a time to prove each of them is read.
+
 ### Changed
 
 - **A tool is a record now rather than a path, and the two facts beside the path are checked.** An

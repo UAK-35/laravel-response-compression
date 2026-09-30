@@ -36,8 +36,9 @@ use RuntimeException;
  * -----------------------------------
  * The reading is the guard's own — the call its test asserts on, not a second implementation of
  * it. `MachinePaths::scan`, `RepoEscapes::scan`, `ChangelogPreamble::stale`, `ConfigClaims::all`,
- * `GuardIndex::drift` and `LogMessages`'s pair are one call each, and `ConfigDoc`'s two halves are
- * one comparison, so this class is a caller rather than a copy for each of them. The guards whose
+ * `GuardIndex::drift`, `IndexNumbers::drift` and `LogMessages`'s pair are one call each, and
+ * `ConfigDoc`'s two halves are one comparison, so this class is a caller rather than a copy for
+ * each of them. The guards whose
  * reading is a *walk* composed in the test — the docs links, the config keys, the tool paths —
  * are declined in `UNAUDITED`, with the reason: a walk written out here a second time would be a
  * guard of its own, which is the one thing this package's readings exist to avoid.
@@ -344,6 +345,27 @@ final class MutationHarness
                     return $file;
                 },
                 'read' => GuardIndex::drift(...),
+            ],
+            [
+                'guard' => 'the number-claims reading',
+                'test' => 'tests/Unit/Docs/IndexNumbersTest.php',
+                'plant' => static function (string $root): string {
+                    // The gate gains a check and the index's sentence keeps the number it was
+                    // written with: true the day it was typed, and nothing in the document to tell
+                    // it that the array below it grew. This is a row turned into a sentence — the
+                    // same claim written as prose, where nothing else held it to the program it
+                    // describes.
+                    $said = 'ten checks in one process';
+
+                    self::replace($root, IndexNumbers::DOCUMENT, static fn (string $text): string => str_replace(
+                        'nine checks in one process',
+                        $said,
+                        $text,
+                    ));
+
+                    return $said;
+                },
+                'read' => IndexNumbers::drift(...),
             ],
             [
                 'guard' => 'the log-message reading',

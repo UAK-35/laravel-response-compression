@@ -8,6 +8,9 @@ answer is not always "port it".
 
 ## Kept
 
+The table records 30 guards. What each one catches is in the second column, and where it lives is
+in the third.
+
 | Guard | What it catches | Where |
 |---|---|---|
 | `bin/checks.php` | nine checks in one process: syntax, an AST parse, the composer schema, the platform requirements, the workflow YAML, PHPStan, Pint, Rector, Pest — one summary, one exit code | [`../bin/checks.php`](../bin/checks.php) |
@@ -39,6 +42,7 @@ answer is not always "port it".
 | `composer checks -- --require-all` in CI | a check that *skipped* on the runner — a tool that did not install is a hole in the build, not a fact about the machine | [`the same workflow`](../.github/workflows/main.yml) |
 | the guard-index test | a guard that is not in this table, and a row that links a file the repository no longer has — every row's `Where` cell is resolved, so the next guard cannot be added without a place in it | [`../tests/Unit/Docs/GuardIndexTest.php`](../tests/Unit/Docs/GuardIndexTest.php) |
 | `bin/index.php` and the two rendered lists | a list of files that has stopped being a list of the files: which list a file in `tests/Support/` is in, and the words beside its row, are read from the file itself, this program writes the two tables below from that, and `--check` is what fails when the document and the directory disagree | [`../bin/index.php`](../bin/index.php) |
+| the number-claims test | a number this page states having stopped matching the code that produces it — how many checks the gate runs, the floor every file is held to, and how many guards and files the page is about — read out of the document and out of `bin/checks.php`, `bin/coverage.php` and the directory | [`../tests/Unit/Docs/IndexNumbersTest.php`](../tests/Unit/Docs/IndexNumbersTest.php) |
 
 The gate drops a check to a skip when a tool is missing, which is right on a developer's
 machine — half of these tools are `require-dev` — and wrong on a runner, where a tool that
@@ -122,7 +126,8 @@ changed is where the evidence comes from, not what is asserted: a child writes d
 covered, and the merge maps a fixture's copy back onto the repository's file by comparing
 contents, because a fixture's `bin/checks.php` is a three-line stub and reading it by name would
 have handed the gate 100.0% coverage for a script that exits on line three. The floors are 100.0%
-per file for `src/` and a ratchet for each script — written down, because closing the rest of
+per file for `src/`, and a ratchet for each script — `bin/checks.php` at 54%, `bin/index.php` at
+81%, `bin/release.php` at 78% and `bin/tool.php` at 86% — written down, because closing the rest of
 those lines is writing more scenarios rather than deleting dead code. Two files in `bin/` are left
 out of the report, each for a reason of its own. `bin/coverage.php` is the parent of the run it
 reads, so its own lines are in no file any child writes; it opens by naming the machine instead:
@@ -195,6 +200,18 @@ about a document in step. The one row this page had that the table reader could 
 guard-index row, sitting below a blank line of its own — moved back into the table it belongs to
 for the same reason: a row no reader reads is a row that reads as though it were not there.
 
+The number-claims guard is the same question one step further out, and it asks it of the prose. The
+lists under the table are rendered now, so a file that moves cannot leave a stale row; the numbers
+in the sentences were left out of that. "N checks in one process" is a fact about the `$checks`
+array in `bin/checks.php`, "a ratchet for each script" is a fact about two constants in
+`bin/coverage.php`, and the count of guards above is a fact about the table itself — each of them
+true the day it was typed, and nothing to tell the sentence if the code moved. `IndexNumbers` reads
+each number out of the document and compares it with the code that produces it, and it reads the
+phrase that names the gate's size wherever a commit would carry it, because the README, the rules,
+the gate's command and the workflow write the same claim this page does. A number that is no
+longer stated at all is a finding rather than a silence, which is the difference between a reading
+that found nothing and one that was never looking.
+
 The mutation harness is the one guard on this page that is about the other guards rather than about
 the package, and it exists because of the shape every reading here shares: a guard that stopped
 asking the right question does not fail. It reports the same nothing it reports when there is
@@ -227,6 +244,9 @@ nothing, declares a list this page does not have, or has no sentence to quote is
 than left out, because "not in the list" and "in it and correct" are the two answers a rendering
 has to be able to tell apart.
 
+The two lists name 15 readings and 4 files that are not guards, 19 files in `tests/Support/` in
+all.
+
 | Reading | What it reads |
 |---|---|
 | [`../tests/Support/ChangelogPreamble.php`](../tests/Support/ChangelogPreamble.php) | the changelog read for the claim its preamble makes about the versions it does not own |
@@ -236,6 +256,7 @@ has to be able to tell apart.
 | [`../tests/Support/CoverageEnvironment.php`](../tests/Support/CoverageEnvironment.php) | the PHP a coverage run is measured under, and the driver that can count a line |
 | [`../tests/Support/Docs.php`](../tests/Support/Docs.php) | the markdown this package ships, read for the links in it |
 | [`../tests/Support/GuardIndex.php`](../tests/Support/GuardIndex.php) | `docs/guards.md` read as a claim about a directory |
+| [`../tests/Support/IndexNumbers.php`](../tests/Support/IndexNumbers.php) | the numbers `docs/guards.md` states, read out of it and checked against the code that produces them |
 | [`../tests/Support/LogMessages.php`](../tests/Support/LogMessages.php) | the diagnostics the compression middleware writes, read as shapes |
 | [`../tests/Support/MachinePaths.php`](../tests/Support/MachinePaths.php) | paths that only resolve on the machine they were written on, found in the files a commit would carry |
 | [`../tests/Support/MutationHarness.php`](../tests/Support/MutationHarness.php) | one break at a time, planted in a copy of this checkout, read back through the guard that is supposed to catch it |
