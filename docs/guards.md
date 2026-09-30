@@ -46,8 +46,8 @@ failed to install reads as a green build. That is why CI runs the gate with `--r
 it is the same gate, with the skips turned into failures where a skip can only be a mistake.
 
 The hook is that same gate, earlier and narrower. `bin/checks.php --staged` — which is what
-`.githooks/pre-commit` runs, under the PHP that hook resolves from `.agents/machine.local.json`,
-the one file here that names this machine's interpreter — points three checks at the files a commit
+`.githooks/pre-commit` runs, under the PHP that `.agents/php-bin.sh` resolves — points three checks
+at the files a commit
 carries: syntax
 over the staged PHP, Pint over the staged PHP, and the docs-link test when markdown is staged.
 Those three are what a commit can break on its own; the rest of the gate is a tree-shaped
@@ -224,6 +224,7 @@ has to be able to tell apart.
 | [`../tests/Support/LogMessages.php`](../tests/Support/LogMessages.php) | the diagnostics the compression middleware writes, read as shapes |
 | [`../tests/Support/MachinePaths.php`](../tests/Support/MachinePaths.php) | paths that only resolve on the machine they were written on, found in the files a commit would carry |
 | [`../tests/Support/MutationHarness.php`](../tests/Support/MutationHarness.php) | one break at a time, planted in a copy of this checkout, read back through the guard that is supposed to catch it |
+| [`../tests/Support/PhpBinary.php`](../tests/Support/PhpBinary.php) | which PHP this repository runs, read the one way it is decided |
 | [`../tests/Support/RepoEscapes.php`](../tests/Support/RepoEscapes.php) | paths that climb out of this repository, found in the files a commit would carry |
 | [`../tests/Support/ScriptCoverage.php`](../tests/Support/ScriptCoverage.php) | what the spawned scripts covered, read back out of the files they wrote and mapped onto the repository's own copies |
 | [`../tests/Support/ToolPaths.php`](../tests/Support/ToolPaths.php) | the one manifest of tool paths, and the three ways a second copy of a path could come back |

@@ -20,6 +20,16 @@ namespace Uak35\ResponseCompression\Tests\Support;
  * So both are named before the suite starts, in the header of the run rather than in the report at
  * the end of it.
  *
+ * WHY THE REPOSITORY'S OWN ANSWER IS NAMED BESIDE THE RUNNING ONE
+ * ----------------------------------------------------------------
+ * The interpreter above is the one this run happens to have: `composer test:unit` runs the script
+ * under Composer's PHP, and a direct run under whatever the caller used. Which PHP this repository
+ * *means* is decided in one place, `.agents/php-bin.sh`, and `PhpBinary` reads it. When the two
+ * disagree - the machine file names one install and the suite is running under another - the
+ * header says so, because that is the first thing to rule out when a floor moves and the last thing
+ * a reader would think of. A fallback answer (the `php` on a runner's PATH) is not printed: that is
+ * the arrangement on a runner, not a second opinion.
+ *
  * WHY THE DECISION TAKES ITS OBSERVATIONS AS ARGUMENTS
  * ---------------------------------------------------
  * `detect()` asks the running PHP when it is called with nothing, and a test hands it what it wants
@@ -39,6 +49,7 @@ final readonly class CoverageEnvironment
      * @param  string  $driver  `PCOV 1.0.12`, or '' when nothing here can count a line
      * @param  string  $why  what is loaded, said as what is missing; '' when there is a driver
      * @param  string  $hint  the one line that would give this machine a driver; '' when it has one
+     * @param  PhpBinary  $repository  the interpreter this repository names, and whether this run is under it
      */
     private function __construct(
         public string $php,
@@ -47,6 +58,7 @@ final readonly class CoverageEnvironment
         public string $driver,
         public string $why,
         public string $hint,
+        public PhpBinary $repository,
     ) {}
 
     /**
@@ -57,12 +69,14 @@ final readonly class CoverageEnvironment
      * @param  string|null  $pcovEnabled  the `pcov.enabled` ini value, or null to ask
      * @param  string|null  $xdebugMode  the `xdebug.mode` ini value, or null to ask
      * @param  string|null  $composer  `COMPOSER_BINARY`, or null to ask
+     * @param  PhpBinary|null  $repository  the repository's own answer, or null when nothing handed one in
      */
     public static function detect(
         ?array $extensions = null,
         ?string $pcovEnabled = null,
         ?string $xdebugMode = null,
         ?string $composer = null,
+        ?PhpBinary $repository = null,
     ): self {
         $extensions ??= self::loaded();
         $pcovEnabled = trim($pcovEnabled ?? (string) ini_get('pcov.enabled'));
@@ -87,6 +101,10 @@ final readonly class CoverageEnvironment
             driver: $driver,
             why: $driver === '' ? self::why($pcov, $xdebug, $xdebugMode) : '',
             hint: $driver === '' ? self::hint($pcov, $xdebug) : '',
+            // Not asked here: a run that is handed no answer says nothing about the repository
+            // rather than asking the checkout this file happens to sit in, which for a fixture copy
+            // is a tree with no resolver in it. `bin/coverage.php` is what asks, with its own root.
+            repository: $repository ?? PhpBinary::unknown(),
         );
     }
 
@@ -110,6 +128,16 @@ final readonly class CoverageEnvironment
             $rows[] = ['to fix it', $this->hint];
         }
 
+        // And the interpreter this repository names, when this run is under a different one. Marked
+        // the way the report marks a file below its floor, because it is the same kind of fact: a
+        // number that moved and a second thing that could have moved it.
+        if ($this->repository->disagreement() !== '') {
+            $rows[] = [
+                'php named here',
+                $this->repository->names.'  ('.$this->repository->source().')  <-- this run is under a different one',
+            ];
+        }
+
         $lines = ['Coverage floor, measured under:'];
 
         foreach ($rows as [$label, $value]) {
@@ -128,9 +156,19 @@ final readonly class CoverageEnvironment
      */
     public function summary(): string
     {
-        return $this->driver === ''
+        $summary = $this->driver === ''
             ? sprintf('PHP %s at %s, with no coverage driver in it.', $this->php, $this->binary)
             : sprintf('PHP %s at %s, coverage by %s.', $this->php, $this->binary, $this->driver);
+
+        // The second interpreter if there is one, and only then: this line is repeated at the foot of
+        // a failure, and a machine in the ordinary case should not have to read a sentence about a
+        // PHP it is not running.
+        if ($this->repository->disagreement() === '') {
+            return $summary;
+        }
+
+        return $summary.' This run is under '.PhpBinary::running().', and '.$this->repository->source()
+            .' names '.$this->repository->names.'.';
     }
 
     /**

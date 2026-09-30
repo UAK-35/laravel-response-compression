@@ -689,8 +689,8 @@ function usage(): void
       composer release -- --weigh [--dry-run] [--push]
       bin/release.php --weigh [--dry-run] [--push]
 
-    Either form runs under this machine's PHP — the one `.agents/machine.local.json`
-    names once, printed by `python .agents/render_local.py --value __PHP_EXE__`.
+    Either form runs under this machine's PHP — `.agents/php-bin.sh` is what decides
+    which that is, and `sh .agents/php-bin.sh --show` says so.
 
     Options:
           --weigh          Weigh the changes and take the bump they ask for.

@@ -86,6 +86,12 @@ LAYER = [
     ".gitignore",
     "composer.json",
     "bin",
+    # The two places that run something on this repository's behalf rather than on a person's: the
+    # hook, which needs an interpreter before it can resolve one, and the workflow, which installs
+    # the version composer.json requires. Both are read by the `interpreter` step, and a check that
+    # cannot see the file it is about is a check that reports green about nothing.
+    ".githooks",
+    ".github",
     ".agents",
     ".skills",
     ".trae",
@@ -116,6 +122,28 @@ SECTION = re.compile(r"^## (\d+)\. (.+)$", re.MULTILINE)
 INSTRUCTION_COMMAND = re.compile(r"^-\s+`([^`]+)`\s*:", re.MULTILINE)
 COMMAND_NAME = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$")
 VENDOR_SHIM = re.compile(r"vendor/bin/")
+
+# A command that needs this machine's PHP spelled out renders it from `machine.local.json` in the
+# command itself - `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged`.
+# The prefix is stripped before the line is read, so the program behind it is still checked to be
+# here: reading the rendered form as a command whose head is a shell substitution would leave the
+# four commands that render an interpreter as the four nothing looks at.
+PHP_RENDER = re.compile(r'^"\$\(\s*python\s+\.agents/render_local\.py\s+--value\s+__PHP_EXE__\s*\)"\s+')
+
+# Which PHP runs is decided in `.agents/php-bin.sh`, and the four things that used to decide it
+# separately are what the `interpreter` step reads. The three rungs of that ladder, as the step
+# spelled them before it moved there: the renderer, the `git config` key, and `php` on PATH.
+LADDER = re.compile(r"render_local\.py\s+--value|response-compression\.php|command\s+-v\s+php", re.IGNORECASE)
+
+# A PHP version, in a workflow: a `php-version:` whose value is not an expression, or a matrix entry
+# whose value is a digit. `php-version: ${{ matrix.php }}` and `php: ${{ fromJSON(...) }}` are
+# neither - those are the job reading the answer from `.agents/php-bin.sh --matrix`.
+PHP_VERSION = re.compile(r"php-version\s*:\s*[\"']?\d|^\s*php\s*:\s*\[?\s*[\"']?\d", re.MULTILINE)
+
+# A PHP file that resolves an interpreter for itself: a line that names the resolver or the machine
+# file *and* does something with it. Naming one in a docblock is a reader being told where the
+# answer lives, which three of the files in `bin/` do; reading one is a second answer.
+CONSUMES = re.compile(r"file_get_contents|json_decode|proc_open|shell_exec|popen|exec\(|Process::")
 
 
 # ---------------------------------------------------------------------------
@@ -475,6 +503,105 @@ def step_toolchain(root: Path) -> list[str]:
     return findings
 
 
+def step_interpreter(root: Path) -> list[str]:
+    """One file decides which PHP this checkout runs, and nothing else decides again.
+
+    Four things used to answer that question separately: the pre-commit hook climbed a ladder of its
+    own, the workflow installed a version written into it, `bin/tool.php` ran whatever started it,
+    and `bin/coverage.php` measured its floors under whatever Composer runs. The ladder is
+    `.agents/php-bin.sh`'s now, and so is the requirement `--matrix` turns into a build, which
+    leaves this step to read the three callers that can carry a second copy:
+
+      * the hook has to ask the resolver, and may not carry a rung of the ladder - the failure this
+        exists for is that block being written back one day because it is only four lines;
+      * a workflow may not state the version, in a matrix or anywhere else, because a build that
+        installs its own idea of the requirement is the two-answers problem one layer out;
+      * no PHP file but `Tests\\Support\\PhpBinary` may resolve an interpreter for itself.
+
+    What it does not do: it reads the resolver rather than running it (`tools` asks it to prove its
+    own ladder, and `--pin` in `.agents/toolchain.json` is checked against `composer.json` by the
+    step above), and it judges only what a file says - a resolution assembled at runtime out of
+    pieces is beyond a reading, and beyond what a second copy looks like in practice.
+    """
+    findings: list[str] = []
+    resolver = root / ".agents" / "php-bin.sh"
+
+    if not resolver.is_file():
+        return [
+            ".agents/php-bin.sh is not here, and it is the one place this checkout decides which PHP "
+            "runs - the hook, the workflow and the coverage runner are all written to ask it"
+        ]
+
+    hook = root / ".githooks" / "pre-commit"
+    if hook.is_file():
+        text = read(hook)
+
+        if "php-bin.sh" not in text:
+            findings.append(
+                ".githooks/pre-commit: does not ask .agents/php-bin.sh for the interpreter, so the hook "
+                "is deciding it again - that ladder lives in one file, and this is written to ask it"
+            )
+
+        for number, line in enumerate(text.splitlines(), 1):
+            if LADDER.search(line):
+                findings.append(
+                    f".githooks/pre-commit:{number}: carries a rung of the ladder (`{line.strip()}`) - "
+                    "a second copy of the resolution is the failure .agents/php-bin.sh exists to stop"
+                )
+
+    requirement = str(json.loads(read(root / "composer.json") or "{}").get("require", {}).get("php", ""))
+
+    # The constraint as written, and the version it names: `^8.4` and `8.4` are the same decision
+    # written two ways, and a workflow that carries either has a second copy of it.
+    versions = [needle for needle in (requirement, requirement.lstrip("^~>= ")) if needle]
+
+    for workflow in sorted(root.glob(".github/workflows/*.yml")):
+        where = rel(workflow, root)
+        text = read(workflow)
+
+        if "php-bin.sh" not in text:
+            findings.append(
+                f"{where}: does not ask .agents/php-bin.sh --matrix which PHP to install, so the "
+                "version it builds is written down here as well as in composer.json"
+            )
+
+        for number, line in enumerate(text.splitlines(), 1):
+            code = line.split("#", 1)[0].strip()
+
+            if code and PHP_VERSION.search(line):
+                findings.append(
+                    f"{where}:{number}: states the PHP version (`{code}`) - `require.php` is where it is "
+                    "written, and `sh .agents/php-bin.sh --matrix` is how the job reads it"
+                )
+
+                continue
+
+            for version in versions:
+                if version and version in line:
+                    findings.append(
+                        f"{where}:{number}: states `{version}`, the version composer.json requires - "
+                        "the matrix is read from it, and a version written into a workflow is a second copy"
+                    )
+
+                    break
+
+    for path in sorted([*((root / "bin").glob("*.php")), *((root / "tests").rglob("*.php"))]):
+        where = rel(path, root)
+
+        if where == "tests/Support/PhpBinary.php":
+            continue
+
+        for number, line in enumerate(read(path).splitlines(), 1):
+            if ("php-bin.sh" in line or "machine.local.json" in line) and CONSUMES.search(line):
+                findings.append(
+                    f"{where}:{number}: resolves an interpreter for itself (`{line.strip()}`) - "
+                    "the answer is `.agents/php-bin.sh`'s, and Tests\\Support\\PhpBinary is the one PHP "
+                    "reader of it"
+                )
+
+    return findings
+
+
 def step_tokens(root: Path) -> list[str]:
     findings: list[str] = []
     known = {"__PHP_EXE__", "__PHP_DIR__", "__PWSH_EXE__", "__PACKAGE_DIR__"}
@@ -816,6 +943,22 @@ def step_tools(root: Path) -> list[str]:
         if not (root / "bin" / program).is_file():
             findings.append(f"bin/{program}: missing, and this repository's process is built on it")
 
+    # 6. The one place that decides which PHP runs, asked to prove its own ladder. The `interpreter`
+    #    step above reads the four callers; this is the other half of the same question, because a
+    #    rung that stopped answering would show up as a machine that cannot commit and a build that
+    #    installs nothing. It is a shell script, so a machine with no `sh` is a note rather than a
+    #    finding: the hook needs one to run at all, and a Windows machine without Git installed is a
+    #    machine where this package's process was never available.
+    resolver = root / ".agents" / "php-bin.sh"
+    shell = shutil.which("sh")
+
+    if not resolver.is_file():
+        findings.append(".agents/php-bin.sh: missing, and it is where the interpreter is decided")
+    elif shell is None:
+        NOTES.append("tools: no `sh` on PATH, so .agents/php-bin.sh was not asked to prove its ladder")
+    else:
+        findings += run_process(root, shell, str(resolver), "--selftest")
+
     return findings
 
 
@@ -892,6 +1035,7 @@ STEPS = [
     ("gemini", step_gemini, "the GEMINI.md import block lists exactly the skills present"),
     ("windsurf", step_windsurf, "every skill has a pointer rule"),
     ("toolchain", step_toolchain, "the commands and pins are the ones the package actually has"),
+    ("interpreter", step_interpreter, "one file decides which PHP runs, and nothing else decides again"),
     ("tokens", step_tokens, "every token is one of the four, and no rendered file has drifted"),
     ("descriptions", step_descriptions, "a description names only commands its skill defines"),
 ]
@@ -1046,6 +1190,16 @@ def mutate(name: str, root: Path) -> None:
         manifest = json.loads(read(path))
         manifest["tools"]["php"]["pin"] = "^8.3"
         path.write_text(json.dumps(manifest, indent=4) + "\n", encoding="utf-8")
+    elif name == "interpreter":
+        # The hook climbing the ladder again, which is the second copy this step is about and the one
+        # that would come back by accident: four lines that look like they belong beside the skip
+        # message they used to produce.
+        path = root / ".githooks" / "pre-commit"
+        path.write_text(
+            read(path)
+            + '\nphp_bin="$(python .agents/render_local.py --value __PHP_EXE__)"\n',
+            encoding="utf-8",
+        )
     elif name == "tokens":
         path = root / "CLAUDE.md"
         path.write_text(read(path) + "\nThe PHP binary is `__PHP_PATH__`.\n", encoding="utf-8")

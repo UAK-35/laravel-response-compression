@@ -18,6 +18,20 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **`which PHP` is answered in one place, and the four things that used to answer it ask instead.**
+  `.agents/php-bin.sh` — `composer which-php`, or `sh .agents/php-bin.sh --show` — resolves the
+  interpreter in the order the hook used to keep privately: `$RESPONSE_COMPRESSION_PHP`, then
+  `.agents/machine.local.json` through `render_local.py`, then `git config`, then `PATH`. It reports
+  which rung answered, so a fallback cannot pass for a decision, and `--selftest` plants a fault per
+  rung and requires each one to be answered — the same thing the `tools` step of
+  `python .agents/verify.py` asks it on every run. PHP asks through `Tests\Support\PhpBinary`, the
+  same answer read from this side: it says whether the run is under the interpreter this machine
+  names, and stays quiet when the rung was a fallback, because a runner's `PATH` is the arrangement
+  rather than a second opinion. `--pin` and `--matrix` read the version `composer.json` requires, so
+  CI installs the requirement rather than a copy of it, and the new `interpreter` step refuses a
+  second copy of the ladder in the hook, of the version in a workflow, or of the resolution in any
+  PHP file but the reading.
+
 - **The repository can be asked whether the tools it needs still work.** `python .agents/verify.py`
   runs twelve readings in two halves, and only one of them is about the agentic layer. The `tools`
   step asks programs rather than reading files: which PHP is being used here and does its version
@@ -228,6 +242,16 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Changed
 
+- **The hook, CI and the two PHP programs that need an interpreter no longer decide one.** The
+  pre-commit hook asks `.agents/php-bin.sh` and keeps only the part that is about committing: it
+  skips rather than blocking when no PHP is found, and says so when a fallback is what answered. The
+  workflow gained a job that runs `sh .agents/php-bin.sh --matrix` and a matrix built from its answer
+  with `fromJSON`, so the PHP it installs is read out of `composer.json` instead of written into the
+  workflow as a second copy. `bin/tool.php` prints one line before it runs a tool whose interpreter
+  is not the one this machine names — the `vendor/bin` failure one layer up — and `bin/coverage.php`'s
+  header names both interpreters when they differ, since a floor recorded under one and measured
+  under another is the first thing to rule out when it moves.
+
 - **This machine's paths live in one gitignored file, and nothing committed names them.**
   `.agents/render_local.py` owns `.agents/machine.local.json`: `--init` asks for the PHP binary,
   PowerShell 7 and the package root, `--value` answers a token for a reader who needs one spelled
@@ -275,11 +299,11 @@ release — which is why it sits in the repository rather than in the package.
   interpreter happens to be first on `PATH`, which on this box is not the PHP that installed the
   dependencies. `AGENTS.md` now carries the question as a row of its environment table, together
   with the half of the answer that is *nothing*: most commands name no interpreter at all, because
-  Composer runs a script under the PHP that is running Composer. The pre-commit hook takes its
-  interpreter from `.agents/machine.local.json` before the environment, `.git/config` or `PATH` —
-  the last three survive so that a clone which has never run `render_local.py --init` still commits,
-  and the hook says which one answered, because a check run under a second PHP is the failure that
-  leaves no trace. The same reading is applied to the two staged commands in
+  Composer runs a script under the PHP that is running Composer. The pre-commit hook asks
+  `.agents/php-bin.sh`, which is that ladder in one place now — the environment, then the machine
+  file through the renderer, then `git config`, then `PATH`; the last three survive so that a clone
+  which has never run `render_local.py --init` still commits, and the rung that answered is printed,
+  because a check run under a second PHP is the failure that leaves no trace. The same reading is applied to the two staged commands in
   `.agents/toolchain.json`, to the usage text of all three programs in `bin/` — `bin/tool.php`'s
   usage line is asserted by `ToolTest`, which moved with it — to the two runbooks, to the hook
   paragraph in `docs/guards.md`, to both skills' instructions, and to the command in

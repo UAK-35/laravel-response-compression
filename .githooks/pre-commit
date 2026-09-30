@@ -13,23 +13,17 @@
 #
 # Bypass one commit with `git commit --no-verify`.
 #
-# The interpreter is looked for in this order, and the hook skips rather than blocking
-# when it finds none: a machine without PHP must not become a machine that cannot
-# commit.
+# Which interpreter, and what "which" means, is not decided here: `.agents/php-bin.sh`
+# is the one place in this checkout that answers it, and this hook asks like everything
+# else does. It used to climb the ladder itself - the environment, then the machine file
+# through the renderer, then `git config`, then PATH - which is the same four answers a
+# second time, and a second copy of an answer is what this package writes guards about.
+# The ladder, the order and the reason for it are in that file's header.
 #
-#   1. $RESPONSE_COMPRESSION_PHP - an override for one command rather than a setting
-#   2. `.agents/machine.local.json` - the one file that names this machine's PHP, read
-#      through `python .agents/render_local.py --value __PHP_EXE__`, and the file that
-#      `python .agents/render_local.py --init` writes
-#   3. `git config --get response-compression.php` - how a clone configured before this
-#      hook read that file still works
-#   4. `php` (or `php.exe`) on PATH
-#
-# (2) is the answer to "which PHP is this repository using": section 2 of AGENTS.md, the
-# settings files a tool reads and this hook all resolve the same one, so replacing this
-# machine's PHP is one edit to that file. (3) and (4) exist so that a clone which has not run
-# `--init` still commits - and when the answer comes from one of them, the hook says so
-# instead of letting the difference pass quietly.
+# What stays here is the part that is about committing rather than about PHP: the hook
+# skips rather than blocking when no interpreter can be found, because a machine without
+# PHP must not become a machine that cannot commit, and it says so when a fallback is
+# what answered instead of letting the difference pass quietly.
 # =============================================================================
 
 set -u
@@ -42,55 +36,20 @@ if [ ! -f bin/checks.php ]; then
     exit 0
 fi
 
-php_bin="${RESPONSE_COMPRESSION_PHP:-}"
-php_from=""
-
-if [ -n "$php_bin" ]; then
-    php_from="the environment"
+# The interpreter, from the one place that decides it. Its own refusal names the two ways to
+# give this machine one, so the line here is about the commit rather than about the reason: a
+# hook that repeated them would be that second copy again.
+if [ ! -f .agents/php-bin.sh ]; then
+    echo "pre-commit: .agents/php-bin.sh is missing, so the staged checks were skipped." >&2
+    exit 0
 fi
 
-# The machine file first: it is the one place this repository names this machine's PHP, and it is
-# read through the same renderer every settings file is rendered from, so the hook cannot come to
-# disagree with them about which interpreter this checkout uses.
-if [ -z "$php_bin" ] && [ -f .agents/machine.local.json ] && [ -f .agents/render_local.py ]; then
-    for candidate in python python3 py; do
-        if command -v "$candidate" >/dev/null 2>&1; then
-            resolved="$("$candidate" .agents/render_local.py --value __PHP_EXE__ 2>/dev/null || true)"
-
-            # A file test, not a string test: the renderer answers with a path when it can and with a
-            # sentence explaining what is missing when it cannot, and only one of those is a binary.
-            if [ -n "$resolved" ] && [ -f "$resolved" ]; then
-                php_bin="$resolved"
-                php_from=".agents/machine.local.json"
-            fi
-
-            break
-        fi
-    done
-fi
+php_bin="$(sh .agents/php-bin.sh)"
+php_from="$(sh .agents/php-bin.sh --why 2>/dev/null || true)"
 
 if [ -z "$php_bin" ]; then
-    php_bin="$(git config --get response-compression.php 2>/dev/null || true)"
-
-    if [ -n "$php_bin" ]; then
-        php_from="git config"
-    fi
-fi
-
-if [ -z "$php_bin" ]; then
-    for candidate in php php.exe; do
-        if command -v "$candidate" >/dev/null 2>&1; then
-            php_bin="$candidate"
-            php_from="PATH"
-            break
-        fi
-    done
-fi
-
-if [ -z "$php_bin" ]; then
-    echo "pre-commit: no PHP interpreter found, so the staged checks were skipped." >&2
-    echo "  name one with: python .agents/render_local.py --init" >&2
-    echo "  (for this command only: RESPONSE_COMPRESSION_PHP=<path to php>)" >&2
+    echo "pre-commit: no PHP interpreter was resolved, so the staged checks were skipped." >&2
+    echo "  (the resolver above is .agents/php-bin.sh; sh .agents/php-bin.sh --show says what it found)" >&2
     exit 0
 fi
 

@@ -425,6 +425,8 @@ Before presenting completed work:
       the reading to the two path guards, which own it)
 - [ ] no path in this change climbs above the repository root
 - [ ] tools were run through `bin/tool.php` / the Composer scripts, never a `vendor/bin` shim
+- [ ] no interpreter was resolved anywhere but `.agents/php-bin.sh` (the `interpreter` step), and no
+      file names one beyond the `PHP binary` row above
 - [ ] `rg` used for text search
 - [ ] the work is committed as named paths, with its changelog bullet
 - [ ] `python .agents/verify.py` is green: the tools it runs, the two path guards, the gate, and the

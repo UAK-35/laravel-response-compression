@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Uak35\ResponseCompression\Tests\Support\CoverageEnvironment;
+use Uak35\ResponseCompression\Tests\Support\PhpBinary;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,6 +21,7 @@ use Uak35\ResponseCompression\Tests\Support\CoverageEnvironment;
 | careless "is a driver loaded?" gets wrong, and the one that would make a report say the machine is
 | fine while every file measures 0.0%.
 |
+| @guards-index test
 */
 
 /**
@@ -31,8 +33,9 @@ function coverageEnvironment(
     string $pcovEnabled = '1',
     string $xdebugMode = '',
     string $composer = '',
+    ?PhpBinary $repository = null,
 ): CoverageEnvironment {
-    return CoverageEnvironment::detect($extensions, $pcovEnabled, $xdebugMode, $composer);
+    return CoverageEnvironment::detect($extensions, $pcovEnabled, $xdebugMode, $composer, $repository);
 }
 
 it('names PCOV as the driver when it is loaded and switched on', function (): void {
@@ -125,6 +128,31 @@ it('names the interpreter, who started it and the driver, in the header', functi
         // The instruction is a row of its own, and only on the run that has one.
         ->and($composed->describe())->not->toContain('to fix it')
         ->and(coverageEnvironment()->describe())->toContain('to fix it');
+});
+
+it('names the interpreter this repository means when this run is under a different one', function (): void {
+    // The floors were recorded under one PHP, `composer test:unit` runs this under Composer's own,
+    // and which one this checkout *means* is `.agents/php-bin.sh`'s answer. When the second is not
+    // the first, the header says so - the header is where a floor that moved is read, and this is
+    // the first explanation to rule out.
+    $other = PhpBinary::named('/nowhere', PhpBinary::ENVIRONMENT."\t".'/other/install/php');
+    $named = coverageEnvironment(['pcov' => '1.0.12'], repository: $other);
+
+    expect($named->describe())
+        ->toContain('php named here')
+        ->toContain('/other/install/php')
+        ->toContain('RESPONSE_COMPRESSION_PHP')
+        ->toContain('this run is under a different one')
+
+        // And at the foot of a failure, where a red build is read: the machine is named in two
+        // sentences there rather than one.
+        ->and($named->summary())->toContain('This run is under')
+        ->and($named->summary())->toContain('/other/install/php')
+
+        // A machine in the ordinary case says none of it: a header that always carried a second
+        // interpreter would be a row a reader learns to skip.
+        ->and(coverageEnvironment(['pcov' => '1.0.12'])->describe())->not->toContain('php named here')
+        ->and(coverageEnvironment(['pcov' => '1.0.12'])->summary())->not->toContain('This run is under');
 });
 
 it('repeats the interpreter at the foot of a failure', function (): void {

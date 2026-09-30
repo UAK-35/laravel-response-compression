@@ -25,17 +25,36 @@ permissions:
   contents: read
 
 jobs:
+  # The version this build installs is not written here. It is composer.json's
+  # `require.php`, read by `.agents/php-bin.sh` — the one file in this checkout
+  # that decides which PHP anything runs — so the requirement and the matrix
+  # cannot be two answers to one question, and the check that keeps them honest
+  # on a workstation keeps them honest here. One entry, not three: a release
+  # below `require.php` could not get past `composer install`, and the resolver
+  # reads exactly the version `composer validate` enforces.
+  pin:
+    name: The PHP composer.json requires
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.php.outputs.matrix }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Read the required version
+      id: php
+      # A JSON array rather than a version, because that is the shape
+      # `strategy.matrix` takes and this is the half of the pair that decides.
+      run: echo "matrix=$(sh .agents/php-bin.sh --matrix)" >> "$GITHUB_OUTPUT"
+
   build:
+
+    needs: pin
 
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
-      # One entry, not three: composer.json requires php ^8.4, so an 8.2 or 8.3
-      # leg could never get past `composer install`. Add newer releases here as
-      # they ship.
       matrix:
-        php: [ "8.4" ]
+        php: ${{ fromJSON(needs.pin.outputs.matrix) }}
 
     name: PHP ${{ matrix.php }}
 
