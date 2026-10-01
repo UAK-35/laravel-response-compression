@@ -257,6 +257,20 @@ release — which is why it sits in the repository rather than in the package.
   name it does not have, a tool that is not installed — are driven in
   `tests/Unit/Gate/ToolTest.php`, and the file is held to a floor of 86% with the rest of `bin/`.
 
+- **The runner is held to the gate it is meant to run, rather than to a list of the gate's tools.**
+A tool can be invoked in three places — a composer script, one of the three programs in `bin/`, and
+`.github/workflows/main.yml` — and the third had no reader, in the file that decides what a published
+version was gated by. `tests/Support/ToolPaths.php` now parses that workflow rather than searching
+it, because the file discusses the gate in its own comments and a note is not a command: the two
+commands that make CI the gate a tag is cut behind — `composer checks -- --require-all` and
+`composer test:unit` — are stated once in `ToolPaths::CI`, with the argument `--require-all` beside
+the script that has to carry it, and the steps the workflow really runs are held to them. A runner
+that dropped the gate, ran it without `--require-all`, or stopped enforcing the floor is a finding
+rather than a comment, and a tool's path or its `vendor/bin` shim written into the workflow is the
+same second copy the rest of this guard is about. The reading refuses a workflow it could not parse,
+one with no `jobs`, and one with no step that runs anything, because each of those would otherwise
+read as a runner that still runs the gate.
+
 - **The two scripts in `bin/` nothing could reach are measured, and every script there is held to
   a floor.** The two were the only code in the repository nothing read: both run on include, both
   call `exit()`, and the release one commits and tags, so the suite reaches them the only way it

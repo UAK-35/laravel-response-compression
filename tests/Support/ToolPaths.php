@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Uak35\ResponseCompression\Tests\Support;
 
 use RuntimeException;
+use Symfony\Component\Yaml\Exception\ParseException;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * The one manifest of the tools this package runs, and every way a fact in it could be stated twice.
@@ -70,6 +72,29 @@ final class ToolPaths
 
     /** The programs that run a tool, and so have to name one without writing a path down. */
     public const array READERS = ['bin/checks.php', 'bin/coverage.php', 'bin/tool.php'];
+
+    /** The workflow that runs this gate on a runner, which is the third place a tool could be invoked. */
+    public const string WORKFLOW = '.github/workflows/main.yml';
+
+    /**
+     * The two things the runner has to run to be this gate rather than a weaker one beside it.
+     *
+     * `composer checks -- --require-all` is what a tag is cut behind: the whole nine checks in one
+     * process, with every skip turned into a failure, because on a runner a tool that failed to
+     * install would otherwise read as a green build. `composer test:unit` is the one check that gate
+     * cannot make — it runs Pest without a coverage driver, so that it works on a machine that has
+     * none — and it is the floor the runner enforces instead.
+     *
+     * The value beside a script is the argument the command has to carry, so `--require-all` is
+     * stated once here as a requirement rather than a second time in a sentence about the workflow.
+     * The workflow is what is held to it; nothing is read back into this list.
+     *
+     * @var array<string, string>
+     */
+    public const array CI = [
+        'checks' => '--require-all',
+        'test:unit' => '',
+    ];
 
     /**
      * What an entry holds: the file that runs the tool, the version it is pinned at, and what it
@@ -302,6 +327,65 @@ final class ToolPaths
     }
 
     /**
+     * The commands a workflow's steps run, as the YAML has them, one entry per `run:` step.
+     *
+     * Parsed rather than searched, because this file discusses the gate in its own words — the step
+     * that runs `composer checks -- --require-all` explains itself in a comment beside it — and a
+     * text search cannot tell a note from an invocation. A shell comment inside a block is dropped
+     * for the same reason: `# composer test:unit` is something a reader wrote, and a reading that
+     * counted it would answer "the runner runs the gate" about a step that does not.
+     *
+     * @return list<array{step: string, command: string}>
+     *
+     * @throws RuntimeException when the text is not YAML, has no `jobs` to read, or has no step
+     *                          that runs anything — each a way this could answer "nothing is wrong"
+     *                          about a file it never understood
+     */
+    public static function stepsIn(string $workflow): array
+    {
+        try {
+            $parsed = Yaml::parse($workflow);
+        } catch (ParseException $error) {
+            throw new RuntimeException(
+                'The workflow handed to this reader is not YAML: '.$error->getMessage(),
+                0,
+                $error,
+            );
+        }
+
+        $jobs = is_array($parsed) && is_array($parsed['jobs'] ?? null) ? $parsed['jobs'] : [];
+
+        if ($jobs === []) {
+            throw new RuntimeException('The workflow handed to this reader has no `jobs` to read.');
+        }
+
+        $steps = [];
+
+        foreach ($jobs as $job => $spec) {
+            $listed = is_array($spec) && is_array($spec['steps'] ?? null) ? $spec['steps'] : [];
+
+            foreach ($listed as $index => $step) {
+                if (! is_array($step) || ! is_string($step['run'] ?? null)) {
+                    continue;
+                }
+
+                $named = $step['name'] ?? null;
+
+                $steps[] = [
+                    'step' => is_string($named) ? $named : $job.' step '.((int) $index + 1),
+                    'command' => self::shell($step['run']),
+                ];
+            }
+        }
+
+        if ($steps === []) {
+            throw new RuntimeException('The workflow handed to this reader has no step that runs a command.');
+        }
+
+        return $steps;
+    }
+
+    /**
      * The tool names one of this package's own programs asks the manifest for.
      *
      * @return list<string>
@@ -378,7 +462,57 @@ final class ToolPaths
     }
 
     /**
-     * The manifest's own rules: a path inside `vendor/`, not a shim, on disk, an exact pin, and a
+     * What the runner is missing, held to this gate rather than to a list of the gate's tools.
+     *
+     * The runner once ran a gate of its own — the four-step `composer test` subset — and the fix was
+     * to run the whole thing rather than to keep two lists in step. What makes that a fact rather
+     * than a comment in the file is this reading: the scripts the runner has to run, and the
+     * argument one of them has to carry, are stated once in `CI`, and they are looked for in the
+     * steps the workflow really runs. A workflow that dropped `composer checks`, ran it without
+     * `--require-all`, or stopped enforcing the floor would be a build weaker than the gate a tag is
+     * cut behind — and weaker without saying so.
+     *
+     * @param  list<array{step: string, command: string}>  $steps
+     * @return list<string>
+     */
+    public static function gateGaps(array $steps): array
+    {
+        $found = [];
+
+        foreach (self::CI as $script => $argument) {
+            $ran = false;
+            $bare = false;
+
+            foreach ($steps as $step) {
+                if (preg_match(self::invocation($script), $step['command']) !== 1) {
+                    continue;
+                }
+
+                $ran = true;
+
+                if ($argument !== '' && preg_match(self::flag($argument), $step['command']) !== 1) {
+                    $bare = true;
+                }
+            }
+
+            if (! $ran) {
+                $found[] = sprintf(
+                    'the runner never runs `composer %s`, so what it gates is weaker than the gate a tag is cut behind',
+                    $script,
+                );
+            } elseif ($bare) {
+                $found[] = sprintf(
+                    'the runner runs `composer %s` without `%s`, so a check that skipped reads as a green build',
+                    $script,
+                    $argument,
+                );
+            }
+        }
+
+        return $found;
+    }
+
+    /** The manifest's own rules: a path inside `vendor/`, not a shim, on disk, an exact pin, and a
      * line saying what the tool is for.
      *
      * The pin is read as an exact version rather than as a constraint, because it is the version a
@@ -452,6 +586,38 @@ final class ToolPaths
         }
 
         return $found;
+    }
+
+    /** A `composer <script>` invocation, wherever it sits in a step's command. */
+    private static function invocation(string $script): string
+    {
+        return '~(?<![\w./-])composer\s+'.preg_quote($script, '~').'(?![\w:.-])~';
+    }
+
+    /** A flag a command has to carry, as its own word rather than as the beginning of another. */
+    private static function flag(string $argument): string
+    {
+        return '~(?<![\w-])'.preg_quote($argument, '~').'(?![\w-])~';
+    }
+
+    /**
+     * A `run:` block as the command it is, with the shell comments taken out of it.
+     *
+     * What a step does is its command; a `#` line is what somebody wrote beside it. The difference
+     * is made once, here, because a note naming the gate inside a script that does not run it is
+     * exactly the answer this reading must not give.
+     */
+    private static function shell(string $run): string
+    {
+        $lines = [];
+
+        foreach (preg_split('~\R~', $run) ?: [] as $line) {
+            if (preg_match('~^\s*#~', $line) !== 1) {
+                $lines[] = $line;
+            }
+        }
+
+        return implode("\n", $lines);
     }
 
     /**

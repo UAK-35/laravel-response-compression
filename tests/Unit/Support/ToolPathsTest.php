@@ -31,6 +31,15 @@ use Uak35\ResponseCompression\Tests\Support\ToolPaths;
 | as invisible in a path. `why` is why the gate can print what each tool is for without saying it
 | twice.
 |
+| WHY THE RUNNER IS READ TOO
+| --------------------------
+| A tool can be invoked in three places: a composer script, one of the three programs this package
+| keeps in `bin/`, and `.github/workflows/main.yml`. The third had no reader, and it is the one that
+| decides what a published version was gated by: CI that dropped `composer checks`, or ran it
+| without `--require-all`, is a build weaker than the gate a tag is cut behind — and weaker in a
+| file nobody compares with a local run. So the workflow is parsed rather than searched: what the
+| runner runs is held to `ToolPaths::CI`, and no tool's path may be written in it either.
+|
 | @guards-index guard
 */
 
@@ -82,6 +91,12 @@ function toolScripts(): array
     return ToolPaths::scriptsIn((string) file_get_contents(packageRoot().'/composer.json'));
 }
 
+/** The workflow that runs this gate on a runner, which the reader parses rather than searches. */
+function toolWorkflow(): string
+{
+    return (string) file_get_contents(packageRoot().'/'.ToolPaths::WORKFLOW);
+}
+
 /**
  * Every tool something in this package asks the manifest for, and what asked: a script, which hands
  * the name to `bin/tool.php`, or one of the programs, which looks the name up itself.
@@ -125,7 +140,68 @@ it('keeps every tool path in the manifest, and in no script or program', functio
 
         // And the copy nothing can see any more: a program that writes the path down again, or
         // reaches for the `vendor/bin` shim of a name the manifest already holds.
-        ->and(ToolPaths::secondCopies($manifest, toolReaders()))->toBe([]);
+        ->and(ToolPaths::secondCopies($manifest, toolReaders()))->toBe([])
+
+        // And the third place a tool could be invoked, which had no reader at all: the runner. A
+        // path written into the workflow is a copy in the file least likely to be read beside this
+        // one, and it is what a published version would have been gated by.
+        ->and(ToolPaths::secondCopies($manifest, [ToolPaths::WORKFLOW => toolWorkflow()]))->toBe([]);
+});
+
+it('holds the runner to the gate it has to be, rather than to a list of the gate\'s tools', function (): void {
+    $steps = ToolPaths::stepsIn(toolWorkflow());
+
+    // Both halves have to have found something: a workflow that came back as no steps, or a gate
+    // with nothing in it to look for, would pass this guard while reading nothing at all.
+    expect($steps)->not->toBeEmpty()
+        ->and(ToolPaths::gateGaps($steps))->toBe([]);
+
+    // Each way the runner can stop being the gate, on a workflow of its own — the real file is the
+    // gate, so a reading that looked at none of them would be green for the same reason.
+    expect(ToolPaths::gateGaps([['step' => 'the floor', 'command' => 'composer test:unit']]))
+        ->toBe(['the runner never runs `composer checks`, so what it gates is weaker than the gate a tag is cut behind'])
+
+        // Two gaps, in the order the requirement is stated: the argument is missing, and so is the
+        // other half of the gate.
+        ->and(ToolPaths::gateGaps([['step' => 'the gate', 'command' => 'composer checks']]))
+        ->toBe([
+            'the runner runs `composer checks` without `--require-all`, so a check that skipped reads as a green build',
+            'the runner never runs `composer test:unit`, so what it gates is weaker than the gate a tag is cut behind',
+        ])
+
+        ->and(ToolPaths::gateGaps([['step' => 'the gate', 'command' => 'composer checks -- --require-all']]))
+        ->toBe(['the runner never runs `composer test:unit`, so what it gates is weaker than the gate a tag is cut behind']);
+
+    // A note is not a command. The workflow explains itself beside its commands, so a step that only
+    // names the gate in a shell comment has not run it — which is the one way a text search would
+    // have answered yes here.
+    $commented = ToolPaths::stepsIn(<<<'YAML'
+        jobs:
+          build:
+            steps:
+            - name: Explain the gate
+              run: |
+                # composer checks -- --require-all
+                # composer test:unit
+                echo "nothing is run here"
+        YAML);
+
+    expect($commented[0]['command'])
+        ->not->toContain('composer checks')
+        ->and(ToolPaths::gateGaps($commented))->toHaveCount(2);
+});
+
+it('refuses a workflow it could not read, rather than agreeing with one', function (): void {
+    // Each of these is a way this reading could answer "nothing is wrong" for a file it never
+    // understood — on the runner that answer is a green build.
+    expect(fn (): array => ToolPaths::stepsIn("on: [push\n"))
+        ->toThrow(RuntimeException::class, 'is not YAML')
+
+        ->and(fn (): array => ToolPaths::stepsIn("name: PHP Composer\non: [push]\n"))
+        ->toThrow(RuntimeException::class, 'no `jobs`')
+
+        ->and(fn (): array => ToolPaths::stepsIn("jobs:\n  build:\n    steps:\n    - uses: actions/checkout@v4\n"))
+        ->toThrow(RuntimeException::class, 'no step that runs a command');
 });
 
 it('names a file inside vendor/ that is on disk, and never a vendor/bin shim', function (): void {
