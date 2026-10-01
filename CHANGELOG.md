@@ -515,6 +515,30 @@ read as a runner that still runs the gate.
 
 ### Fixed
 
+- **A shipped record no longer points at a file an install does not carry.** `docs/min-length.md`
+  linked `tests/Unit/Config/ConfigDocTest.php`, which resolves in this checkout and in nothing a
+  consumer is handed: `.gitattributes` leaves `/tests` out of the archive, so that link was dead in
+  every copy but this one. The docs-link guard cannot see it, because it resolves a link against
+  the checkout, where the file is - so the fix belongs in the record, and it is the shape the other
+  design records already use: `tests/Unit/Support/ConfigTest.php` and
+  `tests/Unit/Middleware/CompressResponseTest.php` are named in backticks rather than linked. The
+  path is still there to be read and still says which test to run; what is gone is a pointer that
+  only worked for whoever had the repository.
+- **A response left uncompressed now says it varies by `Accept-Encoding`, so a shared cache
+  cannot mix it with a compressed body.** The encoders set `Vary: Accept-Encoding` on the bodies
+  they compress and nothing set it on the ones they did not, so the two representations of one
+  URL read to a cache as one resource: a response left alone for a client that asked for
+  `identity`, named no encoding this package offers, or came from a user agent it refuses
+  carried no `Content-Encoding` and no `Vary`, while the same URL is compressed for the next
+  client. `CompressResponse` now marks every response it considered and left alone - the
+  request-refused paths, the response-refused paths (unsuccessful, not a string, a stream or a
+  binary file, below `min_length`), the encoding it cannot produce, and the multiple-encoding
+  walk that finds nothing - so the header belongs to the URL rather than to the one response an
+  encoder happened to write it on. The mark is idempotent: `Vary` is appended to rather than
+  rewritten, an application's own `Vary: Origin` survives beside it, and a body an encoder has
+  already marked is not marked twice. The reasoning, and the alternatives that were refused, are
+  in docs/vary-on-uncompressed.md.
+
 - **The push runbook describes this repository's lane, and its evidence table was re-read claim by
   claim.** `PUSHING.md` was written from reads and said so — "no push was exercised" — and four of
   its claims did not survive being checked against the tree as it is. The branch was recorded as

@@ -17,8 +17,9 @@ below which the question is not worth asking.
 The number is a policy choice, not a measurement: 2048 bytes is roughly where a JSON
 payload carries a list rather than a single record, which is the shape this middleware
 was written for. Changing it is a one-line edit in two places — the config file and the
-README, which the [config-doc test](../tests/Unit/Config/ConfigDocTest.php) requires to
-agree.
+README, which `tests/Unit/Config/ConfigDocTest.php` requires to agree. The path is named
+rather than linked, because `tests/` is not part of what a consumer installs: a link here
+would be dead in every copy but this one.
 
 Nothing else guards the number: a floor that cannot be read is refused rather than defaulted, and
 a floor that is simply small is a decision the operator made rather than a fault.
