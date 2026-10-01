@@ -11,10 +11,13 @@
 | 3 | `gzip` | Universal, and therefore the floor. Anything that reaches this position and accepts nothing else still gets a compressed body. |
 
 The order is a **preference list**, not a negotiation: the first entry the client
-accepts wins. Quality values (`q=`) are not consulted, and Symfony's
-`getEncodings()` order is not treated as a priority — see
+accepts wins. Quality values (`q=`) do not reorder it, and Symfony's `getEncodings()`
+order is not treated as a priority — see
 [single-vs-multiple-encodings.md](single-vs-multiple-encodings.md) for how the list is
-walked.
+walked. The one quality that *is* read is the one on `identity`, and it is not a position
+in this list at all: it is a veto on compressing, so a client that asks for the body as it
+is gets it, whatever the order above would have picked. See
+[accept-encoding-identity.md](accept-encoding-identity.md).
 
 ## Changing it
 

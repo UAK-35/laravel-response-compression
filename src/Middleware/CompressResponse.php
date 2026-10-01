@@ -14,6 +14,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use Uak35\ResponseCompression\Encoders\BrotliEncoder;
 use Uak35\ResponseCompression\Encoders\GzipEncoder;
 use Uak35\ResponseCompression\Encoders\ZstdEncoder;
+use Uak35\ResponseCompression\Support\AcceptEncoding;
 use Uak35\ResponseCompression\Support\Config;
 
 /**
@@ -109,6 +110,7 @@ final class CompressResponse
         return $this->validateRequestPerAlgoAndUserAgent(
             $this->algorithm(),
             $request->getEncodings(),
+            $request->headers->get('Accept-Encoding'),
             $request->headers->get('user-agent'),
             $requestUri,
         );
@@ -169,6 +171,7 @@ final class CompressResponse
         $requestAccepts = $this->validateRequestPerAlgoAndUserAgent(
             $compressionAlgorithm,
             $request->getEncodings(),
+            $request->headers->get('Accept-Encoding'),
             $request->headers->get('user-agent'),
             $requestUri,
         );
@@ -202,14 +205,28 @@ final class CompressResponse
      * Whether the request accepts a given encoding and comes from a user agent that
      * can decode it.
      *
+     * The client may also have asked, in the same header, for the body as it is - see
+     * AcceptEncoding - and that request is honoured before anything else here is.
+     *
      * @param  string[]  $requestEncodings
      */
     private function validateRequestPerAlgoAndUserAgent(
         string $compressionAlgorithm,
         array $requestEncodings,
+        ?string $acceptEncoding,
         ?string $requestUserAgent,
         string $requestUri,
     ): bool {
+        // A client that named `identity` has asked for the body with no content coding applied to
+        // it, and that is a coding this package cannot produce: honouring the request means leaving
+        // the body alone. Read before the acceptance rule below, so the line this writes records
+        // the client's own reason rather than the absence of a match.
+        if (AcceptEncoding::prefersIdentity($acceptEncoding, $compressionAlgorithm)) {
+            $this->logDebugStatus('Client asked for the identity encoding (no compression) - Response compression skipped - uri: '.$requestUri);
+
+            return false;
+        }
+
         // A request that names no encoding has not asked for one. An absent header and a
         // wildcard are different requests: Symfony reads a missing Accept-Encoding as an
         // empty list, while `*` is the client saying it accepts anything.

@@ -9,7 +9,7 @@ namespace Uak35\ResponseCompression\Tests\Support;
  *
  * WHY THIS EXISTS
  * ---------------
- * The `docs/` records are the package's explanation of itself: eleven of them, each linked
+ * The `docs/` records are the package's explanation of itself: twelve of them, each linked
  * from the README's Design records section, each linked onward from its neighbours, and
  * several of them naming a source file or a test that is supposed to exist. Nothing in the
  * suite noticed when one of those links stopped resolving, and the failure modes are quiet

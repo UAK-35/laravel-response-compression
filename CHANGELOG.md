@@ -18,6 +18,23 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **A client can ask for the body as it is, and the header that asks for it is honoured rather
+  than matched by accident.** `Accept-Encoding: identity` is the HTTP name for "no content
+  coding", so it is read as a request this package can grant: the response goes out with no
+  `Content-Encoding` and nothing applied to its body. What made it worth writing down is what the
+  old reading could not see — `Request::getEncodings()` answers with the coding names alone,
+  sorted by quality with the quality discarded and the case kept — so `identity;q=1.0, gzip;q=0.5`
+  arrived indistinguishable from `gzip` first and `identity` second, and the body was compressed
+  for both of them. `src/Support/AcceptEncoding.php` reads the header itself as a quality per
+  coding, and `identity` is a veto rather than a candidate: named with a quality above zero and no
+  lower than the encoding on offer, it decides that nothing is compressed, and a tie goes to
+  `identity` because a client that is indifferent between the two should not have to write a
+  quality to say so. An `identity` the header does not name is still not a preference, so the
+  ordinary `br, zstd, gzip` is untouched, and `identity;q=0` — the client refusing an unencoded
+  body — is the opposite of a request and keeps compressing. The qualities on the other codings
+  are deliberately still not read: that order is the package's own preference list, and a header
+  most clients write as an unordered list of what they support is not a ranking. See
+  docs/accept-encoding-identity.md.
 - **`which PHP` is answered in one place, and the four things that used to answer it ask instead.**
   `.agents/php-bin.sh` — `composer which-php`, or `sh .agents/php-bin.sh --show` — resolves the
   interpreter in the order the hook used to keep privately: `$RESPONSE_COMPRESSION_PHP`, then
@@ -282,6 +299,7 @@ release — which is why it sits in the repository rather than in the package.
   wait, `--dry-run` prints the plan instead, and `--no-watch` pushes and says plainly that the
   run was not read. The reader is a command rather than a hard-wired client, which is what lets
   the tests stand in for `gh` and read a run that never touches the network.
+
 
 ### Changed
 

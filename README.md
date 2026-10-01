@@ -185,6 +185,7 @@ Decisions that are not obvious from the code — each with the alternatives that
 rejected, and the evidence behind the answer:
 
 - [What should a request that names no encoding get?](docs/missing-accept-encoding.md)
+- [What does a client mean by `Accept-Encoding: identity`?](docs/accept-encoding-identity.md)
 - [Which encoding should the default order try first?](docs/encoding-negotiation.md)
 - [How do `algorithm` and `try_multiple_encodings` relate?](docs/single-vs-multiple-encodings.md)
 - [Why refuse a client by user-agent prefix?](docs/non-supporting-user-agents.md)

@@ -36,9 +36,9 @@ $requestHasThisEncoding = count($requestEncodings) === 0
 ```
 
 That compresses for a client that asked for nothing — a health check, a bare `curl`, a
-proxy that strips the header. (`Accept-Encoding: identity` was already refused: it is a
-non-empty list that simply fails to match. What the old rule caught was the genuinely
-header-less request.)
+proxy that strips the header. (`Accept-Encoding: identity` is a request in its own right
+rather than an absent one — see [accept-encoding-identity.md](accept-encoding-identity.md).
+What the old rule caught was the genuinely header-less request.)
 
 The evidence that it was wrong was already in the suite. Two tests asserted the
 opposite — `it should not compress response without gzip header` and `it should not

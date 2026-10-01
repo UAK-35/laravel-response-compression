@@ -372,3 +372,104 @@ it('should write no log line at all when enable_logging is off', function (): vo
     // The same request as the test above, decision for decision: the only difference is the flag.
     Log::shouldNotHaveReceived('debug');
 });
+
+/*
+ * A client can ask, in the same header it uses to ask for a compression, for the body as it is.
+ * `identity` is the HTTP name for "no content coding", and it used to be honoured only by
+ * accident: `Accept-Encoding: identity` matched nothing, so the body was left alone, but the
+ * moment a client named an encoding beside it the body was compressed — whatever quality either
+ * one carried. The two requests below that name `identity` first are the ones that were
+ * compressed until the quality was read, and the two that refuse it are the ones that must keep
+ * being compressed: `identity;q=0` is the opposite of a request for an uncompressed body.
+ */
+it('should not compress when the client asks for the body as it is', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'identity']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getContent())->toBe(getLongContent());
+});
+
+it('should not compress when the client names identity beside an encoding it accepts', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip, identity']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getContent())->toBe(getLongContent());
+});
+
+it('should not compress when the client ranks identity above the configured encoding', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip;q=0.5, identity;q=1.0']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getContent())->toBe(getLongContent());
+});
+
+it('should not compress when the client writes identity in capitals', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip, IDENTITY']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getContent())->toBe(getLongContent());
+});
+
+it('should compress when the client ranks the encoding above identity', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip;q=1.0, identity;q=0.3']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBe('gzip')
+        ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeTrue();
+});
+
+it('should compress when the client refuses an unencoded body', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'identity;q=0, gzip']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBe('gzip')
+        ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeTrue();
+});
+
+it('should leave the body alone when identity wins every position of a multiple-encoding walk', function (): void {
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', 'br,zstd,gzip');
+    config()->set('response-compression.algorithm', 'br');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'identity, gzip']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getContent())->toBe(getLongContent());
+});
+
+it('should record the client asking for identity rather than a header that matched nothing', function (): void {
+    config()->set('response-compression.enable_logging', true);
+    Log::spy();
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/api/trips', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'identity']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull();
+
+    // Both requests leave the body as it is and the diagnosis is not the same one: this client
+    // asked for that, and the line has to be the one that says so.
+    Log::shouldHaveReceived('debug')
+        ->withArgs(fn (string $message, array $context = []): bool => $message === '[COMPR-RESP] Client asked for the identity encoding (no compression) - Response compression skipped - uri: /api/trips')
+        ->once();
+});
