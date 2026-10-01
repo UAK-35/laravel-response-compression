@@ -23,6 +23,15 @@ It does not invent a value it was not given. A token with no value is reported w
 missing under, and a settings file is not written from a template that would produce an unresolved
 token - a rendered file holding `__PHP_EXE__` is worse than no rendered file, because it looks
 finished.
+
+WHAT `--check` REPORTS
+----------------------
+A rendered file that is not what its template would produce now, and why, in one sentence. Most of
+the time the answer is a machine value that moved: the file was rendered on this machine when
+`machine.local.json` named one install, and it names another now. That is reported as the token, the
+value the file holds and the value the machine holds, which is the answer the reader wanted rather
+than the work of finding it - two quoted lines are a diff to do by hand. When no token explains the
+difference it is a hand edit, and the two lines are shown, because there is no token to name.
 """
 
 from __future__ import annotations
@@ -126,12 +135,22 @@ def substitute(node, values: dict[str, str], missing: list[str]):
     return node
 
 
-def rendered(template: Path, values: dict[str, str], missing: list[str]) -> str | None:
-    """What a template would produce on this machine, or None when it cannot be read."""
+def _template_data(template: Path):
+    """A template as the parsed JSON it is, or None when it cannot be read as one."""
     try:
         with template.open(encoding="utf-8") as handle:
             data = json.load(handle)
     except (json.JSONDecodeError, OSError):
+        return None
+
+    return data
+
+
+def rendered(template: Path, values: dict[str, str], missing: list[str]) -> str | None:
+    """What a template would produce on this machine, or None when it cannot be read."""
+    data = _template_data(template)
+
+    if data is None:
         return None
 
     return json.dumps(substitute(data, values, missing), indent=4, ensure_ascii=False) + "\n"
@@ -146,6 +165,84 @@ def _first_difference(expected: str, actual: str) -> str:
         if one != two:
             return f"line {index + 1}: template has {one.strip()!r}, the file has {two.strip()!r}"
     return "the two differ only in trailing whitespace"
+
+
+def _changed_values(
+    template: Path, values: dict[str, str], actual: str
+) -> list[tuple[int, str, str, str]]:
+    """The machine values a rendered file was written with, where one of them has moved since.
+
+    A drift is nearly always a value rather than a line somebody typed: the file was rendered when
+    `machine.local.json` named one install and the file holds that install's path, the file now names
+    another, and the two files disagree by a path. Naming the token and both of its values is the
+    answer; the two lines are the working out.
+
+    So the file is asked what it holds where the template has the token. The template is rendered a
+    second time with that one token left in place, so the line it sits on is known and the literal
+    around it is the same on both sides, and the text the file holds between those two pieces of
+    literal is the value it was written with - the old one. What the machine names now is the new
+    one. A difference no token accounts for is a hand edit, which the caller reports as it always did.
+
+    @return The line, the token, the value the file holds and the value the machine holds, in line
+            order; empty when no token's value has moved.
+    """
+    data = _template_data(template)
+    held = actual.splitlines()
+
+    if data is None or not held:
+        return []
+
+    changed: list[tuple[int, str, str, str]] = []
+
+    for token, value in values.items():
+        if not value:
+            continue
+
+        # This token left as itself and every other one at its value, which is the template's own
+        # line for it: the same text on both sides of the token, so what sits between them in the
+        # file is the value it was rendered with.
+        partial = json.dumps(
+            substitute(data, {**values, token: token}, []), indent=4, ensure_ascii=False
+        ).splitlines()
+
+        for index, line in enumerate(partial):
+            if token not in line or index >= len(held):
+                continue
+
+            prefix, _separator, suffix = line.partition(token)
+            written = held[index]
+
+            if len(written) < len(prefix) + len(suffix):
+                continue
+            if not written.startswith(prefix) or not written.endswith(suffix):
+                continue
+
+            was = written[len(prefix) : len(written) - len(suffix)]
+
+            # One line per token: the token is what the sentence is about, and a path that appears
+            # six times in a file is one value that moved rather than six findings.
+            if was != value:
+                changed.append((index + 1, token, was, value))
+                break
+
+    return sorted(changed)
+
+
+def _drift(template: Path, values: dict[str, str], expected: str, actual: str) -> str:
+    """Why a rendered file and its template disagree, as the shortest true sentence about it.
+
+    A machine value that moved is named with its token and both of its values; anything else is still
+    the two lines, because a hand edit has no token to name and the reader has to see it.
+    """
+    changed = _changed_values(template, values, actual)
+
+    if changed:
+        return "; ".join(
+            f"line {line}: {token} changed from {was!r} to {now!r}"
+            for line, token, was, now in changed
+        )
+
+    return _first_difference(expected, actual)
 
 
 def render(values: dict[str, str], check: bool = False) -> int:
@@ -176,7 +273,7 @@ def render(values: dict[str, str], check: bool = False) -> int:
             actual = path.read_text(encoding="utf-8") if path.is_file() else ""
             if actual != expected:
                 findings.append(
-                    f"{target}: differs from its template - {_first_difference(expected, actual)}; "
+                    f"{target}: differs from its template - {_drift(template, values, expected, actual)}; "
                     "run python .agents/render_local.py to write it"
                 )
             continue

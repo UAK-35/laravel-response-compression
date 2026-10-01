@@ -458,6 +458,19 @@ read as a runner that still runs the gate.
   `docs/env-types.md` that produced that record's evidence: it runs under the token now, and was
   re-run to confirm the output did not move (`string(1) "9"`, `bool(true)`).
 
+- **A rendered settings file that drifted is reported by the value that moved rather than by the
+  two lines that differ.** `python .agents/render_local.py --check` already refused a settings file
+  that is not what its template would produce; what it said about one was `_first_difference` of
+  the expected text and the file, which is true and is a diff the reader then does by hand. The
+  difference is nearly never a hand edit: the file was rendered when `machine.local.json` named one
+  install, it names another, and the two disagree by a path. So every token is asked where it sits
+  in the text the template would produce with that token left as itself - the same literal on both
+  sides of it - and the text the file holds between those two pieces of literal is the value it was
+  written with. A value that has moved is reported as the line, the token, the value the file holds
+  and the value the machine holds; a difference no token accounts for is still the two lines,
+  because a hand edit has no token to name. One line per token, because a path that appears six
+  times in a file is one value that moved rather than six findings.
+
 - **The guard index's two lists of files are rendered from the directory they describe.** The page
   below the table of guards is where `tests/Support/` is written down — the readings the guards are
   built from, and the files beside them that are fixtures rather than guards — and both lists were
