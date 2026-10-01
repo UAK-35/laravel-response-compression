@@ -57,10 +57,20 @@ use Uak35\ResponseCompression\Tests\Support\ScriptCoverage;
 | to rule out and the last one a reader would think of. A rung that is a fallback - the `php` on a
 | runner's PATH - is not printed: that is the arrangement on a runner rather than a second opinion.
 |
-| The naming is where it stops. A machine with no driver is named and the run goes on rather than
-| being refused, because the process that measures is not this one: the suite is started as a child
-| with the same ini and none of this invocation's flags, so a run begun with `-n` has no driver here
-| while the run it starts has one. A refusal would be a guess about a process this has not started.
+| WHAT IS ASKED, AND WHEN THE RUN STOPS
+| -------------------------------------
+| The process that measures is not this one. The suite is started as a child with the same ini and
+| none of this invocation's flags, so the two can disagree about the driver in both directions: a
+| run begun with `-n` has no driver here while the run it starts has one, and a run begun with
+| `-d pcov.enabled=1` has one here while the child that would count the lines does not. So the
+| question is put to the child: this program is started again under that interpreter in its probe
+| mode, the four raw facts it reports are handed to the same `CoverageEnvironment`, and what the
+| header names is the environment that will measure rather than the one it was typed in.
+|
+| When that answer is that nothing can count a line, the suite is not started. A floor of 0.0% for
+| every file is not a floor that was missed, and running two minutes of tests to reach it is a red
+| build that points at the code instead of at the machine. The refusal is made from the child's own
+| answer, which is the difference between stopping here and guessing about a process never started.
 |
 | WHY THIS FILE IS NOT IN THE REPORT
 | ----------------------------------
@@ -123,6 +133,16 @@ if (! is_file($autoload)) {
 
 require $autoload;
 
+// The probe: this same program, asked what *this* process can measure, printing the four raw
+// facts so the parent can judge them with the same reading. It is the child half of `observe()`
+// below, and it exits before any of the floor's machinery because it is asked by a run that is
+// about to start it.
+if (($argv[1] ?? null) === '--probe') {
+    fwrite(STDOUT, json_encode(CoverageEnvironment::observed(), JSON_THROW_ON_ERROR).PHP_EOL);
+
+    exit(0);
+}
+
 // Which Pest to run comes from the manifest the gate reads: a tool's path is written down in one
 // place, and both halves of this package's test story have to be running the same one. An entry is
 // a record rather than a path — the tool's path, the version it is pinned at, and what it is for —
@@ -131,16 +151,33 @@ require $autoload;
 $tools = require $root.'/bin/tool-paths.php';
 $pest = $root.'/'.ltrim((string) ($tools['pest']['path'] ?? ''), '/');
 
-// Before the suite, not after it fails: every answer here is about the machine this happens to be
-// running on, and none is in the number a floor reads. The note at the top of this file says why
-// they are named here rather than acted on.
-//
-// The repository's own answer is asked rather than assumed: `$root` is this checkout, and a fixture
-// copy of this script sits in a tree with no resolver in it, which `PhpBinary` reports as unknown
-// rather than as a disagreement.
-$environment = CoverageEnvironment::detect(repository: PhpBinary::named($root));
+// Before the suite, not after it fails: every answer here is about the machine that will measure,
+// and none of them is in the number a floor reads. The interpreter that will measure is asked
+// rather than this one - see `observe()` - and the repository's own answer is asked rather than
+// assumed: `$root` is this checkout, and a fixture copy of this script sits in a tree with no
+// resolver in it, which `PhpBinary` reports as unknown rather than as a disagreement.
+$observations = observe($root);
+
+$environment = CoverageEnvironment::detect(
+    $observations['extensions'],
+    $observations['pcov_enabled'],
+    $observations['xdebug_mode'],
+    $observations['composer'],
+    PhpBinary::named($root),
+);
 
 fwrite(STDOUT, PHP_EOL.$environment->describe().PHP_EOL);
+
+// A floor is a ratio, and nothing here can form one. Stopping before the suite is the difference
+// between a build that says the machine cannot measure and one that runs the whole suite to report
+// every file at 0.0% - which reads as the package having regressed rather than as a machine with
+// nothing installed to count a line.
+if ($environment->driver === '') {
+    fwrite(STDERR, PHP_EOL.'Nothing this run can start can measure a line, so the suite was not started.'.PHP_EOL);
+    fwrite(STDERR, 'Every floor below is covered lines over executable ones; with no driver in the process that runs the suite, every one of them reads 0.0%.'.PHP_EOL);
+    fwrite(STDERR, $environment->summary().PHP_EOL);
+    exit(1);
+}
 
 $collected = sys_get_temp_dir().'/rc-coverage-'.bin2hex(random_bytes(6));
 $clover = $collected.'-clover.xml';
@@ -220,8 +257,9 @@ if ($failures !== []) {
         fwrite(STDERR, '  - '.$failure.PHP_EOL);
     }
 
-    // The interpreter and the driver again, at the foot of the failure: a floor that moved is
-    // either the code that changed or the PHP that ran it, and this is where it gets read.
+    // The interpreter, who Composer is running it under, and the driver again, at the foot of the
+    // failure: a floor that moved is either the code that changed or the PHP that ran it, and this
+    // is where it gets read.
     fwrite(STDERR, PHP_EOL.$environment->summary().PHP_EOL);
 
     exit(1);
@@ -414,4 +452,89 @@ function run(array $command): int
     }
 
     return proc_close($process);
+}
+
+/**
+ * The observations of the process that will measure, asked of that process rather than this one.
+ *
+ * The suite is started as a child with the same ini and none of this invocation's flags, so this
+ * process' own answer is about the wrong one - see the note at the top of this file. The child is
+ * asked by running this program under it in its probe mode, which is the smallest form of the
+ * interpreter that will run the suite, and the four facts come back as data for the same
+ * `CoverageEnvironment` the header is built from.
+ *
+ * @return array{extensions: array<string, string>, pcov_enabled: string, xdebug_mode: string, composer: string}
+ */
+function observe(string $root): array
+{
+    $observations = probe([PHP_BINARY, '-d', 'pcov.directory='.$root.'/src', __FILE__, '--probe']);
+
+    if ($observations === null) {
+        // The child could not be asked, which is not the same as an answer that says it cannot
+        // measure. What this process can see is read instead, and the difference is said out loud
+        // rather than left for the header to imply.
+        fwrite(STDERR, 'Could not ask the interpreter that would run the suite whether it can measure; reading this one instead.'.PHP_EOL);
+
+        return CoverageEnvironment::observed();
+    }
+
+    return $observations;
+}
+
+/**
+ * Run the probe child and read its four observations back, or null when it could not be asked.
+ *
+ * @param  list<string>  $command
+ * @return array{extensions: array<string, string>, pcov_enabled: string, xdebug_mode: string, composer: string}|null
+ */
+function probe(array $command): ?array
+{
+    $process = proc_open(
+        $command,
+        [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+        $pipes,
+    );
+
+    if (! is_resource($process)) {
+        return null;
+    }
+
+    $output = (string) stream_get_contents($pipes[1]);
+
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+
+    if (proc_close($process) !== 0) {
+        return null;
+    }
+
+    $decoded = json_decode(trim($output), true);
+
+    if (! is_array($decoded)) {
+        return null;
+    }
+
+    $raw = $decoded['extensions'] ?? null;
+    $pcovEnabled = $decoded['pcov_enabled'] ?? null;
+    $xdebugMode = $decoded['xdebug_mode'] ?? null;
+    $composer = $decoded['composer'] ?? null;
+
+    if (! is_array($raw) || ! is_string($pcovEnabled) || ! is_string($xdebugMode) || ! is_string($composer)) {
+        return null;
+    }
+
+    $extensions = [];
+
+    foreach ($raw as $name => $version) {
+        if (is_string($name) && is_string($version)) {
+            $extensions[$name] = $version;
+        }
+    }
+
+    return [
+        'extensions' => $extensions,
+        'pcov_enabled' => $pcovEnabled,
+        'xdebug_mode' => $xdebugMode,
+        'composer' => $composer,
+    ];
 }

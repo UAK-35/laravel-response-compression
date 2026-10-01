@@ -63,7 +63,10 @@ final readonly class CoverageEnvironment
 
     /**
      * What this machine is, as observed — or as passed in, which is how a test reaches the
-     * combinations no runner can be made to have.
+     * combinations no runner can be made to have, and how `bin/coverage.php` reaches the
+     * combinations the process that will actually measure has. The process asked is not
+     * always this one: the suite is started as a child with the same ini and none of this
+     * invocation's flags, so the two can disagree about the driver, and the child counts.
      *
      * @param  array<string, string>|null  $extensions  loaded extension => its version, or null to ask the running PHP
      * @param  string|null  $pcovEnabled  the `pcov.enabled` ini value, or null to ask
@@ -78,12 +81,18 @@ final readonly class CoverageEnvironment
         ?string $composer = null,
         ?PhpBinary $repository = null,
     ): self {
-        $extensions ??= self::loaded();
-        $pcovEnabled = trim($pcovEnabled ?? (string) ini_get('pcov.enabled'));
-        $xdebugMode = trim($xdebugMode ?? (string) ini_get('xdebug.mode'));
+        // Taken in one place, whether it is taken here or handed in: `observed()` is the whole
+        // of what a process can say about itself, and the four arguments exist so that one
+        // process can be judged from another's - which is how `bin/coverage.php` asks the
+        // interpreter that will measure rather than the one it happens to run under.
+        $observed = self::observed();
+
+        $extensions ??= $observed['extensions'];
+        $pcovEnabled = trim($pcovEnabled ?? $observed['pcov_enabled']);
+        $xdebugMode = trim($xdebugMode ?? $observed['xdebug_mode']);
         // Both paths are written the way the rest of this package's output writes them: forward
         // slashes only, so a report reads the same on either platform.
-        $composer = str_replace('\\', '/', trim($composer ?? (string) getenv('COMPOSER_BINARY')));
+        $composer = str_replace('\\', '/', trim($composer ?? $observed['composer']));
 
         $pcov = $extensions['pcov'] ?? null;
         $xdebug = $extensions['xdebug'] ?? null;
@@ -109,15 +118,36 @@ final readonly class CoverageEnvironment
     }
 
     /**
+     * The raw facts of this process, in the form another process can be judged from.
+     *
+     * Nothing here is a decision: it is what is loaded, what the two ini values say, and what
+     * started the run. `detect()` is what turns those into the driver, the reason and the fix,
+     * and that is the reading this exists to move rather than to copy - `bin/coverage.php` has
+     * its probe child print these four, and hands them straight back to `detect()`, so the
+     * process that would measure is the one that is asked and the judgement still happens once.
+     *
+     * @return array{extensions: array<string, string>, pcov_enabled: string, xdebug_mode: string, composer: string}
+     */
+    public static function observed(): array
+    {
+        return [
+            'extensions' => self::loaded(),
+            'pcov_enabled' => (string) ini_get('pcov.enabled'),
+            'xdebug_mode' => (string) ini_get('xdebug.mode'),
+            'composer' => (string) getenv('COMPOSER_BINARY'),
+        ];
+    }
+
+    /**
      * The header: the three answers, as rows, in the shape the report below them uses.
      */
     public function describe(): string
     {
         $rows = [
             ['php', $this->php.'  '.$this->binary],
-            ['started by', $this->composer === ''
-                ? 'a direct run (COMPOSER_BINARY is unset) - the PHP above is the one you invoked'
-                : 'composer (COMPOSER_BINARY='.$this->composer.') - the PHP above is the one it runs under'],
+            ['started by', $this->startedBy().($this->composer === ''
+                ? ' - the PHP above is the one you invoked'
+                : ' - the PHP above is the one it runs under')],
             ['coverage driver', $this->driver === '' ? 'none - '.$this->why : $this->driver],
         ];
 
@@ -148,17 +178,24 @@ final readonly class CoverageEnvironment
     }
 
     /**
-     * The same two facts on one line, for the foot of a failure.
+     * The facts of the run on one line, for the foot of a failure.
      *
      * A floor that moved is either the code that changed or the PHP that ran it, and a red build is
      * read at the bottom of two minutes of test output rather than at the top: the line is repeated
-     * there so the reason can be ruled out without scrolling back through a suite.
+     * there so the reason can be ruled out without scrolling back through a suite. All of the
+     * header's facts are here rather than the two about the interpreter alone - who started the run
+     * is what makes the PHP named beside it the one Composer runs under, and a red CI step is read at
+     * its foot.
      */
     public function summary(): string
     {
-        $summary = $this->driver === ''
-            ? sprintf('PHP %s at %s, with no coverage driver in it.', $this->php, $this->binary)
-            : sprintf('PHP %s at %s, coverage by %s.', $this->php, $this->binary, $this->driver);
+        $summary = sprintf(
+            'PHP %s at %s, %s, started by %s.',
+            $this->php,
+            $this->binary,
+            $this->driver === '' ? 'with no coverage driver in it' : 'coverage by '.$this->driver,
+            $this->startedBy(),
+        );
 
         // The second interpreter if there is one, and only then: this line is repeated at the foot of
         // a failure, and a machine in the ordinary case should not have to read a sentence about a
@@ -246,5 +283,20 @@ final readonly class CoverageEnvironment
             $xdebug !== null => 'add coverage to xdebug.mode in this PHP\'s ini',
             default => 'install PCOV - it is what CI installs (`coverage: pcov` in .github/workflows/main.yml)',
         };
+    }
+
+    /**
+     * Who started this run, and under what: Composer, or a shell.
+     *
+     * One clause rather than one per reader, because it is one fact read in two places - the header's
+     * row and the foot of a failure - and two wordings would be two copies to keep in step. `@php`
+     * expands to the interpreter Composer is already running under, so this is what makes the PHP
+     * named beside it the PHP Composer runs under rather than the one a shell happened to pick.
+     */
+    private function startedBy(): string
+    {
+        return $this->composer === ''
+            ? 'a direct run (COMPOSER_BINARY is unset)'
+            : 'composer (COMPOSER_BINARY='.$this->composer.')';
     }
 }

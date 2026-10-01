@@ -174,6 +174,17 @@ release — which is why it sits in the repository rather than in the package.
   cleanup. The decision lives in `tests/Support/CoverageEnvironment.php` and is asserted branch by
   branch, including the two a runner cannot be made to have: a PCOV that is loaded and switched
   off, and an Xdebug left in `develop` — each a driver that is present and cannot count.
+  And the facts are asked of the interpreter that will measure rather than of the one the command
+  happened to run under: the suite is started as a child with none of this invocation's flags, so
+  `bin/coverage.php` starts a second copy of itself in a probe mode, hands the four raw facts it
+  prints to the same reading, and names the environment that will count the lines — a `-n` run now
+  names the driver its child has, where it used to name its own absence. When that answer is that
+  nothing can count, the suite is not started at all: a floor of 0.0% for every file is not a floor
+  that was missed, and two minutes of tests to reach it is a red build pointing at the code instead
+  of at the machine.
+  The foot line of a failure carries every fact the header states rather than the two about the
+  interpreter alone: who started the run is what makes the PHP named beside it the PHP Composer
+  runs under, and a red CI step is read at its foot rather than at its top.
 
 - **A guard for the claims the documents make about the keys.** `ConfigKeys` compares the keys
   the config publishes with the keys the source reads, and that comparison cannot see the third

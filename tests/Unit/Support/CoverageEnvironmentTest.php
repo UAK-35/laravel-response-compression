@@ -21,6 +21,14 @@ use Uak35\ResponseCompression\Tests\Support\PhpBinary;
 | careless "is a driver loaded?" gets wrong, and the one that would make a report say the machine is
 | fine while every file measures 0.0%.
 |
+| WHY THE ANSWER CAN COME FROM ANOTHER PROCESS
+| --------------------------------------------
+| The process that measures is the suite, started as a child with none of the flags of the run that
+| started it, so the two can disagree about the driver in both directions. `observed()` is the four
+| raw facts with no judgement in them, and `bin/coverage.php` has a second copy of itself print them
+| and hands them straight back to `detect()`: the judgement happens once, here, and it is made about
+| the interpreter that will count the lines rather than the one the command was typed into.
+|
 | @guards-index test
 */
 
@@ -155,14 +163,49 @@ it('names the interpreter this repository means when this run is under a differe
         ->and(coverageEnvironment(['pcov' => '1.0.12'])->summary())->not->toContain('This run is under');
 });
 
-it('repeats the interpreter at the foot of a failure', function (): void {
+it('reports the four raw facts of this process, in the form another one can be judged from', function (): void {
+    $observed = CoverageEnvironment::observed();
+
+    expect(array_keys($observed))->toBe(['extensions', 'pcov_enabled', 'xdebug_mode', 'composer'])
+        ->and($observed['extensions'])->toBeArray()
+        ->and($observed['pcov_enabled'])->toBeString()
+        ->and($observed['xdebug_mode'])->toBeString()
+        ->and($observed['composer'])->toBeString()
+
+        // What is loaded is what this process says is loaded rather than a copy of it: the driver
+        // the header names has to be one this PHP can actually count with.
+        ->and($observed['extensions'])->toBe(array_filter([
+            'pcov' => extension_loaded('pcov') ? (string) phpversion('pcov') : null,
+            'xdebug' => extension_loaded('xdebug') ? (string) phpversion('xdebug') : null,
+        ], static fn (?string $version): bool => $version !== null));
+
+    // Handed straight back, the four facts are the same environment `detect()` reads on its own —
+    // which is the whole reason they are data rather than a decision, and the reason a process
+    // other than this one can be the one that is judged.
+    expect(CoverageEnvironment::detect(
+        $observed['extensions'],
+        $observed['pcov_enabled'],
+        $observed['xdebug_mode'],
+        $observed['composer'],
+    )->driver)->toBe(CoverageEnvironment::detect()->driver);
+});
+
+it('repeats every fact of the run at the foot of a failure', function (): void {
     $binary = str_replace('\\', '/', PHP_BINARY);
+    $direct = 'started by a direct run (COMPOSER_BINARY is unset)';
 
     expect(coverageEnvironment(['pcov' => '1.0.12'])->summary())
-        ->toBe('PHP '.PHP_VERSION.' ('.PHP_SAPI.') at '.$binary.', coverage by PCOV 1.0.12.')
+        ->toBe('PHP '.PHP_VERSION.' ('.PHP_SAPI.') at '.$binary.', coverage by PCOV 1.0.12, '.$direct.'.')
 
         // A floor that moved is the code or the PHP, and the reader meeting it at the bottom of two
         // minutes of output is told which PHP that was — including when the answer is that there was
         // no driver to count with.
-        ->and(coverageEnvironment()->summary())->toContain('with no coverage driver in it.');
+        ->and(coverageEnvironment()->summary())->toContain(', with no coverage driver in it, '.$direct.'.')
+
+        // And who Composer is running it under, which the header states and the foot used to leave
+        // out: the PHP named beside it is Composer's only because this says Composer started the run,
+        // and a red CI step is read at its foot rather than at its top.
+        ->and(coverageEnvironment(['pcov' => '1.0.12'], composer: '/tools/composer.phar')->summary())
+        ->toBe('PHP '.PHP_VERSION.' ('.PHP_SAPI.') at '.$binary
+            .', coverage by PCOV 1.0.12, started by composer (COMPOSER_BINARY=/tools/composer.phar).');
 });

@@ -141,7 +141,11 @@ out of the report, each for a reason of its own. `bin/coverage.php` is the paren
 reads, so its own lines are in no file any child writes; it opens by naming the machine instead:
 the PHP it is under — version, path, and whether Composer started it, since `@php` is Composer's
 own binary — and the coverage driver, or the sentence saying there is none and what would give
-this machine one. `bin/tool-paths.php` is a list rather than a script — a `return [...]` of records,
+this machine one. The driver is asked of the process that will measure rather than of the one
+the command was typed into — the suite is a child started with none of this invocation's
+flags, so the script starts a second copy of itself in a probe mode and reads that answer —
+and a run whose answer is that nothing can count stops before the suite, because a floor of
+0.0% for every file is not a floor that was missed. `bin/tool-paths.php` is a list rather than a script — a `return [...]` of records,
 whose lines PHPUnit counts as statements while PCOV reports the one statement once — so it reads
 one low number however many processes read it, and a floor that cannot rise is noise; what can be
 wrong with it is which entries it holds, which the tool-path test asserts. Neither file has a
