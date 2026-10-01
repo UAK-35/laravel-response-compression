@@ -209,18 +209,26 @@ release — which is why it sits in the repository rather than in the package.
   upstream`, which keeps the number readable and searchable without making it a release of this
   package.
 
-- **Two branches that report a skip with the same sentence are refused.** Two of the middleware's
-  checks sat next to each other and both wrote the same line, so an unsuccessful response was
-  recorded as a binary file — in the one output `enable_logging` exists to produce, which is where
-  anyone looks to find out why a response was left alone. It was found by reading the file and
-  fixed by hand, which is the kind of fix that comes back, because a test that pins a message pins
-  it one branch at a time: a third branch copied from one of them passes every one of them.
-  `tests/Unit/Middleware/LogMessagesTest.php` reads each `logDebugStatus(…)` call as the sentence
-  it writes with the values taken out, and fails when two of those sentences are the same, naming
-  both lines and the sentence they share. The reading is held to two things of its own as well: it
-  has to find every call in the file rather than the ones it understood, and the shapes it reasons
-  about are checked against the messages the middleware really composes when six of its branches
-  are driven through it in one test.
+- **Every skip the middleware reports is one diagnostic, with a stable code in front of it.** Two
+  of the middleware's checks sat next to each other and both wrote the same line, so an
+  unsuccessful response was recorded as a binary file — in the one output `enable_logging` exists
+  to produce, which is where anyone looks to find out why a response was left alone. It was found
+  by reading the file and fixed by hand, which is the kind of fix that comes back, because a test
+  that pins a message pins it one branch at a time: a third branch copied from one of them passes
+  every one of them. The middleware no longer holds the text of a line at all. Each branch names a
+  `Uak35\ResponseCompression\Support\Diagnostic`, that reason's sentence is written once in the
+  type, and every line the log holds carries the reason's code — `request.identity`,
+  `response.too_small` — in front of the sentence, so two lines can never be read as one another
+  and a branch cannot invent a wording. That closes the defect by construction; what is left is the
+  two ways the one file can still be written wrong, and `tests/Unit/Middleware/LogMessagesTest.php`
+  reads them out of the file itself: two cases carrying the same code, which nothing in PHP refuses
+  because the duplicate-value error only arrives when the enum is asked for a case by value, and
+  two cases writing the same sentence, which is the original defect one file along. Both are
+  reported with the cases and the code or the sentence they share. The reading is held to more than
+  its own collision rules: it has to find every case and every sentence rather than the ones it
+  understood, it throws rather than reporting agreement with a file it never read, and the codes
+  and sentences it read are required to be the ones the type declares, so the reading and the type
+  cannot come to disagree.
 
 - **A tool's path is written down once, in a manifest the scripts and the gate both read.** It was
   written down twice — once in `composer.json`, because a script is a shell string and cannot read

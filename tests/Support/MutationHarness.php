@@ -17,7 +17,8 @@ use RuntimeException;
  * the same thing when it has stopped working. Each of them is held to its own substance at least
  * once — a scan asserts that the listing it read is the real one before it trusts the empty
  * answer, the changelog guard asserts that both of its halves found something, the log-message
- * guard counts the calls it saw against the text of the file — and that covers the first way a
+ * guard requires every code and sentence it read to be one the type declares — and that covers the
+ * first way a
  * guard goes quiet: a reading that came back empty because its input was empty, through a glob
  * that stopped matching, a directory that moved, or a listing that answered with nothing.
  *
@@ -36,7 +37,7 @@ use RuntimeException;
  * -----------------------------------
  * The reading is the guard's own — the call its test asserts on, not a second implementation of
  * it. `MachinePaths::scan`, `RepoEscapes::scan`, `ChangelogPreamble::stale`, `ConfigClaims::all`,
- * `GuardIndex::drift`, `IndexNumbers::drift` and `LogMessages`'s pair are one call each, and
+ * `GuardIndex::drift`, `IndexNumbers::drift` and `LogMessages::duplicates` are one call each, and
  * `ConfigDoc`'s two halves are one comparison, so this class is a caller rather than a copy for
  * each of them. The guards whose
  * reading is a *walk* composed in the test — the docs links, the config keys, the tool paths —
@@ -99,14 +100,14 @@ final class MutationHarness
     /**
      * The two sentences the log-message mutation makes indistinguishable.
      *
-     * They are the middleware's own, copied here as the text a reading has to notice — the
-     * `enable_logging` output for an unsuccessful response, and for one whose body is not a
-     * string. Two branches one after the other in the same file, which is how the defect this
-     * guard came from shipped.
+     * The sentence collision's pair: the text a reading has to notice when one reason's sentence is
+     * swapped for another's — the sentence an unsuccessful response writes, and the one a body that
+     * is not a string writes. Two reasons declared one after the other in the same file, which is how
+     * the defect this guard came from shipped.
      */
-    private const string KEPT = 'Response is not successful - Response compression skipped - uri: ';
+    private const string KEPT = 'Response is not successful - Response compression skipped - uri: {uri}';
 
-    private const string COLLIDING = 'Response is not a string - Response compression skipped - uri: ';
+    private const string COLLIDING = 'Response is not a string - Response compression skipped - uri: {uri}';
 
     /** The one planted tree, made on first use and reused by every mutation. */
     private static ?string $tree = null;
@@ -388,16 +389,40 @@ final class MutationHarness
                 'guard' => 'the log-message reading',
                 'test' => 'tests/Unit/Middleware/LogMessagesTest.php',
                 'plant' => static function (string $root): string {
+                    // One arm of the type's `match` rewritten to another reason's sentence: the
+                    // collision the type cannot rule out, because two cases are free to say the same
+                    // words — which is the defect this guard came from, one file along.
                     self::replace($root, LogMessages::SOURCE, static fn (string $text): string => str_replace(
-                        "'".self::COLLIDING."'",
-                        "'".self::KEPT."'",
+                        "self::ResponseNotString => '".self::COLLIDING."',",
+                        "self::ResponseNotString => '".self::KEPT."',",
                         $text,
                     ));
 
-                    return self::KEPT.'{}';
+                    return 'ResponseNotSuccessful and ResponseNotString write the same line: '.self::KEPT;
                 },
                 'read' => static fn (string $root): array => LogMessages::duplicates(
-                    LogMessages::in((string) file_get_contents($root.'/'.LogMessages::SOURCE)),
+                    LogMessages::declaredIn((string) file_get_contents($root.'/'.LogMessages::SOURCE)),
+                ),
+            ],
+            [
+                'guard' => 'the log-message reading, on the code',
+                'test' => 'tests/Unit/Middleware/LogMessagesTest.php',
+                'plant' => static function (string $root): string {
+                    // A second case handed the code of one declared above it: the collision the type
+                    // carries silently, because PHP's duplicate-value error arrives only when the
+                    // enum is asked for a case by value, which this package never does. The line a
+                    // log holds is then the same for two reasons, which is exactly what a reader
+                    // greps for and what the sentence collision cannot see.
+                    self::replace($root, LogMessages::SOURCE, static fn (string $text): string => str_replace(
+                        "case ResponseNotString = 'response.not_string';",
+                        "case ResponseNotString = 'response.not_successful';",
+                        $text,
+                    ));
+
+                    return 'ResponseNotSuccessful and ResponseNotString both carry the code response.not_successful';
+                },
+                'read' => static fn (string $root): array => LogMessages::duplicates(
+                    LogMessages::declaredIn((string) file_get_contents($root.'/'.LogMessages::SOURCE)),
                 ),
             ],
         ];

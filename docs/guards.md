@@ -25,7 +25,7 @@ in the third.
 | the changelog-preamble test | a preamble that goes on naming a version as inherited once this package has released it — the stale claim the next release would otherwise write into the file | [`../tests/Unit/Docs/ChangelogPreambleTest.php`](../tests/Unit/Docs/ChangelogPreambleTest.php) |
 | the machine-path test | a path that only resolves on the machine it was written on — a drive letter, a home directory, a network share — in any file a commit would carry | [`../tests/Unit/Support/MachinePathsTest.php`](../tests/Unit/Support/MachinePathsTest.php) |
 | the repository-escape test | a relative path that climbs above the repository root — written out, or computed as `dirname(__DIR__, n)` — in any file a commit would carry | [`../tests/Unit/Support/RepoEscapesTest.php`](../tests/Unit/Support/RepoEscapesTest.php) |
-| the log-message test | two branches that report a skip with the same sentence, which is a line the log cannot tell apart — read from what the branches write, not from what they do | [`../tests/Unit/Middleware/LogMessagesTest.php`](../tests/Unit/Middleware/LogMessagesTest.php) |
+| the log-message test | two reasons the middleware reports a skip as carrying one code, or two that write the same sentence — read out of the type that holds each sentence once, so a line a branch invents and a line two branches share are both the file's to refuse, and nothing in PHP refuses the duplicate code a backed enum is loaded with | [`../tests/Unit/Middleware/LogMessagesTest.php`](../tests/Unit/Middleware/LogMessagesTest.php) |
 | the mutation harness | the guards above, going quiet: one break at a time is planted in a copy of this checkout, and the guard's own reading has to name it — so a reading that stopped asking the right question fails there instead of reporting nothing forever | [`../tests/Support/MutationHarness.php`](../tests/Support/MutationHarness.php), [`../tests/Unit/Support/MutationHarnessTest.php`](../tests/Unit/Support/MutationHarnessTest.php) |
 | the tool-path test | a tool's path written down in a second place — in a composer script, or in one of the three programs that runs a tool — a `vendor/bin` shim, which is a second interpreter, a path that is not on disk, a name nothing asks for, an entry nothing runs, and the two facts an entry carries beside the path: a pin that is not the version `composer.json` requires or not the one installed, and an entry with no line saying what its tool is for | [`../tests/Unit/Support/ToolPathsTest.php`](../tests/Unit/Support/ToolPathsTest.php) |
 | `bin/tool.php` | a composer script that writes a tool's path down instead of naming a tool: the script names this program and the tool, the manifest answers with the path, and the exit code is the tool's own — a wrapper that swallowed it would report every script as passing | [`../bin/tool.php`](../bin/tool.php) |
@@ -110,13 +110,20 @@ checks sat next to each other and wrote the same sentence, so an unsuccessful re
 recorded as a binary file — in the one output `enable_logging` exists to produce, which is where
 anyone looks to find out why a response was left alone. It was found by reading the file and
 fixed by hand, and a hand fix is what comes back. A test that pins a message pins it one branch
-at a time, so a third branch copied from one of them passes every one of them; what can see the
-duplicate is what the branches have in common, the text they write. So each `logDebugStatus(…)`
-call is read out of the file as a *shape* — the sentence it writes with the values taken out —
-and two shapes that match are reported with both line numbers. The reading is held to two things
-of its own, because a guard that read nothing would pass: it has to find every call in the file
-rather than the ones it happened to understand, and the shapes it reasons about are compared
-against the messages the middleware really composes when six of its branches are driven.
+at a time, so a third branch copied from one of them passes every one of them. The fix is a type
+rather than another reading: the middleware holds no sentence of its own, each branch names a
+`Diagnostic` case, that reason's sentence is written once in the type, and every line the log holds
+carries the reason's code in front of the sentence — so a line one branch invents and a line two
+branches share are both impossible to write, and the two can never be read as one another. What
+is left is what one file can still be written wrong, and that is what the guard reads: two cases
+carrying the same code, which nothing in PHP refuses — the duplicate-value error arrives only when
+the enum is asked for a case by value, which this package never does — and two cases writing the
+same sentence, the original defect one file along. Both are reported with the cases and the code
+or the sentence they share. The reading is held to more than its own collision rules, because a
+guard that read nothing would pass: it has to find every case and every sentence rather than the
+ones it happened to understand, a file it cannot read throws rather than reporting agreement with
+one it never understood, and the codes and sentences it read are required to be the ones the type
+declares — so the reading and the type cannot come to disagree about what is declared.
 
 The coverage floor became a program of its own for the same reason the log-message guard reads
 what the branches write instead of pinning each message: the number it had was not the number it
@@ -258,7 +265,7 @@ all.
 | [`../tests/Support/Docs.php`](../tests/Support/Docs.php) | the markdown this package ships, read for the links in it |
 | [`../tests/Support/GuardIndex.php`](../tests/Support/GuardIndex.php) | `docs/guards.md` read as a claim about a directory |
 | [`../tests/Support/IndexNumbers.php`](../tests/Support/IndexNumbers.php) | the numbers `docs/guards.md` states, read out of it and checked against the code that produces them |
-| [`../tests/Support/LogMessages.php`](../tests/Support/LogMessages.php) | the diagnostics the compression middleware writes, read as shapes |
+| [`../tests/Support/LogMessages.php`](../tests/Support/LogMessages.php) | the diagnostics the compression middleware writes, each declared once with a code it logs under |
 | [`../tests/Support/MachinePaths.php`](../tests/Support/MachinePaths.php) | paths that only resolve on the machine they were written on, found in the files a commit would carry |
 | [`../tests/Support/MutationHarness.php`](../tests/Support/MutationHarness.php) | one break at a time, planted in a copy of this checkout, read back through the guard that is supposed to catch it |
 | [`../tests/Support/PhpBinary.php`](../tests/Support/PhpBinary.php) | which PHP this repository runs, read the one way it is decided |

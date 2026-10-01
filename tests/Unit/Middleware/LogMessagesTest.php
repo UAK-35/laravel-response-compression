@@ -8,135 +8,155 @@ use Monolog\Logger;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Uak35\ResponseCompression\Support\Diagnostic;
 use Uak35\ResponseCompression\Tests\Support\LogMessages;
 use Uak35\ResponseCompression\Tests\Support\ResponseWithNoReadableContent;
 
 /*
-| Two skipped responses that say the same sentence
-|-------------------------------------------------
+| Every diagnostic declared once, with a code it is logged under
+|---------------------------------------------------------------
 |
 | Two of the middleware's skip checks sat next to each other and both wrote the same line, so an
 | unsuccessful response was recorded as a binary file — in the one output `enable_logging` exists to
-| produce, which is where anyone looks to find out why a response was left alone. It was found by
-| reading the file and fixed by hand, which is the kind of fix that comes back.
+| produce, which is where anyone looks to find out why a response was left alone. Nothing at runtime
+| could see it: one line among many looks like one line, and a test that pins a message pins it one
+| branch at a time, so a third branch copied from one of them passes all of them.
 |
-| Nothing at runtime can see it: one line among many looks like one line, and a test that pins a
-| message pins it one branch at a time, so a third branch copied from one of them passes all of them.
-| What can see it is what the branches have in common — the text they write — read out of the file
-| and compared with itself.
+| The text is no longer in the middleware. A branch names a `Diagnostic`, the sentence is written
+| once, and the code the reason is logged under is in front of every line — so a branch cannot write
+| a sentence of its own and two lines can never be read as one another. What is left is the two ways
+| the one file can still be written wrong, and both are asserted here: two cases with one code, and
+| two cases with one sentence.
 |
-| Three things are asserted, because one of them alone would be worth little: that no two branches
-| write the same line, that the reading is complete enough to be trusted, and that the shapes it
-| reasons about are the ones the middleware really emits.
+| Three more things are asserted, because one of them alone would be worth little: that the reading
+| read every case the type declares rather than part of it, that every reason writes a line carrying
+| its code, and that the lines the middleware really emits are the reasons that file declares.
 |
 | @guards-index guard
 */
 
-it('writes a different line for every branch that reports one', function (): void {
-    // The report names both lines and the sentence they share, so a failure sends the reader to the
-    // pair to fix rather than to the file to search.
-    expect(LogMessages::duplicates(LogMessages::in(LogMessages::source())))->toBe([]);
+it('declares one code and one sentence per reason, and no two the same', function (): void {
+    // The report names both cases and the code or the sentence they share, so a failure sends the
+    // reader to the pair to fix rather than to the file to search.
+    $declared = LogMessages::declaredIn(LogMessages::source());
+
+    expect($declared)->not->toBeEmpty()
+        ->and(LogMessages::duplicates($declared))->toBe([]);
 });
 
-it('reads every call in the middleware, not only the ones it can parse', function (): void {
-    $source = LogMessages::source();
+it('reads every case the type declares, in the order it declares them', function (): void {
+    // A reading that found six of thirteen reasons agrees with itself, so the codes it read are held
+    // to the type itself: the same codes, in the same order, is what says it read the file rather
+    // than part of it. The case values are the answer to a question the two cannot both be wrong
+    // about — the class is the type, and the text is the file the class is written in.
+    $declared = LogMessages::declaredIn(LogMessages::source());
 
-    // A reading that came up empty agrees with a file whose lines all differ, so the count is what
-    // says the source was read. The reader decides where a call begins and where its argument ends;
-    // this count only looks for the text, so a call it walked past shows up as a difference.
-    expect(LogMessages::in($source))->toHaveCount(LogMessages::callsIn($source))
-        ->and(LogMessages::callsIn($source))->toBeGreaterThanOrEqual(8);
+    expect(array_column($declared, 'code'))
+        ->toBe(array_map(static fn (Diagnostic $reason): string => $reason->value, Diagnostic::cases()))
+        // And the sentences the reader decoded are the ones the type would write, which is what makes
+        // this a reading of the same file rather than of another one that happens to look like it.
+        ->and(array_column($declared, 'template'))
+        ->toBe(array_map(static fn (Diagnostic $reason): string => $reason->template(), Diagnostic::cases()));
 });
 
-it('reads a diagnostic out of text, never out of a variable alone', function (): void {
-    $opaque = array_column(
-        array_filter(
-            LogMessages::in(LogMessages::source()),
-            static fn (array $message): bool => $message['shape'] === LogMessages::OPAQUE,
-        ),
-        'line',
-    );
-
-    // `logDebugStatus($message)` cannot be compared with anything by reading it, and two branches
-    // that did it would compare equal here for the wrong reason rather than for the right one. The
-    // line is reported instead of passed over: this guard is worth what the text it can see is worth.
-    expect($opaque)->toBe([]);
+it('gives every reason a code to log it under and a sentence to write', function (): void {
+    // Every case, not a sample of them: `template()` is a `match` with an arm each, so a case nobody
+    // asks about is an arm no test has ever run.
+    foreach (Diagnostic::cases() as $reason) {
+        expect($reason->value)->not->toBe('')
+            ->and($reason->template())->not->toBe('')
+            ->and($reason->line())->toStartWith(Diagnostic::PREFIX.$reason->value.' - ');
+    }
 });
 
-it('reports the two branches that write the same line', function (): void {
-    // The defect in the shape it had: the same sentence in two adjacent checks, one of which
-    // reported an unsuccessful response as a binary file.
+it('writes the code into the line, with the values in the sentence', function (): void {
+    expect(Diagnostic::CompressionDisabled->line())
+        ->toBe('[COMPR-RESP] middleware.disabled - Response compression not enabled...')
+
+        // Three holes in one sentence, filled in the order the sentence names them rather than in the
+        // order the values happen to be written in.
+        ->and(Diagnostic::ResponseTooSmall->line(['minimum' => '2048', 'uri' => '/api/trips', 'length' => '12']))
+        ->toBe('[COMPR-RESP] response.too_small - Response is small (12 < 2048) - Response compression skipped - uri: /api/trips')
+
+        // A hole nothing filled stays visible instead of becoming an empty string: a line that says
+        // `uri: {uri}` is one a reader can act on, where `uri: ` is one that reads as a request with
+        // no path.
+        ->and(Diagnostic::ResponseSkipped->line())->toBe('[COMPR-RESP] response.skipped - Response compression skipped - uri: {uri}')
+
+        // A value is inserted, never rescanned: the `{uri}` written into the path below is a path a
+        // request named, and it must not be filled by the `uri` beside it.
+        ->and(Diagnostic::ResponseSkipped->line(['uri' => '/api/{uri}/trips']))
+        ->toBe('[COMPR-RESP] response.skipped - Response compression skipped - uri: /api/{uri}/trips');
+});
+
+it('reports two reasons written with one code', function (): void {
     $source = <<<'PHP'
         <?php
-        $this->logDebugStatus('Response is either binary file or a stream - Response compression skipped - uri: '.$requestUri);
-        $this->logDebugStatus('Response is either binary file or a stream - Response compression skipped - uri: '.$requestUri);
+
+        enum Fixture: string
+        {
+            case One = 'one.code';
+            case Two = 'one.code';
+
+            public function template(): string
+            {
+                return match ($this) {
+                    self::One => 'the first sentence - uri: {uri}',
+                    self::Two => 'the second sentence - uri: {uri}',
+                };
+            }
+        }
         PHP;
 
-    expect(LogMessages::duplicates(LogMessages::in($source)))->toBe([
-        'lines 2 and 3 both write: Response is either binary file or a stream - Response compression skipped - uri: {}',
-    ]);
+    // The collision PHP itself does not refuse: two cases of one backed enum may hold the same value,
+    // and the error only arrives when the enum is asked for a case by value, which nothing here does.
+    expect(LogMessages::duplicates(LogMessages::declaredIn($source)))
+        ->toBe(['One and Two both carry the code one.code']);
 });
 
-it('leaves two branches alone when only the values in them differ', function (): void {
-    // The pair of checks this guard is not about. Both name the request and the size of the body,
-    // which is what makes each line useful on its own; the words around those values are what tells
-    // the two branches apart, and they differ.
+it('reports two reasons written with one sentence', function (): void {
     $source = <<<'PHP'
         <?php
-        $this->logDebugStatus('Response is small ('.$length.' < '.$min.') - Response compression skipped - uri: '.$uri);
-        $this->logDebugStatus('Response is not successful - Response compression skipped - uri: '.$uri);
+
+        enum Fixture: string
+        {
+            case One = 'one.code';
+            case Two = 'two.code';
+
+            public function template(): string
+            {
+                return match ($this) {
+                    self::One => 'the same sentence - uri: {uri}',
+                    self::Two => 'the same sentence - uri: {uri}',
+                };
+            }
+        }
         PHP;
 
-    expect(LogMessages::duplicates(LogMessages::in($source)))->toBe([]);
+    // The defect in the shape it had: two checks beside each other writing the same words, which is
+    // what put an unsuccessful response in the log as a binary file.
+    expect(LogMessages::duplicates(LogMessages::declaredIn($source)))
+        ->toBe(['One and Two write the same line: the same sentence - uri: {uri}']);
 });
 
-it('reads a call the way the middleware writes it', function (string $call, string $shape): void {
-    expect(LogMessages::shapes("<?php \$this->{$call};"))->toBe([$shape]);
-})->with([
-    'a message with nothing that varies in it' => [
-        "logDebugStatus('Response compression not enabled...')",
-        'Response compression not enabled...',
-    ],
-    'a message with three values in it' => [
-        "logDebugStatus('Response is small ('.\$length.' < '.\$minimum.') - Response compression skipped - uri: '.\$uri)",
-        'Response is small ({} < {}) - Response compression skipped - uri: {}',
-    ],
-    'a value that is a call of its own' => [
-        "logDebugStatus('>> Compressing response using first available encoding = '.\$this->algorithm().' - uri: '.\$uri)",
-        '>> Compressing response using first available encoding = {} - uri: {}',
-    ],
-    'an escaped apostrophe' => [
-        "logDebugStatus('It\\'s skipped - uri: '.\$uri)",
-        "It's skipped - uri: {}",
-    ],
-    'a comma inside the message, which is not an argument separator' => [
-        "logDebugStatus('the two, in either order - uri: '.\$uri)",
-        'the two, in either order - uri: {}',
-    ],
-    'a double-quoted message, which interpolates instead' => [
-        'logDebugStatus("Response is not a string - uri: {$uri}")',
-        'Response is not a string - uri: {}',
-    ],
-    'a call written across lines' => [
-        <<<'PHP'
-            logDebugStatus(
-                'Response compression skipped - uri: '.$requestUri
-            );
-            PHP,
-        'Response compression skipped - uri: {}',
-    ],
-    'a message built from variables alone' => [
-        'logDebugStatus($message)',
-        '{}',
-    ],
-    'a message with a second argument, which is not part of the text' => [
-        "logDebugStatus('[COMPR-RESP] no', ['context' => 'here'])",
-        '[COMPR-RESP] no',
-    ],
-]);
+it('refuses a file it could not read, rather than agreeing with one', function (): void {
+    // Each of these is a way the reading could answer "nothing is wrong" for a file it never
+    // understood, which on a suite that runs it is a guard that has stopped guarding.
+    expect(fn (): array => LogMessages::declaredIn("<?php\n\nenum Nothing {}\n"))
+        ->toThrow(RuntimeException::class, 'declares 0 case(s) and writes 0 sentence(s) to read')
 
-it('writes a different line for every branch it is driven through', function (): void {
-    $declared = LogMessages::shapes(LogMessages::source());
+        // A reason that exists and says nowhere what it writes: a branch could name it and the log
+        // would hold an empty line.
+        ->and(fn (): array => LogMessages::declaredIn("<?php\ncase Lonely = 'lonely.code';\nself::Other => 'a sentence',\n"))
+        ->toThrow(RuntimeException::class, 'declares Lonely and says nowhere what it writes')
+
+        // And the other way: a sentence with no case behind it, which nothing can ever write.
+        ->and(fn (): array => LogMessages::declaredIn("<?php\ncase Lonely = 'lonely.code';\nself::Lonely => 'a sentence',\nself::Other => 'another one',\n"))
+        ->toThrow(RuntimeException::class, 'writes a sentence for Other, which it does not declare');
+});
+
+it('writes a line for every branch it is driven through, and every one of them is declared', function (): void {
+    $declared = array_column(LogMessages::declaredIn(LogMessages::source()), 'code');
 
     $handler = new TestHandler;
     Log::swap(new Logger('compression', [$handler]));
@@ -146,7 +166,6 @@ it('writes a different line for every branch it is driven through', function ():
     $uri = '/api/trips';
     $accepted = ['HTTP_ACCEPT_ENCODING' => 'gzip'];
     $content = getShortContent();
-    $minimum = (int) config('response-compression.min_length');
 
     // One request per skip branch, each with the response or the headers that reach it. A streamed
     // response and a binary file are one check, so only one of them is driven: driving both would
@@ -166,13 +185,8 @@ it('writes a different line for every branch it is driven through', function ():
         'a request that accepts nothing' => [new Response(getLongContent(), 200, ['Content-Type' => 'text/plain']), [], true],
     ];
 
-    $normalise = static fn (string $message): string => str_replace(
-        [' - uri: '.$uri, '('.strlen($content).' < '.$minimum.')'],
-        [' - uri: {}', '({} < {})'],
-        substr($message, strlen(LogMessages::PREFIX)),
-    );
-
     $written = [];
+    $codes = [];
 
     foreach ($runs as [$response, $headers, $enabled]) {
         config()->set('response-compression.enabled', $enabled);
@@ -181,7 +195,7 @@ it('writes a different line for every branch it is driven through', function ():
         runCompressResponseMiddleware(Request::create($uri, 'GET', [], [], [], $headers), $response);
 
         foreach ($handler->getRecords() as $record) {
-            $line = $normalise((string) $record->message);
+            $line = (string) $record->message;
 
             // Two lines are written for more than one of these requests by construction, so neither is
             // what this compares: the one every enabled request writes before any branch has decided
@@ -189,22 +203,25 @@ it('writes a different line for every branch it is driven through', function ():
             // skipped. Both name the request, which is why they repeat, and the branch's own line is
             // what tells the branches apart.
             if (in_array($line, [
-                'Response compression checking - uri: {}',
-                'Response compression skipped - uri: {}',
+                Diagnostic::CompressionChecking->line(['uri' => $uri]),
+                Diagnostic::ResponseSkipped->line(['uri' => $uri]),
             ], true)) {
                 continue;
             }
 
             $written[] = $line;
+            $codes[] = (string) strstr(substr($line, strlen(Diagnostic::PREFIX)), ' - ', true);
         }
     }
 
     expect(count($written))->toBeGreaterThanOrEqual(7)
-        // Every line the middleware wrote is a line the reading knows about, which is what ties the
-        // file to what runs: a shape declared and never emitted would make the first test weaker
-        // than it reads.
-        ->and(array_values(array_diff($written, $declared)))->toBe([])
-        // And no two of them are the same line, reported by the messages this middleware really
-        // composed rather than by the text the file contains.
+
+        // Every code the middleware wrote is a code the type declares, which is what ties the file to
+        // what runs: a reason declared and never emitted would make the first test weaker than it
+        // reads, and this is the direction that catches the other one.
+        ->and(array_values(array_diff($codes, $declared)))->toBe([])
+
+        // And no two of them are the same line, which the code in front of each is what guarantees:
+        // it is reported by the messages the middleware really composed rather than by the file.
         ->and(array_unique($written))->toBe($written);
 });

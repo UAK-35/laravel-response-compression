@@ -10,6 +10,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Uak35\ResponseCompression\Support\Diagnostic;
 use Uak35\ResponseCompression\Support\Enc;
 use Uak35\ResponseCompression\Tests\Support\ResponseWithNoReadableContent;
 
@@ -117,8 +118,11 @@ it('says a failed response was not successful rather than calling it a stream', 
         new Response('error', 500),
     );
 
+    // The branch names a reason, and the reason writes the line: what this asserts is which reason
+    // the response that failed went through, which is the thing that was wrong when two branches
+    // wrote one sentence.
     Log::shouldHaveReceived('debug')
-        ->withArgs(fn (string $message, array $context = []): bool => $message === '[COMPR-RESP] Response is not successful - Response compression skipped - uri: /api/trips')
+        ->withArgs(fn (string $message, array $context = []): bool => $message === Diagnostic::ResponseNotSuccessful->line(['uri' => '/api/trips']))
         ->once();
 });
 
@@ -139,7 +143,7 @@ it('should not compress a response whose content is not a string', function (): 
         ->and($result->headers->get('Content-Encoding'))->toBeNull();
 
     Log::shouldHaveReceived('debug')
-        ->withArgs(fn (string $message, array $context = []): bool => $message === '[COMPR-RESP] Response is not a string - Response compression skipped - uri: /api/trips')
+        ->withArgs(fn (string $message, array $context = []): bool => $message === Diagnostic::ResponseNotString->line(['uri' => '/api/trips']))
         ->once();
 });
 
@@ -348,11 +352,11 @@ it('should log every compression decision when enable_logging is on', function (
     // The two ends of one request's path: that compression was considered, and which encoding it
     // settled on. Both name the request, which is the part that makes the line worth writing.
     Log::shouldHaveReceived('debug')
-        ->withArgs(fn (string $message, array $context = []): bool => $message === '[COMPR-RESP] Response compression checking - uri: /api/trips')
+        ->withArgs(fn (string $message, array $context = []): bool => $message === Diagnostic::CompressionChecking->line(['uri' => '/api/trips']))
         ->once();
 
     Log::shouldHaveReceived('debug')
-        ->withArgs(fn (string $message, array $context = []): bool => $message === '[COMPR-RESP] >> Compressing response using first available encoding = gzip - uri: /api/trips')
+        ->withArgs(fn (string $message, array $context = []): bool => $message === Diagnostic::EncodingCompressing->line(['encoding' => 'gzip', 'uri' => '/api/trips']))
         ->once();
 });
 
@@ -470,7 +474,7 @@ it('should record the client asking for identity rather than a header that match
     // Both requests leave the body as it is and the diagnosis is not the same one: this client
     // asked for that, and the line has to be the one that says so.
     Log::shouldHaveReceived('debug')
-        ->withArgs(fn (string $message, array $context = []): bool => $message === '[COMPR-RESP] Client asked for the identity encoding (no compression) - Response compression skipped - uri: /api/trips')
+        ->withArgs(fn (string $message, array $context = []): bool => $message === Diagnostic::IdentityRequested->line(['uri' => '/api/trips']))
         ->once();
 });
 

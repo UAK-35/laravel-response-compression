@@ -6,7 +6,6 @@ namespace Uak35\ResponseCompression\Middleware;
 
 use Closure;
 use Illuminate\Support\Facades\App;
-use Stringable;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Request as SymfonyRequest;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,6 +15,7 @@ use Uak35\ResponseCompression\Encoders\GzipEncoder;
 use Uak35\ResponseCompression\Encoders\ZstdEncoder;
 use Uak35\ResponseCompression\Support\AcceptEncoding;
 use Uak35\ResponseCompression\Support\Config;
+use Uak35\ResponseCompression\Support\Diagnostic;
 
 /**
  * Compresses a response with an encoding the request accepted.
@@ -41,18 +41,18 @@ final class CompressResponse
     {
         // early exit if compression is disabled
         if (! $this->enabled()) {
-            $this->logDebugStatus('Response compression not enabled...');
+            $this->logDebugStatus(Diagnostic::CompressionDisabled);
 
             return $next($request);
         }
 
         $requestUri = $request->getRequestUri();
 
-        $this->logDebugStatus('Response compression checking - uri: '.$requestUri);
+        $this->logDebugStatus(Diagnostic::CompressionChecking, ['uri' => $requestUri]);
 
         // early exit if compression is not allowed for this request
         if (! $this->validateRequest($request, $requestUri)) {
-            $this->logDebugStatus('Response compression not allowed for this request...');
+            $this->logDebugStatus(Diagnostic::CompressionNotAllowed);
 
             return $this->vary($next($request));
         }
@@ -70,7 +70,7 @@ final class CompressResponse
         }
 
         if (! $this->validateResponse($response, $requestUri)) {
-            $this->logDebugStatus('Response compression skipped - uri: '.$requestUri);
+            $this->logDebugStatus(Diagnostic::ResponseSkipped, ['uri' => $requestUri]);
 
             return $this->vary($response);
         }
@@ -155,13 +155,13 @@ final class CompressResponse
         // Response::getContent() reports `false` for one. Nothing may read the body
         // before this has been ruled out.
         if (! $this->validateResponseType($response)) {
-            $this->logDebugStatus('Response is either binary file or a stream - Response compression skipped - uri: '.$requestUri);
+            $this->logDebugStatus(Diagnostic::ResponseIsStream, ['uri' => $requestUri]);
 
             return false;
         }
 
         if (! $response->isSuccessful()) {
-            $this->logDebugStatus('Response is not successful - Response compression skipped - uri: '.$requestUri);
+            $this->logDebugStatus(Diagnostic::ResponseNotSuccessful, ['uri' => $requestUri]);
 
             return false;
         }
@@ -169,7 +169,7 @@ final class CompressResponse
         $content = $response->getContent();
 
         if (! is_string($content)) {
-            $this->logDebugStatus('Response is not a string - Response compression skipped - uri: '.$requestUri);
+            $this->logDebugStatus(Diagnostic::ResponseNotString, ['uri' => $requestUri]);
 
             return false;
         }
@@ -177,7 +177,11 @@ final class CompressResponse
         $contentLength = strlen($content);
         $allowedMinLengthOfContent = $this->minLength();
         if ($contentLength <= $allowedMinLengthOfContent) {
-            $this->logDebugStatus('Response is small ('.$contentLength.' < '.$allowedMinLengthOfContent.') - Response compression skipped - uri: '.$requestUri);
+            $this->logDebugStatus(Diagnostic::ResponseTooSmall, [
+                'length' => (string) $contentLength,
+                'minimum' => (string) $allowedMinLengthOfContent,
+                'uri' => $requestUri,
+            ]);
 
             return false;
         }
@@ -223,10 +227,10 @@ final class CompressResponse
         };
 
         if (! in_array($encoding, ['gzip', 'br', 'zstd'])) {
-            $this->logDebugStatus('Invalid encoding - Response compression skipped - uri: '.$requestUri);
+            $this->logDebugStatus(Diagnostic::EncodingUnknown, ['uri' => $requestUri]);
         }
 
-        $this->logDebugStatus('>> Compressing response using first available encoding = '.$encoding.' - uri: '.$requestUri);
+        $this->logDebugStatus(Diagnostic::EncodingCompressing, ['encoding' => $encoding, 'uri' => $requestUri]);
 
         return $encoded;
     }
@@ -252,7 +256,7 @@ final class CompressResponse
         // the body alone. Read before the acceptance rule below, so the line this writes records
         // the client's own reason rather than the absence of a match.
         if (AcceptEncoding::prefersIdentity($acceptEncoding, $compressionAlgorithm)) {
-            $this->logDebugStatus('Client asked for the identity encoding (no compression) - Response compression skipped - uri: '.$requestUri);
+            $this->logDebugStatus(Diagnostic::IdentityRequested, ['uri' => $requestUri]);
 
             return false;
         }
@@ -261,7 +265,7 @@ final class CompressResponse
         // wildcard are different requests: Symfony reads a missing Accept-Encoding as an
         // empty list, while `*` is the client saying it accepts anything.
         if (! in_array('*', $requestEncodings, true) && ! in_array($compressionAlgorithm, $requestEncodings, true)) {
-            $this->logDebugStatus('Response encoding not supported - Response compression skipped - uri: '.$requestUri);
+            $this->logDebugStatus(Diagnostic::EncodingNotAccepted, ['uri' => $requestUri]);
 
             return false;
         }
@@ -275,7 +279,10 @@ final class CompressResponse
         );
 
         if (! $didNotMatched) {
-            $this->logDebugStatus('Disallowed user-agent found ( '.$requestUserAgent.') - Response compression skipped - uri: '.$requestUri);
+            $this->logDebugStatus(Diagnostic::UserAgentNotSupported, [
+                'agent' => (string) $requestUserAgent,
+                'uri' => $requestUri,
+            ]);
 
             return false;
         }
@@ -344,13 +351,16 @@ final class CompressResponse
     }
 
     /**
+     * Write one diagnostic, when logging is on: the reason, its values, and any context.
+     *
+     * @param  array<string, string>  $values  one value per hole in the reason's sentence
      * @param  array<string, mixed>  $context
      */
-    private function logDebugStatus(string|Stringable $message, array $context = []): void
+    private function logDebugStatus(Diagnostic $reason, array $values = [], array $context = []): void
     {
         if (! $this->enableLogging()) {
             return;
         }
-        \Illuminate\Support\Facades\Log::debug('[COMPR-RESP] '.$message, $context);
+        \Illuminate\Support\Facades\Log::debug($reason->line($values), $context);
     }
 }
