@@ -161,6 +161,21 @@ release — which is why it sits in the repository rather than in the package.
   guard that will be. The listing and the binary test come from `MachinePaths` rather than a second
   copy of either, so the two readings cannot come to disagree about which files a commit would carry.
 
+- **The same drive is read in the spelling the other half of this repository writes it in.** The
+  machine-path guard was written around a drive letter, so `/e/workspace` - the same directory, as
+  MSYS and Git Bash mount it - was not a finding at all. That is the half a
+  sweep walks past: this repository's own runbooks and batch files are written in the shells that
+  spell a drive that way, so a rewrite out of a drive letter produces exactly the shape the rule
+  could not see. `tests/Support/MachinePaths.php` now reads three mount roots - the bare letter,
+  WSL's `/mnt/<letter>/`, and Cygwin's `/cygdrive/<letter>/` - and tolerates the mount spelling of
+  the one directory that names nobody (`/c/Windows/...` is `C:/Windows/...`) through the same rule
+  rather than a second one that could drift from it. Two boundaries are deliberate: the segment
+  after the root has to be a single letter, which is what keeps a container path
+  (`/mnt/laravel/html`) out of it, and there has to be a segment after that, because no rule can
+  tell a one-segment `/a/b` in a sentence from prose. The mutation harness plants both spellings
+  now, so the half that was missing is a reading that has to stay awake rather than a sentence in
+  this file.
+
 - **A floor run says which PHP it is under, and whether anything can count a line.** Both are
   reasons a floor comes back red on a machine with no regression in it: the recorded floors were
   taken under one interpreter while `composer test:unit` runs the script under Composer's own, and

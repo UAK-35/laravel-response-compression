@@ -23,7 +23,7 @@ in the third.
 | the config-claim test | a docblock or a record that says a key is unread while the source reads it | [`../tests/Unit/Config/ConfigClaimsTest.php`](../tests/Unit/Config/ConfigClaimsTest.php) |
 | the docs-link test | a broken link between the records, and a record nothing links to | [`../tests/Unit/Docs/DocsLinksTest.php`](../tests/Unit/Docs/DocsLinksTest.php) |
 | the changelog-preamble test | a preamble that goes on naming a version as inherited once this package has released it — the stale claim the next release would otherwise write into the file | [`../tests/Unit/Docs/ChangelogPreambleTest.php`](../tests/Unit/Docs/ChangelogPreambleTest.php) |
-| the machine-path test | a path that only resolves on the machine it was written on — a drive letter, a home directory, a network share — in any file a commit would carry | [`../tests/Unit/Support/MachinePathsTest.php`](../tests/Unit/Support/MachinePathsTest.php) |
+| the machine-path test | a path that only resolves on the machine it was written on — a drive letter, a home directory, a network share, and the same drive as a POSIX shell mounts it (`/e/…`, `/mnt/e/…`, `/cygdrive/e/…`) — in any file a commit would carry | [`../tests/Unit/Support/MachinePathsTest.php`](../tests/Unit/Support/MachinePathsTest.php) |
 | the repository-escape test | a relative path that climbs above the repository root — written out, or computed as `dirname(__DIR__, n)` — in any file a commit would carry | [`../tests/Unit/Support/RepoEscapesTest.php`](../tests/Unit/Support/RepoEscapesTest.php) |
 | the log-message test | two reasons the middleware reports a skip as carrying one code, or two that write the same sentence — read out of the type that holds each sentence once, so a line a branch invents and a line two branches share are both the file's to refuse, and nothing in PHP refuses the duplicate code a backed enum is loaded with | [`../tests/Unit/Middleware/LogMessagesTest.php`](../tests/Unit/Middleware/LogMessagesTest.php) |
 | the mutation harness | the guards above, going quiet: one break at a time is planted in a copy of this checkout, and the guard's own reading has to name it — so a reading that stopped asking the right question fails there instead of reporting nothing forever | [`../tests/Support/MutationHarness.php`](../tests/Support/MutationHarness.php), [`../tests/Unit/Support/MutationHarnessTest.php`](../tests/Unit/Support/MutationHarnessTest.php) |
@@ -86,7 +86,20 @@ carry — the untracked ones included, because a file that has just been written
 where a path gets copied from a terminal — and the two shapes that name nobody are named in
 the detector instead of left to the eye: `C:/Windows/…`, which is the same on every Windows
 install and is the deliberate evidence in one row of that same table, and `/home/runner/…`,
-which is the same on every CI runner.
+which is the same on every CI runner. Each is tolerated in the mount spelling of itself too,
+because `/c/Windows/…` is that same directory written the way a shell that mounts drives
+writes it — one rule, so the two spellings cannot come to disagree about who they name.
+
+The same drive is read in both spellings, and the mount one is the half a rule written around a
+drive letter cannot see: `/e/workspace` is the same directory as the drive-letter form of it,
+and only the drive-letter form was in the pattern — so a runbook rewritten into the shells this repository actually runs
+from walked past the guard doing the rewriting. Three roots are read, the bare letter and
+WSL's `/mnt/<letter>/` and Cygwin's `/cygdrive/<letter>/`, and two boundaries are deliberate.
+The segment after the root has to be a single letter, which is what keeps a container path
+(`/mnt/laravel/html`) out of it, because the name after `/mnt/` there is not a drive. And
+there has to be a segment after that one, because no rule can tell a one-segment `/a/b` in a
+sentence from prose — so a leak written as a bare mount root is the one shape this misses, and
+that is the stated cost of not reporting every ratio in this document.
 
 The repository-escape guard is the other half of that same question, and it exists because the
 machine-path reading had a hole the shape of a relative path. `.idea/php.xml` named Pint and

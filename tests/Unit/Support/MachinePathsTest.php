@@ -18,8 +18,11 @@ use Uak35\ResponseCompression\Tests\Support\MachinePaths;
 |
 | So the paths are read out of the files a commit would carry, with the ones that name
 | nobody — `C:/Windows/...`, `/home/runner/...` — named in the detector rather than left to
-| the eye. Three things are asserted rather than one: that nothing leaks, that the detector
-| fires at all, and that the two files allowed to hold samples still need to.
+| the eye. The same drive is read in both spellings it is written in, because the sweep that
+| took every `E:\` out of the tree walked straight past the runbooks written as `/e/...` in
+| the shells this package is tested from. Three things are asserted rather than one: that
+| nothing leaks, that the detector fires at all, and that the two files allowed to hold
+| samples still need to.
 |
 | @guards-index guard
 */
@@ -75,6 +78,10 @@ it('reports the paths that name a machine', function (string $text, array $expec
     'a Linux home directory' => ['cp /home/umar/.gitconfig .', ['/home/umar/.gitconfig']],
     'a macOS home directory' => ['cp /Users/umar/.gitconfig .', ['/Users/umar/.gitconfig']],
     'a network share' => ['cat \\\\fileserver\share\notes', ['\\\\fileserver\share\notes']],
+    'the MSYS spelling of a drive letter' => ['cd /e/_WORKS/lpr/work/LPR', ['/e/_WORKS/lpr/work/LPR']],
+    'a mounted drive with a space in a segment' => ['cp /c/Program Files/OpenSSH/ssh.exe .', ['/c/Program Files/OpenSSH/ssh.exe']],
+    'the WSL spelling of the same location' => ['export DataDir=/mnt/e/_WORKS/lpr/work', ['/mnt/e/_WORKS/lpr/work']],
+    'the Cygwin spelling of it' => ['cp /cygdrive/d/tools/sqlite3 /usr/local/bin', ['/cygdrive/d/tools/sqlite3']],
 ]);
 
 it('leaves the paths that name nobody alone', function (string $text): void {
@@ -87,6 +94,16 @@ it('leaves the paths that name nobody alone', function (string $text): void {
     'the Windows directory' => ['core.sshCommand = C:/Windows/System32/OpenSSH/ssh.exe'],
     'a back-slashed Windows directory' => ['core.sshCommand = C:\Windows\System32\OpenSSH\ssh.exe'],
     'a CI runner' => ['cd /home/runner/work/pkg/pkg'],
+    'the Windows directory, in a shell that mounts drives as directories' => ['cp /c/Windows/System32/OpenSSH/ssh.exe .'],
+    'the same, under the WSL prefix' => ['cp /mnt/c/Windows/System32/OpenSSH/ssh.exe .'],
+    // A mount root and a name is a container, not a drive: the letter after `/mnt/` is what
+    // makes a mount, and `laravel` is not one.
+    'a container path' => ['docker run -v /mnt/laravel/html:/var/www image'],
+    // One segment after the root is where the rule stops, because `/a/b` in a sentence is not
+    // a path and no pattern can tell the two apart. Said out loud here so the boundary is a
+    // decision rather than an accident.
+    'a ratio in prose' => ['either/or is not a mount, and /e/workspace is one segment'],
+    'a URL whose path looks like a mount' => ['see https://example.test/e/docs/page'],
     'a tilde, which is how a home directory is written portably' => ['cp ~/.gitconfig .'],
     'a path that is absolute and belongs to nobody' => ['/usr/local/bin/php'],
     'a namespace in PHP source' => ['namespace Uak35\ResponseCompression\Tests;'],

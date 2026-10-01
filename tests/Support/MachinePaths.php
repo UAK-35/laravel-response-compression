@@ -32,15 +32,32 @@ use RuntimeException;
  *   E:\workspace\project        the same, back-slashed, which is how a Windows recipe writes it
  *   /home/<name>/.gitconfig     an absolute home directory
  *   /Users/<name>/.gitconfig    the same, as macOS spells it
+ *   /e/workspace/project        the same drive as a POSIX shell in this workspace reaches it —
+ *   /c/Users/<name>/project     `/e/...` (MSYS, Git Bash, WSL without the prefix, Cygwin), which
+ *                               is where a rewrite *out* of a drive letter lands: the sweep
+ *                               that replaced every `E:\` in a tree walked straight past the
+ *                               runbooks written in the shells this package is tested from
  *   \\fileserver\share          a network share, which resolves on one network
  *
- * and four things that look like them are not:
+ * and six things that look like them are not:
  *
  *   C:/Windows/System32/...     the same on every Windows install and names nobody. The one
  *                               path of this shape in the repository is this one, in
  *                               PUSHING.md's evidence table, and it is deliberate: it is the
  *                               evidence for the row above it, not a way into someone's disk.
  *   /home/runner/work/pkg       the same on every GitHub runner, for the same reason.
+ *   /c/Windows/System32/...     the same directory as the row above it, written the way a shell
+ *                               that mounts drives as directories writes it, and it names
+ *                               nobody for the same reason. The mount spelling of a tolerated
+ *                               path is tolerated by the same rule rather than a second one.
+ *   /mnt/laravel/html           a container path: the name after `/mnt/` is not a letter, so it
+ *                               names no drive on anybody's machine and resolves inside a
+ *                               container for everyone who runs one.
+ *   /e/workspace                one segment after the root, which no rule can tell from
+ *                               prose — `/a/b` in a sentence is not a path — so the mount
+ *                               pattern asks for a second one before it fires. The vocabulary
+ *                               it therefore misses is a bare mount root, and a leak written
+ *                               that way is short enough to read.
  *   ~/.gitconfig                the portable way to write a home directory, which is what the
  *                               same table uses where it can.
  *   Uak35\ResponseCompression   a namespace, and a path that resolves for everyone.
@@ -92,6 +109,24 @@ final class MachinePaths
      * separators are carried and a finding reads as the path that was written.
      */
     private const string DRIVE = "~(?<![A-Za-z0-9%])([A-Za-z]:[\\\\/][^\\s\"'`()<>|*?,;%]*)~";
+
+    /**
+     * The same drive, spelled the way a POSIX shell reaches it.
+     *
+     * `/e/...` is `E:\...` in MSYS and Git Bash, `/mnt/e/...` is the same in WSL, and
+     * `/cygdrive/e/...` is the same in Cygwin — three spellings of one location, and the one
+     * shape that a rewrite out of a drive letter produces without looking wrong: `E:/workspace`
+     * and `/e/workspace` both read as paths, and only one of them was in the pattern.
+     *
+     * Two things beyond the root are what keep this from firing at every slash in the tree: the
+     * segment right after the root has to be a single letter, which is what makes it a mount
+     * rather than a directory, and there has to be a segment after that, which is what makes it a
+     * path rather than prose (`/a/b`). A segment is a name, so it admits a space only between
+     * name characters — `Program Files` is one segment, and the slashes of a regular expression
+     * are not a path. A container path is excluded by the same rule: `/mnt/laravel/html` has a
+     * name after `/mnt/` rather than a letter.
+     */
+    private const string MOUNT = '~(?<![A-Za-z0-9_.:/-])((?:/mnt|/cygdrive)?/[A-Za-z]/[A-Za-z0-9_.-]+(?: [A-Za-z0-9_.-]+)*(?:/[A-Za-z0-9_.-]+)+)~';
 
     /**
      * An absolute home directory, with the name it belongs to.
@@ -233,7 +268,7 @@ final class MachinePaths
     {
         $found = [];
 
-        foreach ([self::DRIVE, self::HOME, self::SHARE] as $pattern) {
+        foreach ([self::DRIVE, self::HOME, self::SHARE, self::MOUNT] as $pattern) {
             if (preg_match_all($pattern, $line, $hits) === 0) {
                 continue;
             }
@@ -265,6 +300,12 @@ final class MachinePaths
     private static function tolerated(string $path): bool
     {
         $path = str_replace('\\', '/', $path);
+
+        // A mount spelling is the same directory as the drive-letter spelling of it, so it is
+        // tolerated by the same rule rather than a second one that could drift from it:
+        // `/c/Windows/...`, `/mnt/c/Windows/...` and `/cygdrive/c/Windows/...` all become
+        // `c:/Windows/...` here, where the one pattern already knows what to do with it.
+        $path = preg_replace('~^/(?:mnt/|cygdrive/)?([A-Za-z])/~', '$1:/', $path) ?? $path;
 
         return preg_match('~^[A-Za-z]:/Windows(?:/|$)~i', $path) === 1
             || preg_match('~^/(?:Users|home)/runner(?:/|$)~i', $path) === 1;

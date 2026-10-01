@@ -228,6 +228,25 @@ final class MutationHarness
                 ),
             ],
             [
+                'guard' => 'the machine-path reading, on a mount spelling',
+                'test' => 'tests/Unit/Support/MachinePathsTest.php',
+                'plant' => static function (string $root): string {
+                    // The same leak as the mutation above, written the other way: a drive letter
+                    // becomes the single-letter segment a POSIX shell mounts it as, which is the
+                    // spelling the drive pattern cannot see. A reading that lost this half would
+                    // still be red on the mutation above it, which is why the two are separate.
+                    $leak = self::mountLeak();
+
+                    self::add($root, self::SAMPLE, sprintf(self::SAMPLE_SOURCE, '// '.$leak));
+
+                    return self::sample($leak);
+                },
+                'read' => static fn (string $root): array => array_map(
+                    static fn (array $hit): string => sprintf('%s:%d  %s', $hit['file'], $hit['line'], $hit['path']),
+                    MachinePaths::scan($root)['found'],
+                ),
+            ],
+            [
                 'guard' => 'the repository-escape reading',
                 'test' => 'tests/Unit/Support/RepoEscapesTest.php',
                 'plant' => static function (string $root): string {
@@ -441,6 +460,20 @@ final class MutationHarness
     private static function leak(): string
     {
         return implode('', ['C:', '/Users', '/a-reader/', '.gitconfig']);
+    }
+
+    /**
+     * The mount-spelled leak, assembled for the same reason and one more.
+     *
+     * Split so that no line of this file holds what the mount pattern asks for — a
+     * single-letter segment with two segments after it — because this file is not one of the two
+     * the guard is allowed to report, and the exemption it would otherwise need would excuse
+     * every other line of it for as long as it exists. The copy the mutation plants carries the
+     * whole path on one line, which is where it has to be to have something to catch.
+     */
+    private static function mountLeak(): string
+    {
+        return implode('', ['/e', '/a-reader', '/workspace']);
     }
 
     /** A finding as the two path readings print it: the file, its line, and the path. */
