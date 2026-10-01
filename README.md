@@ -203,6 +203,10 @@ maintained: each file declares which list it is in, in its own header, and `comp
 the tables from `tests/Support/`. `bin/index.php --check` is the same reading with nothing written,
 which is what the suite asserts, so a file that moved without its row moving fails a test.
 
+The tools those guards are built from — the hook, the programs in `bin/`, the checks in
+`.agents/`, and the two runbooks — are indexed in [the tool registry](docs/tool-registry.md):
+where each one lives, what it does, and which file calls it.
+
 Releasing and pushing have files of their own: `RELEASING.md` for what a version *is*, and
 `PUSHING.md` for getting it to the remote. Both are runbooks for whoever cuts the release, so
 both live in the repository rather than in the package — neither is a file `composer require`

@@ -300,6 +300,15 @@ release — which is why it sits in the repository rather than in the package.
   run was not read. The reader is a command rather than a hard-wired client, which is what lets
   the tests stand in for `gh` and read a run that never touches the network.
 
+- **The tools an agent runs have a registry of their own.** `docs/tool-registry.md` is a
+  four-column account of the agentic layer — where each tool lives, what it does, and which
+  file calls it: the rules in `AGENTS.md` and the pointers to them, the `.agents/` layer (the
+  resolver that names this machine's PHP, the renderer, the check, the skills, the agents, the
+  commands), the gate and the five other programs in `bin/`, the pre-commit hook, the workflow,
+  and the two runbooks. It deliberately does not restate the two lists that already have an
+  owner — the guards in `docs/guards.md` and the tool paths and pins in `bin/tool-paths.php` —
+  because a second copy of either is the drift those two files exist to refuse. The column that
+  earns the page is the last one: a tool is only a tool if something calls it.
 
 ### Changed
 

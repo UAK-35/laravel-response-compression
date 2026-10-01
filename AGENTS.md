@@ -337,7 +337,7 @@ Two rules follow, and both are enforced rather than asked for:
   what changed, then the reasoning, in prose, naming the files and the commands involved. The
   changelog is read by consumers and by `bin/release.php`, which weighs a release by reading the
   commits since the last tag and the notes this file already holds.
-- A `docs/` record exists for a decision that needs arguing: twelve today, each linked from the
+- A `docs/` record exists for a decision that needs arguing: thirteen today, each linked from the
   README's design records section, each linked onward from its neighbours. A new one needs a README
   link — `DocsLinksTest` resolves every link in `README.md`, `CHANGELOG.md`, `RELEASING.md`,
   `PUSHING.md` and every `docs/*.md`, and notices a record nothing links to.

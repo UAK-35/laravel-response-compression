@@ -136,13 +136,13 @@ it('refuses a document that has stopped stating the number at all', function ():
 it('names the docs-record count when the reading beside it goes stale', function (): void {
     $root = indexNumbersRoot();
 
-    indexNumbersReplace($root, 'tests/Support/Docs.php', 'twelve of them', 'nine of them');
+    indexNumbersReplace($root, 'tests/Support/Docs.php', 'thirteen of them', 'nine of them');
 
     $findings = implode(PHP_EOL, IndexNumbers::drift($root));
 
     expect($findings)->toContain('tests/Support/Docs.php')
         ->and($findings)->toContain('nine of them')
-        ->and($findings)->toContain('holds 12');
+        ->and($findings)->toContain('holds 13');
 });
 
 it('catches the gate\'s size said outside the index', function (): void {
