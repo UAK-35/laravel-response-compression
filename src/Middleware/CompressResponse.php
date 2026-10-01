@@ -54,7 +54,7 @@ final class CompressResponse
         if (! $this->validateRequest($request, $requestUri)) {
             $this->logDebugStatus('Response compression not allowed for this request...');
 
-            return $next($request);
+            return $this->vary($next($request));
         }
 
         $response = $next($request);
@@ -66,16 +66,46 @@ final class CompressResponse
                 }
             }
 
-            return $response;
+            return $this->vary($response);
         }
 
         if (! $this->validateResponse($response, $requestUri)) {
             $this->logDebugStatus('Response compression skipped - uri: '.$requestUri);
 
-            return $response;
+            return $this->vary($response);
         }
 
-        return $this->encode($this->algorithm(), $response, $requestUri);
+        return $this->vary($this->encode($this->algorithm(), $response, $requestUri));
+    }
+
+    /**
+     * Mark a response as varying by Accept-Encoding.
+     *
+     * A shared cache keys a stored response on the request headers named in `Vary`, so a response
+     * this middleware decided not to compress still has to say that the body it holds is a
+     * function of the request's Accept-Encoding: the same URL is compressed for the next client
+     * that asks for the encoding, and without this header a cache is free to hand this body to
+     * that client - or a compressed body to a client that asked for `identity`. The encoders set
+     * the header when they compress; this is the other half of that, on every path that leaves
+     * the body alone.
+     *
+     * It is idempotent, which is what lets it be applied where an encoder may already have run:
+     * an existing `Accept-Encoding` entry is left alone, and an app's other `Vary` values are
+     * kept rather than replaced - the header is appended to, never rewritten.
+     */
+    private function vary(Response $response): Response
+    {
+        foreach ($response->headers->all('Vary') as $header) {
+            foreach (explode(',', (string) $header) as $value) {
+                if (strcasecmp(trim($value), 'Accept-Encoding') === 0) {
+                    return $response;
+                }
+            }
+        }
+
+        $response->setVary('Accept-Encoding', false);
+
+        return $response;
     }
 
     /**

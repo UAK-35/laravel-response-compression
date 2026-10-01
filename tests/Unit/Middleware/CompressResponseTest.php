@@ -473,3 +473,143 @@ it('should record the client asking for identity rather than a header that match
         ->withArgs(fn (string $message, array $context = []): bool => $message === '[COMPR-RESP] Client asked for the identity encoding (no compression) - Response compression skipped - uri: /api/trips')
         ->once();
 });
+
+/*
+ * A response this middleware considered and left uncompressed still has to vary by
+ * Accept-Encoding. A shared cache keys a stored response on the headers named in `Vary`, and the
+ * middleware is the negotiation point for the URL: the body left alone here is compressed for the
+ * next client that asks for the encoding, so without the header a cache is free to hand this body
+ * to that client, or a compressed body to a client that asked for `identity`. The encoders mark
+ * what they compress; these are the paths that leave the body alone.
+ */
+it('marks a response it left alone for a client that asked for identity', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'identity']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getVary())->toBe(['Accept-Encoding']);
+});
+
+it('marks a response it left alone for a client that accepts only another encoding', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'deflate']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->getVary())->toBe(['Accept-Encoding']);
+});
+
+it('marks a response it left alone for a request that names no encoding at all', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET'),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->getVary())->toBe(['Accept-Encoding']);
+});
+
+it('marks a response it left alone for a user agent it refuses', function (): void {
+    config()->set('response-compression.algorithm', 'br');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], [
+            'HTTP_ACCEPT_ENCODING' => 'br',
+            'HTTP_USER_AGENT' => 'axios/1.7.2',
+        ]),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getVary())->toBe(['Accept-Encoding']);
+});
+
+it('marks a response it left alone below the configured minimum length', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response(getShortContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getVary())->toBe(['Accept-Encoding']);
+});
+
+it('marks a response it will not read, whichever reason stopped it', function (): void {
+    $streamed = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new StreamedResponse(fn (): string => 'ok')
+    );
+
+    $failed = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response('error', 500)
+    );
+
+    expect($streamed->getVary())->toBe(['Accept-Encoding'])
+        ->and($failed->getVary())->toBe(['Accept-Encoding']);
+});
+
+it('marks a response whose configured encoding it cannot produce', function (): void {
+    config()->set('response-compression.algorithm', 'lz4');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => '*']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getVary())->toBe(['Accept-Encoding']);
+});
+
+it('marks a response left alone when no configured encoding is accepted', function (): void {
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', 'br');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getVary())->toBe(['Accept-Encoding']);
+});
+
+it('keeps an existing Vary value beside Accept-Encoding rather than replacing it', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'identity']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain', 'Vary' => 'Origin'])
+    );
+
+    expect($result->getVary())->toBe(['Origin', 'Accept-Encoding']);
+});
+
+it('does not repeat Accept-Encoding when the response already varies by it', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'identity']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain', 'Vary' => 'Accept-Encoding'])
+    );
+
+    expect($result->getVary())->toBe(['Accept-Encoding']);
+});
+
+it('does not mark anything when compression is disabled', function (): void {
+    config()->set('response-compression.enabled', false);
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'identity']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->getVary())->toBe([]);
+});
+
+it('leaves a compressed response varying by Accept-Encoding exactly once', function (): void {
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBe('gzip')
+        ->and($result->getVary())->toBe(['Accept-Encoding']);
+});

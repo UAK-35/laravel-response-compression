@@ -18,6 +18,19 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **A response the middleware left alone still says it varies by `Accept-Encoding`.** The encoders
+  set the header on the bodies they compressed and nothing set it on the bodies they did not, so the
+  two representations of one URL reached a shared cache as one resource or as two - either the
+  identity body reused for a client that asked for Brotli, or a compressed body handed to a client
+  that asked for `identity` and cannot decode it. `CompressResponse::handle()` now returns through a
+  `vary()` call on every outcome it can reach once compression is enabled, including the ones that
+  are uncompressed for every client rather than only for this one: a small body is small whoever
+  asks, and a 404 is a 404 whoever asks. That is deliberately the safe direction rather than the
+  precise one, because a test on the exact request-dependent paths would have to be re-derived
+  whenever a reason is added, and getting it wrong is a missing header rather than a red build. The
+  header is appended to `Vary` rather than replacing it, so an application's own `Vary: Origin`
+  survives beside it and a response an encoder already marked is not marked twice.
+
 - **A client can ask for the body as it is, and the header that asks for it is honoured rather
   than matched by accident.** `Accept-Encoding: identity` is the HTTP name for "no content
   coding", so it is read as a request this package can grant: the response goes out with no
