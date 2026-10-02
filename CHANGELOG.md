@@ -510,6 +510,11 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **The release runbook now cuts from the lane this repository develops on.** Every command in
+  `RELEASING.md` passes `--branch=development`: the release program defaults to `main`, and its
+  branch rail refuses a cut anywhere else, so the short version, the prerelease examples, the
+  numbering example, the `v0.0.10` transcript and the by-hand push each stopped before changing
+  anything. The refusal table's wrong-branch row names the lane too.
 - **A tool is a record now rather than a path, and the two facts beside the path are checked.** An
   entry in `bin/tool-paths.php` carries the version the package pins the tool at and one line saying
   what it is for, beside the file that runs it, and the readers follow: `bin/tool.php` runs an
