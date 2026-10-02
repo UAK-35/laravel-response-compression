@@ -510,6 +510,11 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **The by-hand release recipe stages what the release commit actually carries.** `RELEASING.md` said
+  the script writes "three things" and then staged only `CHANGELOG.md`; the release commit has also
+  carried files.tsv and methods.tsv, restamped with the tag being created, since the inventory
+  arrived, and `composer.json` when the release opens a line. The section now stages all of them and
+  says what the stamp in each inventory file is for.
 - **The release runbook describes the gate as it is now.** `RELEASING.md` said the gate was
   `composer checks` "exactly as CI runs it", while the workflow runs `composer checks --
   --require-all`, and it said the gate "calls every tool as `PHP_BINARY <entry file>`" after the gate

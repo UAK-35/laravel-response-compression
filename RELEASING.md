@@ -357,14 +357,21 @@ were wrong.
 
 ## Doing it by hand
 
-What the script writes is three things, and nothing about it is magic:
+What the script writes is the promoted `CHANGELOG.md`, the two inventory files restamped with the
+tag it is creating, and `composer.json` when the release opens a line and the branch alias moves —
+and nothing about it is magic:
 
 ```powershell
-git add CHANGELOG.md
+git add CHANGELOG.md files.tsv methods.tsv
+git add composer.json                # only when the branch alias moves, i.e. the release opens a line
 git commit -m "Release v0.1.0"
 git tag -a v0.1.0 -m v0.1.0
 git push origin development --follow-tags
 ```
+
+The stamp is the first `#` line of each inventory file — the tag the rows describe — so a by-hand
+cut writes that line and the rows for the tree being tagged, which is what `bin/release.php` does
+before it commits.
 
 **Annotated, not lightweight**: every existing tag is annotated (`git ls-remote --tags`
 shows a peeled `^{}` ref for each), and `--follow-tags` only carries annotated tags — a
