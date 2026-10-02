@@ -65,6 +65,44 @@ final class Docs
     }
 
     /**
+     * Every relative link in the markdown this package ships that resolves to nothing.
+     *
+     * The walk the docs-link guard asserts on, written here rather than in the test so that the
+     * reading has one definition: the test calls it, and the mutation harness asks the same call
+     * with a broken link planted in a copy of the tree — where a walk written out in the test a
+     * second time would be the second implementation this package's readings exist to avoid.
+     *
+     * A link to somewhere that is not this checkout — an absolute URL, a `mailto:`, an anchor — is
+     * not a finding: only a path that resolves inside the tree and is not there is one.
+     *
+     * @return list<string>
+     */
+    public static function broken(string $root): array
+    {
+        $root = self::normalise(str_replace('\\', '/', $root));
+        $broken = [];
+
+        foreach (self::files($root) as $file) {
+            foreach (self::links($file) as $link) {
+                $target = self::resolve($root, $file, $link['target']);
+
+                if ($target === null || file_exists($target)) {
+                    continue;
+                }
+
+                $broken[] = sprintf(
+                    '%s:%d -> %s',
+                    self::relative($root, $file),
+                    $link['line'],
+                    $link['target'],
+                );
+            }
+        }
+
+        return $broken;
+    }
+
+    /**
      * Every inline link in one file: the target as written, and the line it is on, so a
      * failure can be looked up rather than searched for.
      *

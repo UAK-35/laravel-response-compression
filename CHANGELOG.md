@@ -18,6 +18,16 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **The mutation harness now covers the three readings it used to decline, so the guard that keeps
+  the other guards honest is itself quiet-proof.** `Docs::broken()`, `ConfigKeys::unknown()` and
+  `ToolPaths::copies()` are new public readings: each is the walk the docs-link, config-key and
+  tool-path guards assert on, moved out of the test and into the support class the guard is about,
+  so one definition of it serves the guard and the harness. Three mutations were added — a broken
+  link planted in a new record, a reader of an unpublished key planted in `src/`, and a tool's path
+  written down in `bin/checks.php` — and each requires the guard's own reading to name the break on
+  a copy of this checkout. `UNAUDITED` now names only the two guards that are programs rather than
+  readings, and the harness's own test.
+
 - **The gate now runs the agentic layer, so a reading that has stopped checking fails the build
   rather than passing quietly.** `bin/checks.php` gained an eleventh check, `agentic`, which runs
   `.agents/verify.py` twice: `--layer`, which reads this repository's account of itself - the

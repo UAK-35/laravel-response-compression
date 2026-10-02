@@ -168,6 +168,92 @@ final class ConfigKeys
     }
 
     /**
+     * Every key a file in `src/` reads that the config file does not publish.
+     *
+     * The first direction of the contract, as one call: the reading the config-key guard asserts
+     * on, so the test and the mutation harness ask the same thing rather than each walking `src/`
+     * and comparing it on its own. A key assembled at run time is read as a suffix, because
+     * `Config::validate()` names one setting across every algorithm section.
+     *
+     * @return list<string>
+     */
+    public static function unknown(string $root): array
+    {
+        $root = rtrim(str_replace('\\', '/', $root), '/');
+        $published = self::published($root.'/config/response-compression.php');
+        $source = self::read($root.'/src');
+        $unknown = [];
+
+        foreach ($source['reads'] as $read) {
+            if (in_array($read['path'], $published, true)) {
+                continue;
+            }
+
+            $unknown[] = sprintf(
+                '%s.%s is read by %s() in %s:%d, and the config does not publish it',
+                self::NAMESPACE,
+                $read['path'],
+                $read['reader'],
+                $read['file'],
+                $read['line'],
+            );
+        }
+
+        foreach ($source['built'] as $built) {
+            foreach ($published as $path) {
+                if (str_ends_with($path, '.'.$built['suffix'])) {
+                    continue 2;
+                }
+            }
+
+            $unknown[] = sprintf(
+                'the key assembled in %s:%d by %s() ends in %s, which no published key does',
+                $built['file'],
+                $built['line'],
+                $built['reader'],
+                $built['suffix'],
+            );
+        }
+
+        return $unknown;
+    }
+
+    /**
+     * Every key the config file publishes that nothing in `src/` reads.
+     *
+     * The other direction, as one call. A key in `UNWIRED` is exempt, because an exemption is a
+     * decision and the record that makes it one is held by the test beside this reading.
+     *
+     * @return list<string>
+     */
+    public static function unread(string $root): array
+    {
+        $root = rtrim(str_replace('\\', '/', $root), '/');
+        $published = self::published($root.'/config/response-compression.php');
+        $source = self::read($root.'/src');
+        $read = array_column($source['reads'], 'path');
+        $built = array_column($source['built'], 'suffix');
+        $unread = [];
+
+        foreach ($published as $path) {
+            if (in_array($path, $read, true) || array_key_exists($path, self::UNWIRED)) {
+                continue;
+            }
+
+            // A key assembled at run time reads every section's copy of one setting.
+            foreach ($built as $suffix) {
+                if (str_ends_with($path, '.'.$suffix)) {
+                    continue 2;
+                }
+            }
+
+            $unread[] = sprintf('%s.%s is published and never read', self::NAMESPACE, $path);
+        }
+
+        return $unread;
+    }
+
+    /**
      * A file's tokens, with the whitespace and the comments taken out so the code can be walked
      * by index: `Config::string(` is then four tokens, not seven.
      *

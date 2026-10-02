@@ -25,34 +25,16 @@ use Uak35\ResponseCompression\Tests\Support\Docs;
 */
 
 it('resolves every relative link in every markdown file the package ships', function (): void {
-    // packageRoot() is a native path — backslashes on Windows — and a resolved link comes
-    // back forward-slashed, so the root is normalised the same way before the two are
-    // compared. Both still work as paths; only the comparison needed them to agree.
+    // The walk lives in `Docs::broken()` rather than here, so the mutation harness can ask the same
+    // call with a broken link planted in a copy of the tree — a walk written out a second time in
+    // the harness would be a guard wearing this one's name. The root is normalised inside the call,
+    // because a resolved link comes back forward-slashed while `packageRoot()` is a native path.
     $root = str_replace('\\', '/', packageRoot());
-    $broken = [];
 
-    foreach (Docs::files($root) as $file) {
-        foreach (Docs::links($file) as $link) {
-            $target = Docs::resolve($root, $file, $link['target']);
-
-            // Null is a link to somewhere that is not this checkout — an absolute URL, a
-            // mailto, or an anchor within the same page.
-            if ($target === null) {
-                continue;
-            }
-
-            if (! file_exists($target)) {
-                $broken[] = sprintf(
-                    '%s:%d -> %s',
-                    Docs::relative($root, $file),
-                    $link['line'],
-                    $link['target'],
-                );
-            }
-        }
-    }
-
-    expect($broken)->toBe([]);
+    // A walk that reached no file agrees with a tree whose every link resolves, so the files the
+    // reading is about are checked for substance before its clean answer is believed.
+    expect(Docs::files($root))->not->toBeEmpty()
+        ->and(Docs::broken($root))->toBe([]);
 });
 
 it('links every design record from the README', function (): void {

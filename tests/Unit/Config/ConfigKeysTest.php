@@ -23,12 +23,10 @@ use Uak35\ResponseCompression\Tests\Support\ConfigKeys;
 
 beforeEach(function (): void {
     $this->published = ConfigKeys::published(packageRoot().'/config/response-compression.php');
-    $this->source = ConfigKeys::read(packageRoot().'/src');
     // One record per read rather than per key: `Config::validate()` reads everything the
     // middleware and the encoders read, so a key read twice where only one read is right is
     // the case this has to see. See ConfigKeys::read().
-    $this->read = array_column($this->source['reads'], 'path');
-    $this->built = array_column($this->source['built'], 'suffix');
+    $this->read = array_column(ConfigKeys::read(packageRoot().'/src')['reads'], 'path');
 });
 
 it('reads only keys the config file publishes', function (): void {
@@ -36,72 +34,21 @@ it('reads only keys the config file publishes', function (): void {
     // that is as true of a reader which substitutes a default as of one which refuses the
     // request — the brotli level was read by `intInRange` and had been wrong for so long
     // because the default it substituted looked like a working value.
-    $unknown = [];
-
-    foreach ($this->source['reads'] as $read) {
-        if (in_array($read['path'], $this->published, true)) {
-            continue;
-        }
-
-        $unknown[] = sprintf(
-            '%s.%s is read by %s() in %s:%d, and the config does not publish it',
-            ConfigKeys::NAMESPACE,
-            $read['path'],
-            $read['reader'],
-            $read['file'],
-            $read['line'],
-        );
-    }
-
-    // A key assembled at runtime names one setting across every algorithm section, so it is
-    // published when any section has it.
-    foreach ($this->source['built'] as $built) {
-        foreach ($this->published as $path) {
-            if (str_ends_with($path, '.'.$built['suffix'])) {
-                continue 2;
-            }
-        }
-
-        $unknown[] = sprintf(
-            'the key assembled in %s:%d by %s() ends in %s, which no published key does',
-            $built['file'],
-            $built['line'],
-            $built['reader'],
-            $built['suffix'],
-        );
-    }
-
+    //
+    // The walk and the comparison live in `ConfigKeys::unknown()` rather than here, so the
+    // mutation harness can ask the same call with a reader of an unpublished key planted in a copy
+    // of the tree. A key assembled at runtime names one setting across every algorithm section, so
+    // it is published when any section has it, and the reading carries that half too.
     expect($this->published)->not->toBeEmpty()
         ->and($this->read)->not->toBeEmpty()
-        ->and($unknown)->toBe([]);
+        ->and(ConfigKeys::unknown(packageRoot()))->toBe([]);
 });
 
 it('publishes no key that nothing reads', function (): void {
-    // The other direction. A published key is a promise to whoever sets it, and a key nothing
-    // reads breaks that promise silently — so the only way for one to exist is to be in
+    // The other direction, as one call. A published key is a promise to whoever sets it, and a key
+    // nothing reads breaks that promise silently — so the only way for one to exist is to be in
     // ConfigKeys::UNWIRED, and the test after this one holds that entry to its record.
-    $unread = [];
-
-    foreach ($this->published as $path) {
-        if (in_array($path, $this->read, true)) {
-            continue;
-        }
-
-        if (array_key_exists($path, ConfigKeys::UNWIRED)) {
-            continue;
-        }
-
-        // A key assembled at runtime reads every section's copy of one setting.
-        foreach ($this->built as $suffix) {
-            if (str_ends_with($path, '.'.$suffix)) {
-                continue 2;
-            }
-        }
-
-        $unread[] = sprintf('%s.%s is published and never read', ConfigKeys::NAMESPACE, $path);
-    }
-
-    expect($unread)->toBe([]);
+    expect(ConfigKeys::unread(packageRoot()))->toBe([]);
 });
 
 it('names the record that lets an unread key exist', function (): void {

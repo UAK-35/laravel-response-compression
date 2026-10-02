@@ -125,27 +125,18 @@ function toolsAsked(): array
 }
 
 it('keeps every tool path in the manifest, and in no script or program', function (): void {
-    $manifest = toolManifest();
-    $scripts = toolScripts();
-
-    // Both readers have to have found something before their clean answers mean anything: a reader
+    // Both readers have to have found something before their clean answer means anything: a reader
     // that lost the scripts block, or a manifest that came back empty, would pass this guard while
     // broken — and its green tick would look exactly the same either way.
-    expect($manifest)->not->toBeEmpty()
-        ->and($scripts)->not->toBeEmpty()
+    expect(toolManifest())->not->toBeEmpty()
+        ->and(toolScripts())->not->toBeEmpty()
 
-        // The defect one layer up: a script that runs a tool by path instead of naming one. There is
-        // one form a script may use — `@php bin/tool.php <tool>` — and everything else is a path.
-        ->and(ToolPaths::foreignScripts($scripts))->toBe([])
-
-        // And the copy nothing can see any more: a program that writes the path down again, or
-        // reaches for the `vendor/bin` shim of a name the manifest already holds.
-        ->and(ToolPaths::secondCopies($manifest, toolReaders()))->toBe([])
-
-        // And the third place a tool could be invoked, which had no reader at all: the runner. A
-        // path written into the workflow is a copy in the file least likely to be read beside this
-        // one, and it is what a published version would have been gated by.
-        ->and(ToolPaths::secondCopies($manifest, [ToolPaths::WORKFLOW => toolWorkflow()]))->toBe([]);
+        // The reading itself, as one call: a script that runs a tool by path or through the
+        // `vendor/bin` shim instead of naming one, a program in `bin/` that writes the path down
+        // again, and the runner — the third place a tool can be invoked, which had no reader at
+        // all. It is a method on `ToolPaths` rather than a walk written out here, so the mutation
+        // harness asks the same call with a copy planted in a tree.
+        ->and(ToolPaths::copies(packageRoot()))->toBe([]);
 });
 
 it('holds the runner to the gate it has to be, rather than to a list of the gate\'s tools', function (): void {

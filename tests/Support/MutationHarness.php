@@ -37,12 +37,13 @@ use RuntimeException;
  * -----------------------------------
  * The reading is the guard's own — the call its test asserts on, not a second implementation of
  * it. `MachinePaths::scan`, `RepoEscapes::scan`, `ChangelogPreamble::stale`, `ConfigClaims::all`,
- * `GuardIndex::drift`, `IndexNumbers::drift` and `LogMessages::duplicates` are one call each, and
+ * `Docs::broken`, `ConfigKeys::unknown`, `ToolPaths::copies`, `GuardIndex::drift`,
+ * `IndexNumbers::drift` and `LogMessages::duplicates` are one call each, and
  * `ConfigDoc`'s two halves are one comparison, so this class is a caller rather than a copy for
- * each of them. The guards whose
- * reading is a *walk* composed in the test — the docs links, the config keys, the tool paths —
- * are declined in `UNAUDITED`, with the reason: a walk written out here a second time would be a
- * guard of its own, which is the one thing this package's readings exist to avoid.
+ * each of them. Where a walk used to be composed in the test — the docs links, the config keys,
+ * the tool paths — the walk now lives in the support class the guard is about, so there is one
+ * definition of it rather than a second one here. What `UNAUDITED` still declines is the two
+ * guards that are programs rather than readings, and this harness's own test.
  * `MutationHarnessTest` checks both directions of that list, so a guard cannot be added without
  * either a mutation or a reason that is still true.
  *
@@ -77,9 +78,6 @@ final class MutationHarness
      * it, and the reasons cannot outlive the guards they are about.
      */
     public const array UNAUDITED = [
-        'tests/Unit/Config/ConfigKeysTest.php' => 'the reading is not one call: the keys the config publishes and the keys each file in `src/` reads are two walks, and the comparison between them is written in the test — a second copy of it here would be a guard of its own',
-        'tests/Unit/Docs/DocsLinksTest.php' => 'the reading is a walk over every markdown file, resolving each link against the file it was written in. The walk is the test, and a copy of it here would be a second guard wearing this one\'s name',
-        'tests/Unit/Support/ToolPathsTest.php' => 'the same: five readings are composed in the test, and no single one of them is the guard',
         'tests/Unit/Gate/ChecksTest.php' => 'the guard is a program rather than a reading. `bin/checks.php` is run as a child process in a planted tree, which is what `ReleaseRepo` is for, and there is nothing in this checkout to break and ask again — the tree it is asked about already belongs to its own test',
         'tests/Unit/Gate/CoverageTest.php' => 'the same: `bin/coverage.php` is a program, and the fixture it is driven in is the test\'s own',
         'tests/Unit/Support/MutationHarnessTest.php' => 'it drives these mutations rather than reading this checkout on its own account: the mutations are the subject, and a mutation of the harness would be a second harness rather than a check on this one',
@@ -382,6 +380,65 @@ final class MutationHarness
                     return $file;
                 },
                 'read' => GuardIndex::drift(...),
+            ],
+            [
+                'guard' => 'the docs-link reading',
+                'test' => 'tests/Unit/Docs/DocsLinksTest.php',
+                'plant' => static function (string $root): string {
+                    // A record added to `docs/` whose link names a file beside it that is not there:
+                    // the renamed test, the moved doc, the path written from the wrong directory.
+                    // It is planted as a new record rather than as a link in an existing one
+                    // because the reading is a walk over the markdown this package ships — a file
+                    // the walk never reaches is not a finding, and the marker has to be one the
+                    // walk is supposed to reach.
+                    $file = 'docs/mutation-broken-link.md';
+                    $target = 'a-record-that-was-renamed.md';
+
+                    self::add($root, $file, "# A record the walk has to reach\n\nSee [gone](".$target.").\n");
+
+                    return $file.':3 -> '.$target;
+                },
+                'read' => Docs::broken(...),
+            ],
+            [
+                'guard' => 'the config-key reading',
+                'test' => 'tests/Unit/Config/ConfigKeysTest.php',
+                'plant' => static function (string $root): string {
+                    // A reader asking for a key the config file does not publish: the brotli defect,
+                    // written as a file rather than found in one. The marker is the whole finding
+                    // up to the line number, so a reading that named the key but not the file — or
+                    // the file but not the key — is told apart from one that read both.
+                    $file = 'src/MutationConfigRead.php';
+
+                    self::add($root, $file, "<?php\n\ndeclare(strict_types=1);\n\nnamespace Uak35\\ResponseCompression\\Mutation;\n\nuse Uak35\\ResponseCompression\\Support\\Config;\n\nfinal class MutationConfigRead\n{\n    public static function level(): int\n    {\n        return Config::int('response-compression.mutation_level');\n    }\n}\n");
+
+                    // The path the reading prints is relative to the scanned directory (`src/`),
+                    // which is the shape every finding of this guard has, so the marker stops at
+                    // the file and leaves the line number to the reading.
+                    return 'response-compression.mutation_level is read by int() in MutationConfigRead.php';
+                },
+                'read' => ConfigKeys::unknown(...),
+            ],
+            [
+                'guard' => 'the tool-path reading',
+                'test' => 'tests/Unit/Support/ToolPathsTest.php',
+                'plant' => static function (string $root): string {
+                    // A tool's path written down in a program that already has a name for it: the
+                    // second copy the manifest exists to stop. The path is read out of the
+                    // manifest rather than typed, so the marker is a path this tree really carries
+                    // — a fixture with a made-up path would prove the reading looks at the file
+                    // without proving it compares the right list.
+                    $path = ToolPaths::manifest($root.'/'.ToolPaths::MANIFEST)['pest']['path'];
+
+                    self::replace($root, 'bin/checks.php', static fn (string $text): string => str_replace(
+                        'declare(strict_types=1);',
+                        "declare(strict_types=1);\n\n// \$tools['pest'] is ".$path,
+                        $text,
+                    ));
+
+                    return 'bin/checks.php writes '.$path.' down';
+                },
+                'read' => ToolPaths::copies(...),
             ],
             [
                 'guard' => 'the number-claims reading',

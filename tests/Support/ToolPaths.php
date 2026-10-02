@@ -462,6 +462,42 @@ final class ToolPaths
     }
 
     /**
+     * Every tool path written down somewhere other than the manifest.
+     *
+     * The reading the tool-path guard asserts on, as one call, so the test and the mutation harness
+     * ask the same question rather than each walking the same three places: a composer script that
+     * runs a path or a `vendor/bin` shim instead of handing a name to `bin/tool.php`, one of the
+     * programs in `bin/` that writes the path down again, and the runner — which is the third place
+     * a tool can be invoked and the one that had no reader at all.
+     *
+     * The two facts beside a path (the pin and what the tool is for) are not read here: they are
+     * about an installed tree rather than about a path written down, and the tests that hold them
+     * to `composer.json` and to what is installed are the ones that read them.
+     *
+     * @return list<string>
+     */
+    public static function copies(string $root): array
+    {
+        $root = rtrim(str_replace('\\', '/', $root), '/');
+        $manifest = self::manifest($root.'/'.self::MANIFEST);
+        $scripts = self::scriptsIn((string) file_get_contents($root.'/composer.json'));
+
+        $sources = [];
+
+        foreach (self::READERS as $reader) {
+            $sources[$reader] = (string) file_get_contents($root.'/'.$reader);
+        }
+
+        $workflow = (string) file_get_contents($root.'/'.self::WORKFLOW);
+
+        return [
+            ...self::foreignScripts($scripts),
+            ...self::secondCopies($manifest, $sources),
+            ...self::secondCopies($manifest, [self::WORKFLOW => $workflow]),
+        ];
+    }
+
+    /**
      * What the runner is missing, held to this gate rather than to a list of the gate's tools.
      *
      * The runner once ran a gate of its own — the four-step `composer test` subset — and the fix was

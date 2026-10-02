@@ -251,12 +251,16 @@ it, twice on the same tree: once as it was planted, which is this checkout with 
 it, and once with the break in it, so the mutation is the only difference between the two answers.
 The reading is the call the guard's test asserts on rather than a second implementation of it,
 which is why the harness covers the guards whose answer is one call — the two path readings, the
-changelog preamble, the config claims, the README-versus-config comparison, the guard index and
-the log messages — and declines the rest by name and reason. A guard whose reading is a walk composed in its test
-would need that walk written out a second time, and a second walk is a guard of its own rather than
-a check on this one. Declining is a claim rather than a silence: every guard the table above records
-is either mutated or declined, both lists are read back against this document, and a guard added
-without a decision fails there — the same rule this page imposes on itself, one layer out.
+changelog preamble, the config claims, the README-versus-config comparison, the docs links, the
+config keys, the tool paths, the guard index and the log messages. Where that call did not exist,
+because the walk was composed in the test rather than in the support class the guard is about, the
+walk was moved into that class: `Docs::broken()`, `ConfigKeys::unknown()` and `ToolPaths::copies()`,
+so there is one definition of the reading rather than a second one written out in the harness.
+Declining is a claim rather than a silence, and what is still declined is named and reasoned — the
+guards that are programs rather than readings, and the harness's own test. Every guard the table
+above records is either mutated or declined, both lists are read back against this document, and a
+guard added without a decision fails there — the same rule this page imposes on itself, one layer
+out.
 
 ## The readings the guards are built from
 
