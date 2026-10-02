@@ -27,6 +27,7 @@
 
 # Development tooling: these drive this repository's own gate and releases, and reach for
 # tools that are require-dev, so an installer has nothing to run them against.
+/bin/bootstrap.php  export-ignore
 /bin/checks.php     export-ignore
 /bin/release.php    export-ignore
 

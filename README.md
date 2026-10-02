@@ -232,6 +232,13 @@ leaves behind.
 
 ## Testing
 
+Working on the package itself? One command sets a fresh clone up — it names this machine's PHP,
+installs the dependencies and runs the whole verification:
+
+```bash
+php bin/bootstrap.php  # render_local.py --init, composer install, python .agents/verify.py
+```
+
 ```bash
 composer checks        # the gate: nine checks, one summary, one exit code
 composer test          # rector --dry-run, pint --test, phpstan, pest

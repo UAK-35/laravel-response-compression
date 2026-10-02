@@ -71,6 +71,7 @@ final class TestMap
      * @var array<string, list<string>>
      */
     private const array COVERS = [
+        'bin/bootstrap.php' => ['tests/Unit/Bootstrap/BootstrapTest.php'],
         'bin/checks.php' => ['tests/Unit/Gate/ChecksTest.php'],
         'bin/coverage.php' => ['tests/Unit/Gate/CoverageTest.php'],
         'bin/index.php' => ['tests/Unit/Docs/GuardIndexTest.php'],

@@ -113,6 +113,17 @@ $root = str_replace('\\', '/', dirname(__DIR__));
  * carries and the body of a `proc_open` failure. So its remainder is a ceiling under this counting
  * rather than work a scenario would close.
  *
+ * `bin/bootstrap.php` measured 77.3% when it was added to this list, from
+ * `tests/Unit/Bootstrap/BootstrapTest.php`, which drives it in an empty checkout: every step, a
+ * refusal before any step has run, a step that fails, `--dry-run`, `--force`, `--skip-install`,
+ * `--skip-verify` and `--help`. It is held at 75% rather than at the measurement because half of
+ * what a fixture cannot arrange is the environment: a machine with none of Python, Composer or
+ * PowerShell 7 on `PATH` (the named-and-missing branch is walked, the nothing-found one is not),
+ * the rung of Composer that is a program rather than a phar, and the directory PowerShell 7
+ * installs itself into. The rest of the remainder is the usage text, which is a heredoc: PHPUnit
+ * counts each of its lines as a statement while PCOV reports the statement once, which is the same
+ * counting difference that leaves `bin/tool-paths.php` without a floor.
+ *
  * `bin/tool-paths.php` has no floor and needs none: it is a list of records rather than a script,
  * and a line count of a `return [...]` literal is a fact about how two tools count a statement
  * rather than about the file. It is left out of the report in `phpunit.xml.dist` for that reason,
@@ -123,6 +134,7 @@ $root = str_replace('\\', '/', dirname(__DIR__));
  * @var array<string, int>
  */
 const FLOORS = [
+    'bin/bootstrap.php' => 75,
     'bin/checks.php' => 54,
     'bin/index.php' => 81,
     'bin/push.php' => 81,

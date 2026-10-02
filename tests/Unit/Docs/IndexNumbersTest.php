@@ -74,12 +74,12 @@ it('names the number when the gate gains a check and the page keeps the old one'
 it('names the floor when the code raises one and the page does not', function (): void {
     $root = indexNumbersRoot();
 
-    indexNumbersReplace($root, 'bin/coverage.php', "'bin/tool.php' => 86,", "'bin/tool.php' => 90,");
+    indexNumbersReplace($root, 'bin/coverage.php', "'bin/tool.php' => 89,", "'bin/tool.php' => 93,");
 
     $findings = implode(PHP_EOL, IndexNumbers::drift($root));
 
     expect($findings)->toContain('bin/tool.php')
-        ->and($findings)->toContain('records 90');
+        ->and($findings)->toContain('records 93');
 });
 
 it('names the count when a guard is added to the table', function (): void {

@@ -18,6 +18,27 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **A fresh clone is set up by one command, and a test proves it from an empty checkout.** Three
+  things a checkout needs before it can answer anything had a command each and an order between
+  them that a reader had to get right: `.agents/render_local.py --init` names this machine's PHP,
+  `composer install` puts the dependencies in place, and `python .agents/verify.py` runs the tools,
+  the two path guards, the gate and the layer over the result. `php bin/bootstrap.php` is those
+  three in that order, numbered as they run, and it stops at the step that failed rather than
+  reporting the clone as ready - a machine file that could not be written, an install that did not
+  finish, and a verification that reported a finding each end the run with a status a caller can
+  read. The interpreter it names is the one running it, never a `php` found on `PATH`, which is the
+  failure `.agents/php-bin.sh` exists for; Python, Composer and PowerShell 7 are looked up rather
+  than written down - the last through the directory its installer uses, because PowerShell 7 does
+  not always put itself on `PATH` - and any of them can be named instead with `--python`,
+  `--composer` and `--pwsh`. `--dry-run` prints the three steps and changes nothing, `--skip-install`
+  and `--skip-verify` run fewer of them, and `--force` is the only way a machine file somebody has
+  already written is replaced. `tests/Unit/Bootstrap/BootstrapTest.php` drives it in an empty
+  checkout: the renderer is the real one, because writing `.agents/machine.local.json` is its job
+  and a test of the naming step that stubbed it would be testing the stub, and Composer and the
+  verification are stand-ins that journal what they were handed - so the *order* the three ran in is
+  read rather than inferred from three files existing, and each can be made to fail so that the
+  refusals are reached too.
+
 - **The pre-commit hook runs the suite that covers a changed source file, rather than only the two
   tests a document can stale.** `bin/checks.php --staged` narrowed the gate to syntax, style, the
   docs-link test and the config-claim test, so a commit that changed a program was judged on

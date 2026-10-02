@@ -8,7 +8,7 @@ answer is not always "port it".
 
 ## Kept
 
-The table records 31 guards. What each one catches is in the second column, and where it lives is
+The table records 32 guards. What each one catches is in the second column, and where it lives is
 in the third.
 
 | Guard | What it catches | Where |
@@ -16,6 +16,7 @@ in the third.
 | `bin/checks.php` | nine checks in one process: syntax, an AST parse, the composer schema, the platform requirements, the workflow YAML, PHPStan, Pint, Rector, Pest — one summary, one exit code | [`../bin/checks.php`](../bin/checks.php) |
 | `.githooks/pre-commit` | a commit carrying PHP that does not parse, style the project does not use, a source file the suite that covers it would fail on, a link between the records that no longer resolves, or a claim about a config key that the source has outgrown — by running `bin/checks.php --staged` | [`../.githooks/pre-commit`](../.githooks/pre-commit) |
 | `bin/release.php` | a version cut from the wrong branch, over uncommitted work, over a tag that exists, over a red gate, over a commit the remote has not seen — and the numbering of prerelease lanes | [RELEASING.md](../RELEASING.md) |
+| `bin/bootstrap.php` | a clone that is half set up and reads as ready: the three steps a fresh checkout needs — name this machine's PHP, install the dependencies, verify the tree — in the one order that works, each ending the run when it fails rather than being followed by the next | [`../bin/bootstrap.php`](../bin/bootstrap.php) |
 | the config readers | a value that cannot be read: refused with the key and the value rather than replaced by a default | [config-reading.md](config-reading.md) |
 | `Config::validate()` | the same, at boot rather than on the request that first needs the value | [`../src/Support/Config.php`](../src/Support/Config.php) |
 | the README↔config test | a published default that disagrees with the config file it documents | [`../tests/Unit/Config/ConfigDocTest.php`](../tests/Unit/Config/ConfigDocTest.php) |
@@ -148,8 +149,9 @@ changed is where the evidence comes from, not what is asserted: a child writes d
 covered, and the merge maps a fixture's copy back onto the repository's file by comparing
 contents, because a fixture's `bin/checks.php` is a three-line stub and reading it by name would
 have handed the gate 100.0% coverage for a script that exits on line three. The floors are 100.0%
-per file for `src/`, and a ratchet for each script — `bin/checks.php` at 54%, `bin/index.php` at
-81%, `bin/push.php` at 81%, `bin/release.php` at 78% and `bin/tool.php` at 89% — written down, because closing the rest of
+per file for `src/`, and a ratchet for each script — `bin/bootstrap.php` at 75%, `bin/checks.php`
+at 54%, `bin/index.php` at 81%, `bin/push.php` at 81%, `bin/release.php` at 78% and
+`bin/tool.php` at 89% — written down, because closing the rest of
 those lines is writing more scenarios rather than deleting dead code. Two files in `bin/` are left
 out of the report, each for a reason of its own. `bin/coverage.php` is the parent of the run it
 reads, so its own lines are in no file any child writes; it opens by naming the machine instead:

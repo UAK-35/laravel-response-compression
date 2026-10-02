@@ -418,6 +418,7 @@ rendered from it, and `verify.py` refuses a restatement of any of them elsewhere
 
 | Command | Runs | For |
 | --- | --- | --- |
+| `bootstrap` | `php bin/bootstrap.php` | set a fresh clone up in one command: name this machine's PHP, install the dependencies, then run the whole verification - the one command here that names a bare `php`, because it is the one that runs before .agents/machine.local.json exists and it is the file that writes it |
 | `gate` | `composer checks -- --require-all` | the whole gate, with a missing tool as a failure instead of a skip - what CI and a release use |
 | `gate-local` | `composer checks` | the same nine checks on a workstation, where half the tools are require-dev and a missing one is a skip |
 | `staged` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged` | the staged files only - syntax, style, and the tests that cover them, out of tests/Support/TestMap.php - which is what the pre-commit hook runs, under the PHP it resolves from .agents/machine.local.json |
