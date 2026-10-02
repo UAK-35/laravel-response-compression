@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 use PhpParser\Error;
 use PhpParser\ParserFactory;
+use Uak35\ResponseCompression\Tests\Support\TestMap;
 
 /**
  * bin/checks.php
@@ -61,12 +62,28 @@ use PhpParser\ParserFactory;
  * -----------
  * `--staged` is what `.githooks/pre-commit` runs, and it is the same tools pointed at the
  * files a commit carries rather than at the tree: syntax over the staged PHP, Pint over
- * the staged PHP, and the docs-link test when markdown is staged. Those three are the ones
- * a commit can break on its own. The rest of the gate is a tree-shaped question — PHPStan
+ * the staged PHP, and the tests those files are covered by - the docs links and the config
+ * claims for a document or the config, and the suite that covers a source file for the rest.
+ * Those are the ones a commit can break on its own. The rest of the gate is a tree-shaped question — PHPStan
  * and Rector read every file that references the ones you changed, so asking them about a
  * subset answers something other than what `composer checks` answers. A staged PHP file
  * outside the roots the tree-wide pass covers is not checked here for the same reason it
  * is not checked there.
+ *
+ * WHICH test a file is measured by is `tests/Support/TestMap.php`'s answer, not this file's.
+ * The mapping used to be three lines here - markdown to the docs links and the config claims,
+ * `config/response-compression.php` to the claims - and three lines are what a mapping looks
+ * like right up until the commit that changes a program and runs nothing. The reading now
+ * answers for every source file, and `tests/Unit/Support/TestMapTest.php` refuses a source
+ * file it has no row for: a commit that breaks a release rail runs the rails, because
+ * `bin/release.php` is a row rather than a sentence somebody has to remember to extend.
+ *
+ * The config-claim test is still conditional on a SECOND file, and the reading is where that
+ * lives now. A claim about a key is written in the markdown that repeats it or in the docblock
+ * beside it in the config, so a commit carrying either can have made one stale and a commit
+ * carrying neither cannot have. Running it on every commit would be asking a question the
+ * commit did not raise; running it never, which is what the suite alone did, is how
+ * `enable_logging`'s docblock stayed wrong after the wiring made it so.
  *
  * PORTABILITY
  * -----------
@@ -206,18 +223,43 @@ $pintPaths = $stagedMode
     ))
     : [];
 
-$markdownStaged = array_any($stagedFiles, static fn (string $path): bool => str_ends_with($path, '.md'));
+// Which tests a commit runs, from the files it carries. The reading is
+// `tests/Support/TestMap.php` rather than a list here, because which test covers which source
+// file is a fact about two directories: the reading walks them, and
+// `tests/Unit/Support/TestMapTest.php` refuses a source file with no row and a row with no file.
+// So a commit that changes a program — `bin/release.php` above all, whose tests are the ones that
+// plant a repository and run it — is run against the suite that covers it, which is the thing this
+// mode was missing.
+//
+// The reading is asked only when it is here to be asked: `tests/` is not in an installed package,
+// and a checkout whose dependencies were never installed has no Pest to run anyway.
+$testMap = $root.'/tests/Support/TestMap.php';
 
-$testsTitle = $stagedMode ? 'Docs links (pest)' : 'Test suite (pest)';
-$pestPaths = $stagedMode && $markdownStaged ? ['tests/Unit/Docs/DocsLinksTest.php'] : [];
-$testsSkip = $stagedMode && ! $markdownStaged ? 'no markdown staged' : null;
+$stagedTests = $stagedMode && is_file($testMap) && class_exists(TestMap::class)
+    ? TestMap::covering($stagedFiles)
+    : [];
+
+// The staged run is a subset of the suite, and the title says which part of it this one got.
+// Which tests those are is the reading's answer above rather than a second decision here: a title
+// that named the kinds would be this file reading the same files again, and the two could
+// disagree about what a commit runs.
+$testsTitle = $stagedMode ? 'Staged tests (pest)' : 'Test suite (pest)';
+
+// The message keeps saying "no staged": the point of the empty case is a pass rather than a
+// silence, and `tests/Unit/Gate/ChecksTest.php` reads that sentence off a bare `--staged` run.
+$testsSkip = $stagedMode && $stagedTests === []
+    ? 'no staged source, document or config for a test to read'
+    : null;
 
 // The whole suite runs in parallel, which is how `composer test:unit` already runs it. Most of
 // these tests are process spawns — a planted git repository, a release script started against
 // it — so a worker per file is what turns minutes into seconds, and it is the same binary and
-// the same assertions either way. A narrowed run is not: one file handed to a worker per core
-// is more booting than testing, and `--staged` sits in front of every commit.
-$pestParallel = $stagedMode ? [] : ['--parallel'];
+// the same assertions either way. `--parallel` is paratest, and paratest takes ONE path: handed
+// the two or more a staged set usually produces it refuses the run outright rather than ignoring
+// the rest, which is what the pre-commit hook found the first time this mode was tried with two
+// files in it. So a staged set is parallel only when the reading reduced it to a single path —
+// one file, or a directory such as `tests/Unit` — and sequential otherwise.
+$pestParallel = ! $stagedMode || count($stagedTests) === 1 ? ['--parallel'] : [];
 
 $level = phpstanLevel($root);
 
@@ -332,7 +374,7 @@ $checks = [
             $testsSkip !== null => $testsSkip,
             default => null,
         },
-        'run' => static fn (): array => runCommand([PHP_BINARY, $tools['pest']['path'], ...$pestParallel, ...$pestPaths], $root),
+        'run' => static fn (): array => runCommand([PHP_BINARY, $tools['pest']['path'], ...$pestParallel, ...$stagedTests], $root),
         'note' => static function (array $result): string {
             // Pest ends with its duration, which says nothing about whether it
             // passed; the count it printed a line earlier does.
@@ -528,8 +570,8 @@ function usage(): void
           --audit       Also run `composer audit` (needs network access).
           --require-all Treat a missing tool as a failure instead of a skip.
           --list        List the checks and their skip conditions.
-          --staged      Check only the staged files (syntax, style, docs links),
-                        which is what the pre-commit hook runs.
+          --staged      Check only the staged files (syntax, style, and the tests that cover
+                        them), which is what the pre-commit hook runs.
       -h, --help        Show this help.
 
     Exit code: 0 all green, 1 anything failed, 2 usage error.

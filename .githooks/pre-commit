@@ -7,9 +7,11 @@
 #     git config core.hooksPath .githooks
 #
 # Then every commit runs `bin/checks.php --staged`, under the interpreter resolved below,
-# which checks the staged files for PHP syntax, code style, and broken links between the
-# docs — the three things a commit can break on its own. `composer checks` stays the whole
-# gate; this is the same tools, earlier and narrower.
+# which checks the staged files for PHP syntax, code style, the tests those files are covered
+# by, and broken links between the docs — the things a commit can break on its own. Which
+# tests those are is `tests/Support/TestMap.php`, so a commit that changes a source file runs
+# the suite that covers it rather than being judged only on whether the file still parsed, and
+# `composer checks` stays the whole gate; this is the same tools, earlier and narrower.
 #
 # Bypass one commit with `git commit --no-verify`.
 #

@@ -41,8 +41,9 @@ Each of these is a command this skill defines. They are thin on purpose: the gat
 - `gate-local`: run `composer checks` — the same nine, where a missing `require-dev` tool is a skip.
   Use it while iterating; report a skip as a skip rather than as a pass.
 - `staged`: run `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged` —
-  syntax, style and the links between the docs, on the staged files only. It is what the pre-commit
-  hook runs under the same interpreter, and it is the fastest useful answer.
+  syntax, style, and the tests that cover the staged files, on those files only. Which tests those
+  are is `tests/Support/TestMap.php`, so a change to a program runs the suite that covers it. It is
+  what the pre-commit hook runs under the same interpreter, and it is the fastest useful answer.
 - `which-php`: run `sh .agents/php-bin.sh --show` — the interpreter this checkout runs, the rung of
   the ladder that answered (the `RESPONSE_COMPRESSION_PHP` override, `.agents/machine.local.json`, `git
   config`, or `PATH`), and the version `composer.json` requires, which is what CI installs.

@@ -14,7 +14,7 @@ in the third.
 | Guard | What it catches | Where |
 |---|---|---|
 | `bin/checks.php` | nine checks in one process: syntax, an AST parse, the composer schema, the platform requirements, the workflow YAML, PHPStan, Pint, Rector, Pest — one summary, one exit code | [`../bin/checks.php`](../bin/checks.php) |
-| `.githooks/pre-commit` | a commit carrying PHP that does not parse, style the project does not use, or a link between the records that no longer resolves — by running `bin/checks.php --staged` | [`../.githooks/pre-commit`](../.githooks/pre-commit) |
+| `.githooks/pre-commit` | a commit carrying PHP that does not parse, style the project does not use, a source file the suite that covers it would fail on, a link between the records that no longer resolves, or a claim about a config key that the source has outgrown — by running `bin/checks.php --staged` | [`../.githooks/pre-commit`](../.githooks/pre-commit) |
 | `bin/release.php` | a version cut from the wrong branch, over uncommitted work, over a tag that exists, over a red gate, over a commit the remote has not seen — and the numbering of prerelease lanes | [RELEASING.md](../RELEASING.md) |
 | the config readers | a value that cannot be read: refused with the key and the value rather than replaced by a default | [config-reading.md](config-reading.md) |
 | `Config::validate()` | the same, at boot rather than on the request that first needs the value | [`../src/Support/Config.php`](../src/Support/Config.php) |
@@ -51,11 +51,12 @@ failed to install reads as a green build. That is why CI runs the gate with `--r
 it is the same gate, with the skips turned into failures where a skip can only be a mistake.
 
 The hook is that same gate, earlier and narrower. `bin/checks.php --staged` — which is what
-`.githooks/pre-commit` runs, under the PHP that `.agents/php-bin.sh` resolves — points three checks
-at the files a commit
-carries: syntax
-over the staged PHP, Pint over the staged PHP, and the docs-link test when markdown is staged.
-Those three are what a commit can break on its own; the rest of the gate is a tree-shaped
+`.githooks/pre-commit` runs, under the PHP that `.agents/php-bin.sh` resolves — points its staged
+checks at the files a commit holds: syntax over the staged PHP, Pint over the staged PHP, and
+the tests those files are covered by. Which tests those are is `tests/Support/TestMap.php`: the
+docs-link and config-claim tests for a document or the config, and the suite that covers a
+changed source file for the rest — so a commit that breaks a release rail runs the rails.
+Those are what a commit can break on its own; the rest of the gate is a tree-shaped
 question, because PHPStan and Rector read every file that references the ones you changed. It
 reuses `bin/checks.php` rather than being a script of its own for the same reason CI runs the
 whole gate rather than a subset: a second list of tools is a second list to keep in step.
@@ -269,7 +270,7 @@ nothing, declares a list this page does not have, or has no sentence to quote is
 than left out, because "not in the list" and "in it and correct" are the two answers a rendering
 has to be able to tell apart.
 
-The two lists name 15 readings and 4 files that are not guards, 19 files in `tests/Support/` in
+The two lists name 16 readings and 4 files that are not guards, 20 files in `tests/Support/` in
 all.
 
 | Reading | What it reads |
@@ -288,6 +289,7 @@ all.
 | [`../tests/Support/PhpBinary.php`](../tests/Support/PhpBinary.php) | which PHP this repository runs, read the one way it is decided |
 | [`../tests/Support/RepoEscapes.php`](../tests/Support/RepoEscapes.php) | paths that climb out of this repository, found in the files a commit would carry |
 | [`../tests/Support/ScriptCoverage.php`](../tests/Support/ScriptCoverage.php) | what the spawned scripts covered, read back out of the files they wrote and mapped onto the repository's own copies |
+| [`../tests/Support/TestMap.php`](../tests/Support/TestMap.php) | the tests a commit runs, chosen from the files it carries: which test covers each source file, what a document change can stale, and which test a staged test file is measured by |
 | [`../tests/Support/ToolPaths.php`](../tests/Support/ToolPaths.php) | the one manifest of the tools this package runs, and every way a fact in it could be stated twice |
 
 ## Support that is not a guard

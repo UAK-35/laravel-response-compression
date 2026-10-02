@@ -18,6 +18,19 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **The pre-commit hook runs the suite that covers a changed source file, rather than only the two
+  tests a document can stale.** `bin/checks.php --staged` narrowed the gate to syntax, style, the
+  docs-link test and the config-claim test, so a commit that changed a program was judged on
+  whether it parsed and whether it was formatted, and nothing ran the tests that cover it - which is
+  exactly the case `bin/release.php` is: the longest file in the package, covered by the tests that
+  plant a git repository and run it against, and found later by hand when a rail broke. The mapping
+  now lives in `tests/Support/TestMap.php`, a reading that names the tests for every file under
+  `src/` and `bin/` and the two document rules the gate already had, and
+  `tests/Unit/Support/TestMapTest.php` refuses a source file with no row and a row that names no
+  file - so it cannot go stale the way a list beside the gate would, and a commit carrying
+  `bin/release.php` runs the release rails. Nothing was added to `$checks`: the staged subset is
+  still the same three, and what the tests check points at is what changed.
+
 - **The push program is held to a coverage floor, and the statements that could close were closed.**
   `bin/push.php` was measured - `tests/Unit/Release/PushTest.php` drives it end to end - but it was
   held to no floor, so the report read `floor 0%` and a regression in it could ship without the floor
@@ -552,6 +565,32 @@ read as a runner that still runs the gate.
   unreachable that every measured file in this repository carries.
 
 ### Fixed
+
+- **`bin/release.php` no longer says every version is cut from `main` when this repository's lane is
+  `development`.** The header's `ONE LANE AT A TIME` paragraph opened with "Everything is cut from
+  `main`, releases and prereleases alike", which reads as a statement of fact about this repository
+  and is false about it: the workflow gates `main` and `development` and says every cut here passes
+  `--branch=development`, `git branch --contains v0.0.10` names `development` alone, and `PUSHING.md`
+  has a row for exactly this distinction. The default is `main` and is meant to be - it is a
+  repository's own lane that decides where a cut is legal, and the rail refuses any branch the
+  release was not told to expect - so the paragraph now says that instead, and the usage line for
+  `--branch=NAME` names `development` as the lane this repository cuts from rather than leaving a
+  reader to find out from a refusal. One comment repeating the same claim, on the inventory path
+  that runs before the branch rail, was corrected with it. No behaviour changed: the default, the
+  refusal and its message are the ones that were there.
+
+- **The agentic check reports a rendered settings file that drifted even outside a git repository.**
+  `verify.py`'s `tokens` step asks `render_local.py --check` for the settings files a tool reads and
+  collects its findings - but it did so only inside a git repository, so every other tree reported the
+  step green while comparing nothing: a copy of the package beside a site, an archive a consumer
+  unpacked, and the program's own planted fixture all skipped the question entirely. The comparison
+  reads a template and the file rendered from it and asks git nothing, so the repository gate is gone
+  and the report is the same in every checkout. What does still need a repository is the rule that
+  `.agents/machine.local.json` stays ignored, and that one keeps its gate. The half now also has its
+  own planted-fault round under `--selftest`: a tree rendered from a machine file of the round's own,
+  a hand-edited `.trae/settings.json`, and the report required to name the file - which the generic
+  round cannot do, because the files it compares are per machine and are rendered rather than
+  committed.
 
 - **A shipped record no longer points at a file an install does not carry.** `docs/min-length.md`
   linked `tests/Unit/Config/ConfigDocTest.php`, which resolves in this checkout and in nothing a

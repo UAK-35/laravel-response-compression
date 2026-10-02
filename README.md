@@ -20,6 +20,21 @@ Publish the configuration file:
 php artisan vendor:publish --provider="Uak35\ResponseCompression\ResponseCompressionServiceProvider"
 ```
 
+### What a site does, and what it does not
+
+That is the whole setup. The distributed package is the middleware, the config and the records in
+`docs/`; everything under `.agents/`, `.skills/`, `.trae/`, `.kiro/`, `.cursor/`, `.continue/`,
+`.junie/` and `.windsurf/` is this package's own development tooling — the rules an agent reads, the
+per-machine settings templates the renderer writes from, and the checks that hold the two together.
+It is excluded from the archive Composer publishes (`export-ignore` in `.gitattributes`), and none of
+it is anything a site runs. There is no second step to register and nothing to configure beyond the
+published file.
+
+One caveat for anyone reading this repository rather than the installed package: the settings files a
+tool reads are rendered from their `.example` templates by `python .agents/render_local.py`, and
+`python .agents/verify.py` reports a rendered file that has drifted from what its template would
+produce — a hand edit, or a template changed after the file was written — rather than overwriting it.
+
 ---
 
 ## Middleware Overview
@@ -302,9 +317,11 @@ started as a child with an ini of its own, so a run begun with `-n` has no drive
 the run it starts has one.
 
 `.githooks/pre-commit` runs `bin/checks.php --staged`: the same tools pointed at the files a
-commit carries — syntax, Pint, and the docs-link test when markdown is staged — so those
-three cannot land broken. Enable it once per clone with `git config core.hooksPath .githooks`,
-and bypass it for one commit with `git commit --no-verify`.
+commit carries — syntax, Pint, and the tests those files are covered by, which for a document or
+the config are the docs-link and config-claim tests and for a source file is the suite that
+covers it, out of `tests/Support/TestMap.php` — so none of them can land broken. Enable it once
+per clone with `git config core.hooksPath .githooks`, and bypass it for one commit with
+`git commit --no-verify`.
 
 It resolves PHP from `.agents/machine.local.json` first — the same file the skills and the
 settings files read, through `python .agents/render_local.py --value __PHP_EXE__` — then

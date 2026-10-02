@@ -175,10 +175,11 @@ python .agents/render_local.py --check   # report unresolved tokens, write nothi
 python .agents/render_local.py --value __PHP_EXE__   # answer a token for prose or a shell
 ```
 
-Each settings file a tool reads (`.vscode/settings.json`, `.trae/settings.json`,
+Each settings file a tool reads (`.trae/settings.json`, `.trae/settings.local.json`,
 `.kiro/settings/local.json`) is committed as its `.example` template and written from it; the
 rendered file is gitignored, and `verify.py` reports a rendered file that has drifted from what its
-template would produce rather than overwriting it.
+template would produce rather than overwriting it — in any checkout, not only a git repository,
+because the comparison reads two files and asks git nothing.
 
 ---
 
@@ -238,8 +239,10 @@ floor fails there, and `bin/coverage.php` says which PHP and which driver produc
 
 ### The pre-commit hook
 
-`.githooks/pre-commit` runs `bin/checks.php --staged` — syntax, style and the links between the
-docs, which are the three things a commit can break on its own. Enable it once per clone:
+`.githooks/pre-commit` runs `bin/checks.php --staged` — syntax, style, the tests that cover the
+staged files (out of `tests/Support/TestMap.php`, so a change to a release program runs the release
+rails) and the links between the docs, which are the things a commit can break on its own. Enable it
+once per clone:
 
 ```bash
 git config core.hooksPath .githooks
@@ -417,7 +420,7 @@ rendered from it, and `verify.py` refuses a restatement of any of them elsewhere
 | --- | --- | --- |
 | `gate` | `composer checks -- --require-all` | the whole gate, with a missing tool as a failure instead of a skip - what CI and a release use |
 | `gate-local` | `composer checks` | the same nine checks on a workstation, where half the tools are require-dev and a missing one is a skip |
-| `staged` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged` | the staged files only - syntax, style and the links between the docs - which is what the pre-commit hook runs, under the PHP it resolves from .agents/machine.local.json |
+| `staged` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged` | the staged files only - syntax, style, and the tests that cover them, out of tests/Support/TestMap.php - which is what the pre-commit hook runs, under the PHP it resolves from .agents/machine.local.json |
 | `checks-list` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --list` | the nine checks, the condition each one skips on, and the tools the manifest pins - each one's path, the version it is pinned at and what it is for - under this machine's PHP rather than whichever `php` happens to be first on PATH |
 | `which-php` | `sh .agents/php-bin.sh --show` | which interpreter this checkout runs, which rung answered, and the version composer.json requires - the one place all three are decided, and what the hook, the workflow and the coverage runner ask |
 | `index` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/index.php` | render the two lists of files in docs/guards.md from tests/Support/, where each file declares its own row - the composer.json script `index` is the same program |
