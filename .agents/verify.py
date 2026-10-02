@@ -1187,7 +1187,7 @@ def step_tools(root: Path) -> list[str]:
             elif not output.strip():
                 findings.append(f"{name}: answered `bin/tool.php {name} --version` with nothing - it did not start")
 
-    for program in ("checks.php", "coverage.php", "release.php", "tool.php", "tool-paths.php"):
+    for program in ("checks.php", "commit.php", "coverage.php", "release.php", "tool.php", "tool-paths.php"):
         if not (root / "bin" / program).is_file():
             findings.append(f"bin/{program}: missing, and this repository's process is built on it")
 

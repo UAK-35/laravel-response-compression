@@ -73,6 +73,7 @@ final class TestMap
     private const array COVERS = [
         'bin/bootstrap.php' => ['tests/Unit/Bootstrap/BootstrapTest.php'],
         'bin/checks.php' => ['tests/Unit/Gate/ChecksTest.php'],
+        'bin/commit.php' => ['tests/Unit/Commit/CommitTest.php'],
         'bin/coverage.php' => ['tests/Unit/Gate/CoverageTest.php'],
         'bin/index.php' => ['tests/Unit/Docs/GuardIndexTest.php'],
         'bin/push.php' => ['tests/Unit/Release/PushTest.php'],

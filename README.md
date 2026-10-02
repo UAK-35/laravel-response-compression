@@ -246,6 +246,10 @@ composer test:unit     # the floor: 100% per src file, a ratchet per script in b
 git config core.hooksPath .githooks   # once per clone: check what a commit carries
 ```
 
+A commit of a named set goes through `bin/commit.php`, which writes the changelog bullet, runs the
+staged checks and refuses an index that carries a path outside the set — the `package-commit` skill
+is the workflow around it.
+
 `composer checks` runs `bin/checks.php`, which is what CI runs and what to run before a
 release. It is nine checks in one process: `php -l` over every PHP file, an independent
 AST parse of the same files by nikic/php-parser, `composer validate --strict`,

@@ -1,0 +1,177 @@
+---
+name: package-commit
+description: "Commit a named set of paths in this repository through the one guarded path, bin/commit.php: it writes the changelog bullet, runs the staged checks, and refuses an index that carries a file the commit was not told about. Commands - commit, commit-dry-run, list, staged, verify-setup. Invoke on staging a change, a request to commit this repository, or a request to sort a thread's work into commits with a changelog entry each."
+license: "MIT"
+---
+
+# Package Commit — a named set, and only that set
+
+Use this skill to commit a **named set of paths** in this repository: the group of files one reason
+to have changed is about, committed together, with the changelog bullet written at the same time and
+the staged checks run before the commit exists. It is the package's answer to `git commit -- <paths>`,
+which cannot do the three things this repository actually needs.
+
+## Why not just `git commit`
+
+Three failures, all of them states this package has been in:
+
+1. **The index is shared.** A colleague, an IDE, or an earlier command can have something staged, and
+   `git commit` publishes the whole index. A commit that quietly carries a stranger's work is the
+   failure a named set is supposed to prevent, so the first thing the tool does is read the index
+   and **refuse** when it holds a path outside the set.
+2. **The changelog is written later, from memory.** A bullet written with the change is a bullet that
+   describes the change; one written at release time describes a memory of it.
+3. **The gate is a hook, and a hook is clone-local.** `bin/checks.php --staged` is what
+   `.githooks/pre-commit` runs, and a clone whose `core.hooksPath` was never set runs nothing. The
+   tool runs the same command itself, so the verdict has a command behind it.
+
+## Environment
+
+Every machine-local path is a token; the values live in the gitignored `.agents/machine.local.json`
+(section 3 of `AGENTS.md`). The commit path itself needs only `git` and a PHP interpreter, and which
+PHP this checkout runs is decided in `.agents/php-bin.sh`:
+
+```bash
+sh .agents/php-bin.sh --show   # the interpreter this checkout runs, and the rung that answered
+python .agents/render_local.py --value __PHP_EXE__   # spelled out, when a line needs it
+```
+
+`bin/commit.php` runs under whatever interpreter invoked it, and a direct run renders this machine's
+PHP in the line itself rather than naming a `php` for the reader to guess at:
+
+```bash
+"$(python .agents/render_local.py --value __PHP_EXE__)" bin/commit.php --help
+```
+
+## The guard
+
+`bin/commit.php` reads `git diff --cached --name-only` **before it stages anything** and refuses when
+the index carries a path the named set does not name:
+
+```
+refusing: the index carries 1 path(s) this commit was not told about:
+  events/scratch.php
+stage the named set alone, or name these paths too.
+```
+
+A refusal writes nothing: the index keeps the state it was found in. The check is asked again after
+staging, because a rename pairs its two halves and the index can gain a path the set did not name —
+a guard is only worth having if it is asked of what will actually be committed.
+
+## The changelog bullet
+
+The bullet is written with the change, under `## Unreleased`, in the section the change belongs to —
+`--type` is `added`, `changed` (the default) or `fixed`, and it picks the `### Added`, `### Changed`
+or `### Fixed` section. A section that is not there yet is created where it belongs; a changelog
+with no `## Unreleased` heading is refused rather than edited somewhere else. `--no-changelog` is for
+the change that genuinely has nothing to say here.
+
+## Commands
+
+- `commit <paths...>`: write the bullet, run the staged checks, and commit exactly these paths.
+- `commit-dry-run <paths...>`: run the guard, print the plan and the bullet's section, and write
+  nothing — no changelog edit, no staging, no commit.
+- `list <paths...>`: print the resolved paths, one per line, and write nothing.
+- `staged`: run `bin/checks.php --staged` against the index as it stands, without committing.
+- `verify-setup`: run `python .agents/verify.py`, adding `--fix` to repair what a generator owns.
+
+### commit
+
+```bash
+"$(python .agents/render_local.py --value __PHP_EXE__)" bin/commit.php \
+    -m "fix: the thing that was wrong" \
+    --changelog "**The thing is fixed.** The sentence says what changed, not that something did." \
+    --type fixed \
+    -- src/Support/Config.php \
+       config/response-compression.php
+```
+
+- `-m <subject>` is the commit subject; `-F <file>` reads the whole message from a file, for a body
+  that needs blank lines and trailers.
+- `--paths-from-file <file>` adds one path per line, blank lines and `#` comments skipped.
+- The paths come after `--`. A path that is absolute, climbs with `..`, or resolves outside this
+  repository is refused rather than normalised.
+- `--skip-checks` skips `bin/checks.php --staged`; it is for a run that has just done it by hand, not
+  for making a red commit go through.
+
+Exit status: `0` committed, `1` nothing was committed, `2` the command line was wrong.
+
+What the tool guarantees:
+
+- It stages the **working-tree content** of every named path, so a file staged and then written again
+  commits what is on disk rather than the older copy that was staged.
+- `CHANGELOG.md` is part of the set whenever a bullet is written, so it never has to be remembered.
+- The staged checks run **before** the commit, and a failure in them leaves the tree uncommitted.
+- A refusal changes nothing: the index keeps the state it was found in.
+
+### commit-dry-run / list
+
+Run `commit-dry-run` before a commit whose set you are unsure of. `list` is for the case where the
+interesting part is which paths the tool resolved, including the changelog it would add.
+
+```bash
+"$(python .agents/render_local.py --value __PHP_EXE__)" bin/commit.php \
+    -m "fix: a thing" --changelog "A thing." --skip-checks --dry-run -- src/Thing.php
+"$(python .agents/render_local.py --value __PHP_EXE__)" bin/commit.php --list --no-changelog -- src
+```
+
+### staged
+
+The same command the pre-commit hook runs, on the index as it stands — for diagnosing a failure
+rather than for the normal path:
+
+```bash
+"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged
+```
+
+Which tests those are is `tests/Support/TestMap.php`: a document runs the docs-link and config-claim
+tests, and a source file runs the suite that covers it. `gate-local` in the `package-dev` skill runs
+the whole gate when the question is broader than one commit.
+
+### verify-setup
+
+```bash
+python .agents/verify.py --fix     # repair what a generator owns, then re-verify
+python .agents/verify.py           # detect only; exits 1 when something is inconsistent
+```
+
+## Sorting a thread's work into commits
+
+A request arrives as a sentence — *"sort out the work done in this thread into separate groups and
+commit each group with a changelog entry"* — and what it asks for is a judgement: nothing is a group
+until it has **one** reason to have changed.
+
+1. **Inventory the work.** `git status --short` and `git diff --stat` are the raw material.
+2. **Group by why, not by file.** A fix and the note explaining it are one group where the note
+   cannot be written without the fix, and two where the note is about something else. A single file
+   carrying two groups' text is not one commit: it is two commits that each carry the file at the
+   state belonging to that group.
+3. **Commit one group at a time**, oldest concern first, each through `commit` with a subject that
+   says what changed and why, and a body that carries the evidence: what was measured, which command
+   produced it, and what was deliberately left alone.
+4. **Read the set back**, because the work is not finished when the last commit exists:
+   * each commit carries exactly its own paths — `git show --stat <commit>`;
+   * each changelog entry sits under the commit whose change it describes — `git show <commit>:CHANGELOG.md`;
+   * what the thread did not mean to commit is still uncommitted.
+
+## Guardrails
+
+- **Never `git add -A` or another broad stage.** Stage the named set only, through the tool.
+- **A commit goes through `bin/commit.php`.** It is the only path that writes the bullet, runs the
+  staged checks and refuses a file it was not told about.
+- **Do not commit unless asked.** Committing is a user decision, not a step of finishing a task.
+- **Never discard, overwrite, stash or commit a change you did not make.** Another agent, an IDE, or
+  the user may be editing the same tree.
+- **Never push from here.** Pushing is `package-release`'s job.
+- **Keep a red commit out of the history.** A failed staged check is a reason to fix the change, not
+  to reach for `--skip-checks`.
+- `python .agents/verify.py` green before presenting work as finished.
+
+## Usage
+
+- `@package-commit commit src/Support/Config.php`
+- `@package-commit commit-dry-run src/Middleware/CompressResponse.php`
+- `@package-commit list src`
+- `@package-commit staged`
+- `@package-commit verify-setup`
+- *sort the work done in this thread into commits, one changelog entry each*

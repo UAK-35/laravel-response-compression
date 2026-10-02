@@ -18,6 +18,17 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **A commit of a named set now goes through one guarded path, and carries only what it was told
+  about.** `bin/commit.php` reads the index before staging anything and refuses when it holds a path
+  the named set does not name, so a colleague's staged work cannot ride along on a commit that does
+  not mention it. It then writes the changelog bullet under `## Unreleased`, in the `### Added`,
+  `### Changed` or `### Fixed` section the change belongs to, runs `bin/checks.php --staged` - the
+  same suite the pre-commit hook runs - and commits exactly the named set. A refusal changes
+  nothing: the index keeps the state it was found in. The workflow is the `package-commit` skill
+  (`.skills/package-commit/`, generated into `.agents/skills/`), whose commands are `commit`,
+  `commit-dry-run`, `list`, `staged` and `verify-setup`, and the program is held at a 70% coverage
+  floor by `tests/Unit/Commit/CommitTest.php`.
+
 - **A verification run ends with one health table, so a red run says which part of the machine
   moved.** The `tools` step asks PHP, Composer, Python, PowerShell 7, git and every tool in
   `bin/tool-paths.php` for a version and holds each answer to the pin the manifest records, and it

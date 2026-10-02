@@ -124,6 +124,15 @@ $root = str_replace('\\', '/', dirname(__DIR__));
  * counts each of its lines as a statement while PCOV reports the statement once, which is the same
  * counting difference that leaves `bin/tool-paths.php` without a floor.
  *
+ * `bin/commit.php` measured 73.6% when it was added to this list, from
+ * `tests/Unit/Commit/CommitTest.php`, which plants a repository and drives the tool: a commit of the
+ * named set, the refusal when the index carries a path the set does not name, a path outside the
+ * repository, a changelog with no `## Unreleased` section, a dry run, a listing, a paths file, a
+ * message file, and the failing gate. It is held at 70% rather than at the measurement because the
+ * remainder is the usage text - a heredoc that PHPUnit counts line by line while PCOV reports the
+ * statement once, which is the counting difference above - and the `proc_open` failure body, which
+ * needs the operating system to refuse a process that exists.
+ *
  * `bin/tool-paths.php` has no floor and needs none: it is a list of records rather than a script,
  * and a line count of a `return [...]` literal is a fact about how two tools count a statement
  * rather than about the file. It is left out of the report in `phpunit.xml.dist` for that reason,
@@ -136,6 +145,7 @@ $root = str_replace('\\', '/', dirname(__DIR__));
 const FLOORS = [
     'bin/bootstrap.php' => 75,
     'bin/checks.php' => 54,
+    'bin/commit.php' => 70,
     'bin/index.php' => 81,
     'bin/push.php' => 81,
     'bin/release.php' => 78,

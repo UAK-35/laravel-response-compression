@@ -1,0 +1,26 @@
+# =============================================================================
+# package-commit — the guarded named-set commit
+# =============================================================================
+# `description` is read by the `descriptions` step of `python .agents/verify.py`:
+# every command name in it has to be defined in `instructions.md`, and a
+# hyphenated word is read as a command name - which is why the prose here avoids
+# them and the two that remain (`commit-dry-run` and `verify-setup`) are commands
+# this skill really defines.
+name: "package-commit"
+version: "1.0.0"
+description: "Commit a named set of paths in this repository through the one guarded path, bin/commit.php: it writes the changelog bullet, runs the staged checks, and refuses an index that carries a file the commit was not told about. Commands - commit, commit-dry-run, list, staged, verify-setup. Invoke on staging a change, a request to commit this repository, or a request to sort a thread's work into commits with a changelog entry each."
+instructions: "instructions.md"
+author: "UAK35"
+license: "MIT"
+tags: git, commit, changelog, staging, package
+categories: tooling
+
+sync:
+  freebuff:
+    enabled: true
+    name_override: "package-commit"
+  gemini:
+    enabled: true
+  windsurf:
+    enabled: true
+    filename: "package-commit.windsurf.md"

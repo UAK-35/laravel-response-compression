@@ -29,6 +29,7 @@
 # tools that are require-dev, so an installer has nothing to run them against.
 /bin/bootstrap.php  export-ignore
 /bin/checks.php     export-ignore
+/bin/commit.php     export-ignore
 /bin/release.php    export-ignore
 
 # The agentic layer: the rules an agent reads, the skills it loads, the checks that keep the two
