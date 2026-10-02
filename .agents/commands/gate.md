@@ -1,6 +1,6 @@
 # `gate`
 
-Run the package's gate and report what each check said. The gate is nine checks in one process and
+Run the package's gate and report what each check said. The gate is ten checks in one process and
 it is the same gate a tag is cut behind; this command runs it and reads the summary, rather than
 replacing any part of it.
 
@@ -16,7 +16,7 @@ composer test:unit                   # the coverage floor, which the gate delibe
 
 ## What to do with it
 
-1. Read the summary table first: `9 checks: 9 passed, 0 failed, 0 skipped` is green, and a skip is
+1. Read the summary table first: `10 checks: 10 passed, 0 failed, 0 skipped` is green, and a skip is
    not a pass — say so instead of reporting the run as green.
 2. For a failure, take the check's own output seriously rather than re-running the tool by hand: the
    gate runs it through `bin/tool.php`, under the interpreter that installed the dependencies, which
@@ -29,5 +29,5 @@ composer test:unit                   # the coverage floor, which the gate delibe
 ## Related
 
 - `.agents/toolchain.json` — the `gate`, `gate-local`, `staged`, `checks-list` and `test-*` commands.
-- `AGENTS.md` section 5 — what the nine checks prove, and why the floor is separate.
+- `AGENTS.md` section 5 — what the ten checks prove, and why the floor is separate.
 - `.githooks/pre-commit` — the same tools, on staged files, before a commit.

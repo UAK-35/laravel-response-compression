@@ -45,7 +45,7 @@ sentence that mentions a skill is not an entry.
 
 | Command | Defined in | What it does |
 |---|---|---|
-| `gate` | `commands/gate.md` | run the package's gate and report what each of the nine checks said |
+| `gate` | `commands/gate.md` | run the package's gate and report what each of the ten checks said |
 | `release` | `commands/release.md` | weigh the tree, and cut a version only when asked for one |
 
 ## Where the source is

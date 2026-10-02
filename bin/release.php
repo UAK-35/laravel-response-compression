@@ -76,9 +76,11 @@ declare(strict_types=1);
  *
  * ONE LANE AT A TIME
  * ------------------
- *   Everything is cut from `main`, releases and prereleases alike: this repository develops on
- *   one branch, so the suffix decides the *version* rather than the branch. `--branch=NAME`
- *   releases from somewhere else, and a release is refused anywhere else by default.
+ *   The suffix decides the *version*, not the branch: releases and prereleases alike are cut from
+ *   the one branch a repository develops on, which is why the rail below refuses a cut on any
+ *   other. This program's default is `main`, and this repository's lane is `development` - every
+ *   cut here passes `--branch=development` - so the default is a default rather than a permission.
+ *   `--branch=NAME` releases from somewhere else, and the name given is the only one accepted.
  *
  *   Because a prerelease precedes the release it is named after, a prerelease cannot be cut
  *   once its release exists: `0.0.10-alpha1` is not newer than `0.0.10`, and the rail that
@@ -217,7 +219,8 @@ if (git($root, ['rev-parse', '--git-dir'])['exit'] !== 0) {
 //
 // Asked before every other rail on purpose: it writes two tracked files and stops, so it does not
 // matter which branch is checked out, whether the tree is dirty, or whether a release is even
-// wanted — and asking after the branch rail would refuse it from anywhere but `main`.
+// wanted — and asking after the branch rail would refuse it on any branch but the one the release
+// was told to expect.
 if ($options['inventory']) {
     $described = latestTag($root);
     $written = syncInventory($root, $described ?? '(no tag)', true, $described);
@@ -702,7 +705,8 @@ function usage(): void
           --dry-run        Print the plan, the promoted changelog head and the commands.
       -y, --yes            Do not ask before committing and tagging.
           --push           Push the branch with --follow-tags when done.
-          --branch=NAME    The branch to release from (default: main).
+          --branch=NAME    The branch to release from (default: main). This repository's lane is
+                           development, so every cut here passes --branch=development.
           --remote=NAME    The remote to check and push to (default: origin).
           --allow-dirty    Release though tracked files are uncommitted.
           --ignore-policy  Release though the declared bump undersells the changes.

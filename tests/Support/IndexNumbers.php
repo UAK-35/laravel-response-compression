@@ -432,7 +432,7 @@ final class IndexNumbers
      * and each of them should go red on the day the gate gains a check. `docs/guards.md` is left to
      * `gate()`, which reads it as a row rather than as a sentence; the `CHANGELOG` is left alone
      * because a released note is history; and `tests/` is left alone because a test is a fixture
-     * rather than a claim — a case that says "ten checks in one process" to prove this reading
+     * rather than a claim — a case that says "eleven checks in one process" to prove this reading
      * notices is not a statement about the gate, and neither is the pattern that reads it.
      *
      * @param  list<string>  $checks

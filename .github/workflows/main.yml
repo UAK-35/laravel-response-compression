@@ -94,6 +94,24 @@ jobs:
         # nothing was collected rather than a number.
         coverage: pcov
 
+    - name: Probe the toolchain
+      # The machine's own question, asked before anything depends on the answer. The gate
+      # asks it too — `platform` asks what *Composer* requires of this interpreter, and
+      # `toolchain` asks everything else — but the gate runs after `composer install`, and
+      # `composer install` is itself a step that cannot work under the wrong PHP. Asked here
+      # first, a runner with the wrong PHP, a missing extension or no coverage driver fails
+      # in one line naming the process that is wrong, instead of resolving dependencies it
+      # cannot run and going red somewhere inside the suite.
+      #
+      # `python3` rather than `python`: this is the one interpreter this package does not
+      # decide once — nothing here runs under it but this probe — and the name a runner is
+      # guaranteed to have is `python3`.
+      #
+      # `vendor/` is not there yet, so the tools the probe would run are noted rather than
+      # reported; the gate asks that half once the dependencies are in place, where
+      # `--require-all` makes a tool that failed to install a failure.
+      run: python3 .agents/verify.py --only=tools
+
     - name: Cache Composer packages
       id: composer-cache
       uses: actions/cache@v4
@@ -128,10 +146,11 @@ jobs:
         composer update --no-progress
 
     - name: Run the check suite
-      # Nine checks in one process, and the same gate a tag is cut behind locally:
+      # Ten checks in one process, and the same gate a tag is cut behind locally:
       # PHP syntax, an AST parse of the same files, `composer validate --strict`,
       # platform requirements (which is where a missing ext-brotli or ext-zstd is
-      # reported as a build problem rather than as a test failure), the workflow
+      # reported as a build problem rather than as a test failure), the toolchain
+      # probe — the machine's own question, asked of `.agents/verify.py` — the workflow
       # YAML — this file included — PHPStan, Pint, Rector and Pest. CI must not be
       # weaker than the gate, so the whole thing runs here rather than the four-step
       # `composer test` subset. A tool the runner is missing drops to a skip;

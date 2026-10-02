@@ -12,16 +12,17 @@ use Uak35\ResponseCompression\Tests\Support\TestMap;
  *
  * One entry point for every check this package can run: PHP syntax, an
  * independent AST parse of the same files, the composer.json schema, the
- * platform requirements, the workflow YAML, PHPStan, Pint, Rector and Pest.
+ * platform requirements, the workflow YAML, PHPStan, Pint, Rector and Pest -
+ * the toolchain probe, which asks the machine rather than the code.
  *
  * WHY THIS EXISTS IN ADDITION TO `composer test`
  * ----------------------------------------------
  * `composer test` covers four gates — rector, pint, phpstan and pest — and the
- * other five are otherwise only looked at by hand, after something has already
+ * other six are otherwise only looked at by hand, after something has already
  * broken: a per-file `php -l` pass, a parse of every file by nikic/php-parser,
- * `composer validate --strict`, `composer check-platform-reqs`, and the
- * workflow YAML. Running them together gives one command, one summary and one
- * exit code to trust.
+ * `composer validate --strict`, `composer check-platform-reqs`, the workflow
+ * YAML and the toolchain probe. Running them together gives one command, one
+ * summary and one exit code to trust.
  *
  * `composer test:unit` is deliberately NOT invoked from here, even though it is
  * the same Pest binary: it asks for a code coverage driver, and a machine with
@@ -178,6 +179,7 @@ if (is_file($root.'/vendor/autoload.php')) {
 // running it.
 $phpFiles = phpFiles([$root.'/src', $root.'/tests', $root.'/config', $root.'/bin']);
 $composer = composerCommand($root);
+$python = pythonCommand($root);
 $yamlFiles = yamlFiles($root);
 
 // Whether this repository contains composer.lock. Asked once, here, because the
@@ -318,6 +320,34 @@ $checks = [
             return $satisfied === 0
                 ? composerReason($result['output'])
                 : "{$satisfied} platform requirements satisfied";
+        },
+    ],
+
+    // The machine's own question, asked of the program written to ask it rather than answered again
+    // here. `platform` above is what *Composer* requires of this interpreter; this is everything else
+    // the package needs of it - the version against the pin in `.agents/toolchain.json`, the coverage
+    // driver a floor needs, composer, Python, PowerShell 7, git, every tool in `bin/tool-paths.php`
+    // still starting through `bin/tool.php`, and a `vendor/` at all - and it is asked through
+    // `.agents/verify.py` because a second implementation of that reading is the drift every guard in
+    // this repository is about. What it buys is where the answer arrives: a runner with the wrong PHP
+    // or a missing extension fails here, in one line naming the process that is wrong, instead of
+    // somewhere inside the suite as a test that could not run.
+    //
+    // It is a tree-shaped question rather than a commit-shaped one, so `--staged` does not ask it:
+    // a commit cannot have changed which interpreter the machine has, and the probe starts a dozen
+    // processes before it answers.
+    'toolchain' => [
+        'title' => 'Toolchain probe (python .agents/verify.py --only=tools)',
+        'skip' => match (true) {
+            ! is_file($root.'/.agents/verify.py') => 'there is no agentic probe in this tree (an installed package has none)',
+            $python === null => 'no Python 3 found (python, python3 or py on PATH)',
+            default => null,
+        },
+        'run' => static fn (): array => runCommand([...$python ?? [], '.agents/verify.py', '--only=tools'], $root),
+        'note' => static function (array $result): string {
+            return $result['exit'] === 0
+                ? 'every tool and process this package needs answered'
+                : probeReason($result['output']);
         },
     ],
     'yaml' => [
@@ -576,7 +606,9 @@ function usage(): void
 
     Exit code: 0 all green, 1 anything failed, 2 usage error.
     Note: the coverage floor lives in `composer test:unit`, which needs a
-    coverage driver and is run by CI separately.
+    coverage driver and is run by CI separately. One check asks Python (python,
+    python3 or py on PATH) - the toolchain probe - and a machine without one
+    skips it: --require-all is what turns that skip into a failure on a runner.
 
     TXT;
 }
@@ -741,6 +773,37 @@ function composerOnPath(string $root): array
     }
 
     return [...$candidates, ['composer']];
+}
+
+/**
+ * Python, as this checkout can reach it: the first of the three names on `PATH` that answers with a
+ * 3, or null when none of them does.
+ *
+ * The three names, and their order, are `.agents/php-bin.sh`'s and `.githooks/pre-commit`'s rather
+ * than a third opinion: a machine whose `python` is a 2 and whose `python3` is a 3 has to answer the
+ * same way wherever it is asked, or the probe would be asked in one place and skipped in another.
+ *
+ * What is asked of the answer is only that it is a Python 3. Whether it answers the pin in
+ * `.agents/toolchain.json` is one of the questions the probe itself asks, and answering it here as
+ * well would be exactly the second reading this check exists to avoid - so a Python that is too old
+ * is reported by the probe, in the probe's own words, rather than twice.
+ *
+ * A name that is not there at all is not an error: `runCommand()` answers 127 and this moves on,
+ * which is why the loop can simply walk the three.
+ *
+ * @return list<string>|null
+ */
+function pythonCommand(string $root): ?array
+{
+    foreach (['python', 'python3', 'py'] as $candidate) {
+        $result = runCommand([$candidate, '--version'], $root);
+
+        if ($result['exit'] === 0 && preg_match('/\bPython 3\./', $result['output']) === 1) {
+            return [$candidate];
+        }
+    }
+
+    return null;
 }
 
 /**
@@ -1027,6 +1090,26 @@ function composerReason(string $output): string
     }
 
     return $message === [] ? lastLine($output) : clip(implode(' ', $message));
+}
+
+/**
+ * The one line of the probe's output worth putting in this gate's summary.
+ *
+ * The probe answers per step and then counts what it ran, so the last line of its output is a tally
+ * rather than a finding: a summary built from it would report a failure without saying what failed,
+ * which is the shape of report this check was added to avoid. The finding is the first line the
+ * probe marked `[FAIL]` - its own line for the step, with the file, the tool and the reason in it -
+ * and the tally is the fallback, for a run that stopped before it reported anything.
+ */
+function probeReason(string $output): string
+{
+    foreach (preg_split('/\R/', $output) ?: [] as $line) {
+        if (str_starts_with(ltrim($line), '[FAIL]')) {
+            return clip(trim($line));
+        }
+    }
+
+    return lastLine($output);
 }
 
 /**

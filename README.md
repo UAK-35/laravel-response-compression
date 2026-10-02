@@ -34,6 +34,8 @@ One caveat for anyone reading this repository rather than the installed package:
 tool reads are rendered from their `.example` templates by `python .agents/render_local.py`, and
 `python .agents/verify.py` reports a rendered file that has drifted from what its template would
 produce — a hand edit, or a template changed after the file was written — rather than overwriting it.
+Its `tools` step ends a run with a health table — tool, version found, pin, and whether it ran — so a
+machine that moved is named in one place rather than read out of the findings.
 
 ---
 
@@ -240,7 +242,7 @@ php bin/bootstrap.php  # render_local.py --init, composer install, python .agent
 ```
 
 ```bash
-composer checks        # the gate: nine checks, one summary, one exit code
+composer checks        # the gate: ten checks, one summary, one exit code
 composer test          # rector --dry-run, pint --test, phpstan, pest
 composer test:unit     # the floor: 100% per src file, a ratchet per script in bin/
 git config core.hooksPath .githooks   # once per clone: check what a commit carries
@@ -251,10 +253,12 @@ staged checks and refuses an index that carries a path outside the set — the `
 is the workflow around it.
 
 `composer checks` runs `bin/checks.php`, which is what CI runs and what to run before a
-release. It is nine checks in one process: `php -l` over every PHP file, an independent
+release. It is ten checks in one process: `php -l` over every PHP file, an independent
 AST parse of the same files by nikic/php-parser, `composer validate --strict`,
-`composer check-platform-reqs`, `yaml-lint` over `.github/`, PHPStan, Pint, Rector and
-Pest. `--list` names them, `--only=` runs a subset, `--verbose` streams their output, and
+`composer check-platform-reqs`, the toolchain probe — `.agents/verify.py --only=tools`, which
+asks the machine rather than the code, so a wrong PHP or a missing extension is a line here
+rather than a test that could not run — `yaml-lint` over `.github/`, PHPStan, Pint, Rector
+and Pest. `--list` names them, `--only=` runs a subset, `--verbose` streams their output, and
 `--require-all` turns a missing tool from a skip into a failure. Where `composer` is not on
 `PATH` — a checkout whose Composer is the `composer.phar` beside it — the same scripts run under
 this machine's PHP instead:
