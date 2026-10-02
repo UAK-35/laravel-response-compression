@@ -18,6 +18,44 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **The push program is held to a coverage floor, and the statements that could close were closed.**
+  `bin/push.php` was measured - `tests/Unit/Release/PushTest.php` drives it end to end - but it was
+  held to no floor, so the report read `floor 0%` and a regression in it could ship without the floor
+  saying so. It now carries a floor of 81%, and the scenarios that were missing are written: `--help`,
+  a duration that is not a whole number, an empty `--gh`, a remote that names no URL, a push that
+  fails before anything is read, a GitHub remote that aims the reader with `--repo`, and a reader
+  that answered something other than a list of runs. What is left is the script's ceiling under the
+  counting rather than a gap: 26 of the 29 lines it does not reach carry no runtime opcode (the
+  entries of a constant array and the literal arguments of a call written across several lines are
+  statements PHPUnit counts per line while PCOV reports the statement once), and the other three are
+  the two header lines every script carries and the body of a `proc_open` failure.
+
+- **The tool runner's interpreter note is covered, so `bin/tool.php`'s floor moves up to meet it.**
+  `bin/tool.php` printed a line when a run was under an interpreter other than the one this checkout
+  names, and nothing had ever driven that branch: a machine whose resolver agrees cannot be arranged
+  into disagreeing, so the reading is planted instead - a fixture autoloader that answers with a
+  disagreement reaches it - and the note is asserted beside the exit code the tool still returns.
+  With that measured the ratchet moved from 86% to 89%, which is the rule every floor here follows:
+  a floor is the measurement, and a floor may only rise.
+
+- **A claim a document makes about a config key is judged by the commit that could have staled
+  it, rather than by the next full run of the suite.** The config-claim guard already put the prose
+  and the source side by side - a docblock or a record that says a key is unread while something
+  reads it, which is the drift this package shipped once with `enable_logging`, whose docblock and
+  whose README copy both stayed wrong after the wiring made them so. What it did not have was a
+  place in the commit: it ran when the whole suite ran, which is after the commit that broke it.
+  `bin/checks.php --staged` now runs it when either of the two files a claim is written in is
+  staged - the markdown that repeats a key, and `config/response-compression.php`, whose docblocks
+  sit beside the keys themselves. A commit carrying neither cannot have changed what any document
+  claims about a key, so it is not asked; a commit carrying either is judged before it lands.
+
+  It rides in the staged subset `bin/checks.php` already had, beside the docs-link test, rather
+  than as a check of its own or a second program: a tenth check would have made the gate's own
+  size - "nine checks in one process", which `docs/guards.md`, `docs/tool-registry.md`, the README
+  and `AGENTS.md` all state and `IndexNumbersTest` holds to the `$checks` array - a number to move
+  in five places for one answer that is a subset of a check already there. `.githooks/pre-commit`
+  is unchanged: it already runs the staged gate, and the narrowing is the gate's to decide.
+
 - **A response the middleware left alone still says it varies by `Accept-Encoding`.** The encoders
   set the header on the bodies they compressed and nothing set it on the bodies they did not, so the
   two representations of one URL reached a shared cache as one resource or as two - either the

@@ -93,7 +93,8 @@ $root = str_replace('\\', '/', dirname(__DIR__));
  * worth more than a point or two.
  *
  * `bin/checks.php` measured 55.4% through Composer and 57.8% without it when this was written,
- * `bin/release.php` 79.7% either way, `bin/tool.php` 87.5% either way, and `bin/index.php` 83.3%,
+ * `bin/release.php` 79.7% either way, `bin/tool.php` 91.1% either way, `bin/index.php` 83.3%, and
+ * `bin/push.php` 81.3%,
  * from `tests/Unit/Gate/ChecksTest.php`, `tests/Unit/Gate/ToolTest.php`, `tests/Unit/Docs/` and the
  * release rails together. What `bin/tool.php` does not reach is what nothing can: the two header
  * lines every measured file carries — the shebang and `<?php` — and the body of a `proc_open`
@@ -102,6 +103,15 @@ $root = str_replace('\\', '/', dirname(__DIR__));
  * that reports a write the operating system refused, and the reading it takes after writing — which
  * fires only when the program itself is wrong, a defect rather than a scenario. The release
  * script's remaining fifth is what writing the release scenarios nobody has written yet would buy.
+ *
+ * `bin/push.php` measured 81.3% when it was added to this list, from `tests/Unit/Release/PushTest.php`.
+ * It is held at that measurement rather than at a gap, because 26 of the 29 lines it does not reach
+ * carry no runtime opcode at all - the entries of a constant array, which the compiler folds into
+ * one, and the literal arguments and closing brackets of a call written across several lines are
+ * statements PHPUnit counts per line while PCOV reports the statement once, which is the same reason
+ * `bin/tool-paths.php` has no floor. The other three are the two header lines every measured file
+ * carries and the body of a `proc_open` failure. So its remainder is a ceiling under this counting
+ * rather than work a scenario would close.
  *
  * `bin/tool-paths.php` has no floor and needs none: it is a list of records rather than a script,
  * and a line count of a `return [...]` literal is a fact about how two tools count a statement
@@ -115,8 +125,9 @@ $root = str_replace('\\', '/', dirname(__DIR__));
 const FLOORS = [
     'bin/checks.php' => 54,
     'bin/index.php' => 81,
+    'bin/push.php' => 81,
     'bin/release.php' => 78,
-    'bin/tool.php' => 86,
+    'bin/tool.php' => 89,
 ];
 
 /**

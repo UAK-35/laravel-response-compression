@@ -178,6 +178,106 @@ it('refuses an option it does not have', function (): void {
         ->and($run->refused('is not an option'))->toBeTrue();
 });
 
+it('prints its usage and stops clean when asked for help', function (): void {
+    $repo = pushRepo([[pushRun('completed', 'success')]]);
+
+    // `--help` is the one option that never pushes: it prints the options and exits 0, which is what
+    // makes it safe to run wherever the program is, with nothing to push to.
+    $run = $repo->script('bin/push.php', '--help');
+
+    expect($run->exitCode)->toBe(0)
+        ->and($run->error)->toContain('bin/push.php — push a branch')
+        ->and($run->error)->toContain('--no-watch');
+});
+
+it('refuses a value that is not a whole number of seconds', function (): void {
+    $repo = pushRepo([[pushRun('completed', 'success')]]);
+
+    // A mistyped duration is a refusal rather than a silent cast to zero, which would make the
+    // timeout happen at once and read as a build that never waited.
+    $run = push($repo, '--timeout=soon');
+
+    expect($run->exitCode)->toBe(1)
+        ->and($run->refused('--timeout takes a whole number of seconds'))->toBeTrue();
+});
+
+it('refuses an empty reader command rather than guessing one', function (): void {
+    $repo = pushRepo([[pushRun('completed', 'success')]]);
+
+    $run = push($repo, '--gh=');
+
+    expect($run->exitCode)->toBe(1)
+        ->and($run->refused('--gh names the command that reads the run'))->toBeTrue();
+});
+
+it('refuses a remote that names no URL', function (): void {
+    $repo = pushRepo([[pushRun('completed', 'success')]]);
+
+    // A remote whose URL is blank: `git remote get-url` answers with whitespace, so once trimmed
+    // there is no URL to push to. It is a refusal made before any attempt to push, rather than a
+    // push of whatever the blank name happens to resolve to. (Blank rather than removed because
+    // `bin/push.php` folds a command's stderr into its output: a removed remote prints an error
+    // line, which is not the empty answer this branch is about.)
+    $repo->git('config', 'remote.origin.url', ' ');
+
+    $run = push($repo);
+
+    expect($run->exitCode)->toBe(1)
+        ->and($run->refused('origin is not a remote here'))->toBeTrue();
+});
+
+it('refuses when the push itself fails, before reading anything', function (): void {
+    $repo = pushRepo([[pushRun('completed', 'success')]]);
+
+    // A URL that is not a repository: the remote is named and resolves to something, so the program
+    // goes on to push, and the push is what fails. The run must not be read, because a commit that
+    // never left has nothing on the remote to ask about.
+    $repo->git('remote', 'set-url', 'origin', $repo->path('no-such-repository'));
+
+    $run = push($repo);
+
+    expect($run->exitCode)->toBe(1)
+        ->and($run->refused('failed, so there is no run to read'))->toBeTrue()
+        ->and($repo->exists('gh-calls'))->toBeFalse();
+});
+
+it('aims the reader at the repository a GitHub remote names', function (): void {
+    $repo = pushRepo([[pushRun('completed', 'success')]]);
+
+    // A bare repository planted at a path that reads as a GitHub slug and reached through a
+    // `file://` URL: the push is real, and the URL the program reads names a repository rather than
+    // a directory. That is the branch that adds `--repo` to the reader, which a remote that is a
+    // plain path never reaches.
+    $slug = 'github.com/UAK-35/laravel-response-compression.git';
+    $repo->git('init', '--bare', '--quiet', $slug);
+    $repo->git('remote', 'set-url', 'origin', 'file:///'.str_replace('\\', '/', $repo->path($slug)));
+
+    $run = push($repo);
+
+    expect($run->exitCode)->toBe(0)
+        ->and($run->said('The run concluded `success`'))->toBeTrue();
+
+    // Decoded rather than matched against the raw file: the stub writes the arguments as JSON, and
+    // JSON escapes the slash in the slug, which would make a substring match on the raw bytes fail
+    // for a reason that has nothing to do with the branch this test is for.
+    $asked = json_decode($repo->read('gh-argv.json'), true);
+
+    expect($asked)->toContain('--repo')
+        ->and($asked)->toContain('UAK-35/laravel-response-compression');
+});
+
+it('treats a reader that answered something other than runs as no runs', function (): void {
+    $repo = pushRepo(['hello']);
+
+    // The reader printed a string where a list of runs belongs. An answer that is not runs has not
+    // said that a run exists, so it is read as no run rather than as a crash — the same verdict as
+    // a reader that answered an empty list.
+    $run = push($repo, '--grace=1');
+
+    expect($run->exitCode)->toBe(1)
+        ->and($run->refused('No run was started'))->toBeTrue();
+});
+
 /**
  * A fixture with the push program in it, a stand-in for `gh`, and a real remote.
  *

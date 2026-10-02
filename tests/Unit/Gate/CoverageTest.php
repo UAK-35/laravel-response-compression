@@ -114,6 +114,13 @@ function driverlessEnvironment(): array
     $environment['PHPRC'] = $directory;
     $environment['PHP_INI_SCAN_DIR'] = $directory;
 
+    // The four raw facts are asserted empty below, and Composer's own variable is the one of them
+    // that is set by whoever started the suite rather than by the machine: `composer test:unit`
+    // exports it into this process, and a child handed it would answer with a Composer the floor
+    // run never saw. Dropped, so the assertion reads the driverless machine rather than the
+    // invocation that asked about it.
+    unset($environment['COMPOSER_BINARY']);
+
     return $environment;
 }
 

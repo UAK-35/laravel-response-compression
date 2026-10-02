@@ -183,3 +183,27 @@ it('says how it is used when it is given no tool, and runs one from this package
         ->and($real->output)->toContain('Pest')
         ->and($real->error)->toBe('');
 });
+
+it('says which interpreter it is under when that is not the one this checkout names', function (): void {
+    $repo = toolRepo();
+
+    // The runner asks the loaded `PhpBinary` whether this run is under the interpreter this checkout
+    // names, and prints one line before the tool when it is not. A machine whose resolver agrees
+    // cannot be arranged into disagreeing, so the reading is planted rather than the machine: the
+    // autoloader this tree carries answers with a disagreement, and the branch is reached.
+    $repo->write('vendor/autoload.php', "<?php\n\ndeclare(strict_types=1);\n\n"
+        ."namespace Uak35\\ResponseCompression\\Tests\\Support;\n\n"
+        ."final class PhpBinary\n{\n"
+        ."    public static function named(string \$root): self\n    {\n        return new self();\n    }\n\n"
+        ."    public function disagreement(): string\n    {\n"
+        ."        return 'this ran under a different interpreter, and .agents/machine.local.json names another';\n"
+        ."    }\n}\n");
+
+    $run = $repo->script('bin/tool.php', 'doer');
+
+    // The note is a note and not a refusal: the tool still runs, and its own exit code comes back.
+    expect($run->exitCode)->toBe(7)
+        ->and($run->error)->toContain('bin/tool.php: this ran under a different interpreter')
+        ->and($run->error)->toContain('sh .agents/php-bin.sh --show says which PHP this checkout means')
+        ->and($run->output)->toContain('doer in ');
+});

@@ -148,7 +148,7 @@ covered, and the merge maps a fixture's copy back onto the repository's file by 
 contents, because a fixture's `bin/checks.php` is a three-line stub and reading it by name would
 have handed the gate 100.0% coverage for a script that exits on line three. The floors are 100.0%
 per file for `src/`, and a ratchet for each script — `bin/checks.php` at 54%, `bin/index.php` at
-81%, `bin/release.php` at 78% and `bin/tool.php` at 86% — written down, because closing the rest of
+81%, `bin/push.php` at 81%, `bin/release.php` at 78% and `bin/tool.php` at 89% — written down, because closing the rest of
 those lines is writing more scenarios rather than deleting dead code. Two files in `bin/` are left
 out of the report, each for a reason of its own. `bin/coverage.php` is the parent of the run it
 reads, so its own lines are in no file any child writes; it opens by naming the machine instead:
