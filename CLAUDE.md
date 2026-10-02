@@ -30,6 +30,6 @@ python .agents/verify.py          # detect only; exits 1 when something is incon
 The package's own gate is separate, and is the one that matters:
 
 ```bash
-composer checks -- --require-all   # the nine checks CI and a release run
+composer checks -- --require-all   # the eleven checks CI and a release run
 composer test:unit                 # the coverage floor: every src/ file at 100.0%
 ```

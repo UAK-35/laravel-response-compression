@@ -36,9 +36,9 @@ python .agents/render_local.py --value               # every token and its value
 Each of these is a command this skill defines. They are thin on purpose: the gate and the programs in
 `bin/` are where the behaviour lives.
 
-- `gate`: run `composer checks -- --require-all` — the nine checks, with a missing tool as a failure
+- `gate`: run `composer checks -- --require-all` — the eleven checks, with a missing tool as a failure
   rather than a skip. This is what CI and a release run.
-- `gate-local`: run `composer checks` — the same nine, where a missing `require-dev` tool is a skip.
+- `gate-local`: run `composer checks` — the same eleven, where a missing `require-dev` tool is a skip.
   Use it while iterating; report a skip as a skip rather than as a pass.
 - `staged`: run `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged` —
   syntax, style, and the tests that cover the staged files, on those files only. Which tests those
@@ -50,7 +50,7 @@ Each of these is a command this skill defines. They are thin on purpose: the gat
   `sh .agents/php-bin.sh --selftest` plants a fault per rung and requires each one to be answered,
   which is what the `tools` step of `python .agents/verify.py` asks it to do on every run.
 - `checks-list`: run `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --list` —
-  the nine checks, the condition each one skips on, and the tools out of `bin/tool-paths.php` with
+  the eleven checks, the condition each one skips on, and the tools out of `bin/tool-paths.php` with
   the version each is pinned at and what it is for, under this machine's PHP rather than whichever
   `php` is first on `PATH`.
 - `index`: run `composer index` (the same program as
@@ -94,7 +94,7 @@ Each of these is a command this skill defines. They are thin on purpose: the gat
    argued, not decorative: a comment says why, and a test says what would otherwise be assumed.
 2. **Narrow the run.** `single-test <path>` while the change is in flight, so a failure is about the
    change rather than about the tree.
-3. **Run the gate.** `gate-local` for the nine checks, then `test-unit` when the change touches `src/`
+3. **Run the gate.** `gate-local` for the eleven checks, then `test-unit` when the change touches `src/`
    or `bin/` — the gate deliberately does not measure coverage, so it cannot catch a floor.
 4. **Record it.** A behaviour change carries a `CHANGELOG.md` bullet under `## Unreleased`, in the
    section it belongs to. A change that contradicts a `docs/` record fixes the record in the same

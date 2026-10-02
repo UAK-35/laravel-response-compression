@@ -392,10 +392,10 @@ final class MutationHarness
                     // it that the array below it grew. This is a row turned into a sentence — the
                     // same claim written as prose, where nothing else held it to the program it
                     // describes.
-                    $said = 'eleven checks in one process';
+                    $said = 'twelve checks in one process';
 
                     self::replace($root, IndexNumbers::DOCUMENT, static fn (string $text): string => str_replace(
-                        'ten checks in one process',
+                        'eleven checks in one process',
                         $said,
                         $text,
                     ));

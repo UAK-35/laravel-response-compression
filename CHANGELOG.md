@@ -18,6 +18,19 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **The gate now runs the agentic layer, so a reading that has stopped checking fails the build
+  rather than passing quietly.** `bin/checks.php` gained an eleventh check, `agentic`, which runs
+  `.agents/verify.py` twice: `--layer`, which reads this repository's account of itself - the
+  canonical rules and their sections, the pointer files, the index, the generated skill targets, the
+  rendered command table, the interpreter rule, the tokens and the skill descriptions - and
+  `--selftest`, which plants one fault per reading in a copy of the layer and requires the reading to
+  name it. The second half is why the check is in the gate at all: a reading that has stopped
+  checking reports the same clean answer as one that works, and until now nothing CI ran could tell
+  the two apart. It is a tree-shaped question, so `--staged` does not ask it, and on a runner
+  `--require-all` turns a machine with no Python into a failure rather than a lost reading. The
+  suite's own count of the gate's checks moved with it, and `tests/Unit/Gate/ChecksTest.php` drives
+  the skip a tree without a layer takes.
+
 - **A commit of a named set now goes through one guarded path, and carries only what it was told
   about.** `bin/commit.php` reads the index before staging anything and refuses when it holds a path
   the named set does not name, so a colleague's staged work cannot ride along on a commit that does

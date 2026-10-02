@@ -12,7 +12,7 @@ there is no `artisan`, no routes, no database and no `.env`.
 
 ## The rules that matter most
 
-- `composer checks -- --require-all` is the gate — nine checks, and a missing tool is a failure.
+- `composer checks -- --require-all` is the gate — eleven checks, and a missing tool is a failure.
 - `composer test:unit` holds every `src/` file at 100.0% coverage; a change that lowers a floor fails
   there.
 - A change to behaviour carries a `CHANGELOG.md` bullet, and a contradiction with a `docs/` record is

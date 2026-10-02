@@ -23,7 +23,7 @@ before it reads them. Where this file and `AGENTS.md` disagree, `AGENTS.md` is r
 
 ## The rules that are enforced rather than asked for
 
-- `composer checks -- --require-all` must be green: nine checks, no skips.
+- `composer checks -- --require-all` must be green: eleven checks, no skips.
 - `composer test:unit` must still meet every floor — every `src/` file at 100.0%.
 - A new guard needs its row in `docs/guards.md`, and the mutation harness in `tests/Support/` either
   mutates it or declines it by name.

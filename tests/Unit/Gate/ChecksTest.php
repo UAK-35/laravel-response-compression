@@ -55,6 +55,7 @@ it('lists what it would run, and the tools it would run them with', function ():
 
     expect($run->exitCode)->toBe(0)
         ->and($run->said('PHP syntax (php -l)'))->toBeTrue()
+        ->and($run->said('Agentic layer'))->toBeTrue()
         ->and($run->said('Test suite (pest)'))->toBeTrue();
 
     // And the tools behind those checks, out of the manifest rather than out of a sentence beside
@@ -129,6 +130,22 @@ it('reads a tree with no manifest as a tree with no tools', function (): void {
         // And the list is still the answer to "what would this run?", which is the half a tree with
         // nothing in it can still give.
         ->and(gate($repo, '--list')->output)->toContain('Code style (pint --test)');
+});
+
+it('skips the agentic layer on a tree that has none, and refuses to when it is told to', function (): void {
+    // The gate is pointed at trees that are not this package as well as at this one - the release
+    // rails plant a fixture, and every fixture here is a tree with a gate and no `.agents/` - and a
+    // layer that is not there is a skip rather than a crash. It is the same half the toolchain probe
+    // has, and the same reason: a machine that loses the reading should say so rather than report a
+    // green gate that quietly stopped asking.
+    $run = gate(gateRepo(), '--only=agentic');
+
+    expect($run->exitCode)->toBe(0)
+        ->and($run->output)->toContain('there is no agentic layer');
+
+    $required = gate(gateRepo(), '--only=agentic', '--require-all');
+
+    expect($required->exitCode)->toBe(1);
 });
 
 it('checks only what a commit carries, and says so when that is nothing', function (): void {

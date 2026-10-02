@@ -79,7 +79,7 @@ final class ToolPaths
     /**
      * The two things the runner has to run to be this gate rather than a weaker one beside it.
      *
-     * `composer checks -- --require-all` is what a tag is cut behind: the whole nine checks in one
+     * `composer checks -- --require-all` is what a tag is cut behind: the whole eleven checks in one
      * process, with every skip turned into a failure, because on a runner a tool that failed to
      * install would otherwise read as a green build. `composer test:unit` is the one check that gate
      * cannot make — it runs Pest without a coverage driver, so that it works on a machine that has

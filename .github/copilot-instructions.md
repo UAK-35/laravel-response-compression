@@ -31,7 +31,7 @@ tests, the design records and the two runbooks.
 ## Verification
 
 ```bash
-composer checks -- --require-all   # nine checks: syntax, AST, schema, platform, YAML, PHPStan, Pint, Rector, Pest
+composer checks -- --require-all   # eleven checks: syntax, AST, schema, platform, toolchain, agentic, YAML, PHPStan, Pint, Rector, Pest
 composer test:unit                 # the coverage floor — every src/ file at 100.0%
 python .agents/verify.py           # the agentic layer, checked against itself
 ```

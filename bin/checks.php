@@ -13,16 +13,18 @@ use Uak35\ResponseCompression\Tests\Support\TestMap;
  * One entry point for every check this package can run: PHP syntax, an
  * independent AST parse of the same files, the composer.json schema, the
  * platform requirements, the workflow YAML, PHPStan, Pint, Rector and Pest -
- * the toolchain probe, which asks the machine rather than the code.
+ * the toolchain probe, which asks the machine rather than the code - and the
+ * agentic layer, which asks this repository whether it still agrees with
+ * itself and whether every one of its readings still fires.
  *
  * WHY THIS EXISTS IN ADDITION TO `composer test`
  * ----------------------------------------------
  * `composer test` covers four gates — rector, pint, phpstan and pest — and the
- * other six are otherwise only looked at by hand, after something has already
+ * other seven are otherwise only looked at by hand, after something has already
  * broken: a per-file `php -l` pass, a parse of every file by nikic/php-parser,
  * `composer validate --strict`, `composer check-platform-reqs`, the workflow
- * YAML and the toolchain probe. Running them together gives one command, one
- * summary and one exit code to trust.
+ * YAML, the toolchain probe, and the agentic layer's own account of itself.
+ * Running them together gives one command, one summary and one exit code to trust.
  *
  * `composer test:unit` is deliberately NOT invoked from here, even though it is
  * the same Pest binary: it asks for a code coverage driver, and a machine with
@@ -350,6 +352,38 @@ $checks = [
                 : probeReason($result['output']);
         },
     ],
+
+    // The agentic layer, asked of the program that owns the reading rather than answered again here.
+    // It is this repository's own account of itself - the canonical rules and their sections, the
+    // pointer files, the index, the generated skill targets, the rendered command table, the
+    // interpreter rule, the tokens and the skill descriptions - and, underneath all of it, the proof
+    // that each of those readings still fires: `--selftest` plants one fault per step in a copy of
+    // the layer and requires the step to name it. That second half is why this check is in the gate.
+    // A reading that has stopped checking reports the same clean answer as a reading that works, and
+    // until this check existed nothing in CI could tell the two apart: the tree was green, the step
+    // was silent, and the silence read as agreement. It is a layer rather than a tool, so it is asked
+    // through `.agents/verify.py` for the same reason the probe above is - a second implementation of
+    // the reading is the drift every guard here is about.
+    //
+    // It is a tree-shaped question rather than a commit-shaped one - a commit cannot have changed
+    // what the layer means - so `--staged` does not ask it, and it is not one of the three checks a
+    // commit narrows to. On a runner the whole gate runs with `--require-all`, so a machine with no
+    // Python fails here rather than losing the reading: that is what makes this a build gate rather
+    // than a workstation convenience.
+    'agentic' => [
+        'title' => 'Agentic layer (python .agents/verify.py --layer, --selftest)',
+        'skip' => match (true) {
+            ! is_file($root.'/.agents/verify.py') => 'there is no agentic layer in this tree (an installed package has none)',
+            $python === null => 'no Python 3 found (python, python3 or py on PATH)',
+            default => null,
+        },
+        'run' => static fn (): array => checkAgentic($root, $python),
+        'note' => static function (array $result): string {
+            return $result['exit'] === 0
+                ? 'the layer agrees with itself, and every reading still names a planted fault'
+                : probeReason($result['output']);
+        },
+    ],
     'yaml' => [
         'title' => 'Workflow YAML (yaml-lint)',
         'skip' => match (true) {
@@ -606,9 +640,10 @@ function usage(): void
 
     Exit code: 0 all green, 1 anything failed, 2 usage error.
     Note: the coverage floor lives in `composer test:unit`, which needs a
-    coverage driver and is run by CI separately. One check asks Python (python,
-    python3 or py on PATH) - the toolchain probe - and a machine without one
-    skips it: --require-all is what turns that skip into a failure on a runner.
+    coverage driver and is run by CI separately. Two checks ask Python (python,
+    python3 or py on PATH) - the toolchain probe and the agentic layer - and a
+    machine without one skips both: --require-all is what turns those skips into
+    a failure on a runner.
 
     TXT;
 }
@@ -1090,6 +1125,43 @@ function composerReason(string $output): string
     }
 
     return $message === [] ? lastLine($output) : clip(implode(' ', $message));
+}
+
+/**
+ * The agentic layer, and the proof that each of its readings still fires.
+ *
+ * Two runs rather than one, because they answer the two halves of one question and neither implies
+ * the other. `--layer` reads this tree and answers whether the layer agrees with itself: the
+ * canonical rules and their sections, the pointer files, the index, the generated skill targets, the
+ * rendered command table, the interpreter rule, the tokens and the descriptions. `--selftest` plants
+ * one fault per step in a copy of that layer and answers whether each step still names it - and that
+ * is the half this check exists for, because a layer that agrees with itself is exactly what a step
+ * which has stopped checking also reports. A reading whose glob stopped matching, a comparison
+ * rewritten to the operator that answers yes: the tree is still clean, the step still says so, and
+ * nothing above it would ever have noticed.
+ *
+ * Both are read as a child of the interpreter that started this one, under `.agents/verify.py`'s own
+ * scope flags, rather than through a composer script: a script is a shell string, and this is the
+ * same program the probe above drives. The selftest is the slow half - a planted tree per step - and
+ * that is the price of the answer rather than a reason to skip it: a gate that cannot fail for a
+ * reading gone quiet is the state this check was added to end.
+ *
+ * @param  list<string>|null  $python  the interpreter, resolved once by pythonCommand()
+ * @return array{exit: int, output: string}
+ */
+function checkAgentic(string $root, ?array $python): array
+{
+    $exit = 0;
+    $output = '';
+
+    foreach ([['--layer'], ['--selftest']] as $arguments) {
+        $result = runCommand([...$python ?? [], '.agents/verify.py', ...$arguments], $root);
+
+        $exit = max($exit, $result['exit']);
+        $output .= ($output === '' ? '' : PHP_EOL).rtrim($result['output']);
+    }
+
+    return ['exit' => $exit, 'output' => $output];
 }
 
 /**

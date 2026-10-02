@@ -221,7 +221,7 @@ because the comparison reads two files and asks git nothing.
 
 ## 5. The gate
 
-`composer checks` is ten checks in one process, and it is the same gate a tag is cut behind:
+`composer checks` is eleven checks in one process, and it is the same gate a tag is cut behind:
 
 | Key | What it proves |
 |---|---|
@@ -230,6 +230,7 @@ because the comparison reads two files and asks git nothing.
 | `schema` | `composer.json` validates strictly |
 | `platform` | every platform requirement is installed — where a missing `ext-brotli` is reported as a build problem rather than as a test failure |
 | `toolchain` | the machine's own question, asked of `.agents/verify.py`: this PHP answers the pin in `.agents/toolchain.json`, it carries the extensions `composer.json` requires, a coverage driver is loaded, and every tool in `bin/tool-paths.php` still starts through `bin/tool.php` — so a wrong PHP or a missing extension is a line in the gate rather than a test that could not run |
+| `agentic` | the layer this repository keeps about itself, asked of `.agents/verify.py`: the canonical rules and their sections, the pointer files, the index, the generated skill targets, the rendered command table, the interpreter rule, the tokens and the skill descriptions — and, underneath them, `--selftest`, which plants one fault per reading in a copy of the layer and requires the reading to name it, so a step that has stopped checking fails the gate instead of passing quietly |
 | `yaml` | the workflow YAML, this package's own included |
 | `phpstan` | static analysis at max level |
 | `pint` | code style, in test mode |
@@ -248,7 +249,7 @@ composer checks                          # a workstation: a missing tool is a sk
 composer checks -- --require-all         # CI and a release: a missing tool is a failure
 
 # __PHP_EXE__ is this machine's PHP, rendered from .agents/machine.local.json in the line itself:
-"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --list    # the ten, each one's skip condition, and the tools the manifest pins
+"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --list    # the eleven, each one's skip condition, and the tools the manifest pins
 "$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged  # staged files only — what the pre-commit hook runs
 ```
 
@@ -440,9 +441,9 @@ rendered from it, and `verify.py` refuses a restatement of any of them elsewhere
 | --- | --- | --- |
 | `bootstrap` | `php bin/bootstrap.php` | set a fresh clone up in one command: name this machine's PHP, install the dependencies, then run the whole verification - the one command here that names a bare `php`, because it is the one that runs before .agents/machine.local.json exists and it is the file that writes it |
 | `gate` | `composer checks -- --require-all` | the whole gate, with a missing tool as a failure instead of a skip - what CI and a release use |
-| `gate-local` | `composer checks` | the same ten checks on a workstation, where half the tools are require-dev and a missing one is a skip |
+| `gate-local` | `composer checks` | the same eleven checks on a workstation, where half the tools are require-dev and a missing one is a skip |
 | `staged` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged` | the staged files only - syntax, style, and the tests that cover them, out of tests/Support/TestMap.php - which is what the pre-commit hook runs, under the PHP it resolves from .agents/machine.local.json |
-| `checks-list` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --list` | the ten checks, the condition each one skips on, and the tools the manifest pins - each one's path, the version it is pinned at and what it is for - under this machine's PHP rather than whichever `php` happens to be first on PATH |
+| `checks-list` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --list` | the eleven checks, the condition each one skips on, and the tools the manifest pins - each one's path, the version it is pinned at and what it is for - under this machine's PHP rather than whichever `php` happens to be first on PATH |
 | `which-php` | `sh .agents/php-bin.sh --show` | which interpreter this checkout runs, which rung answered, and the version composer.json requires - the one place all three are decided, and what the hook, the workflow and the coverage runner ask |
 | `index` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/index.php` | render the two lists of files in docs/guards.md from tests/Support/, where each file declares its own row - the composer.json script `index` is the same program |
 | `index-check` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/index.php --check` | the same reading with nothing written: what tests/Unit/Docs/GuardIndexTest.php asserts, and the form that fails a document which has drifted from the directory |
@@ -457,7 +458,7 @@ rendered from it, and `verify.py` refuses a restatement of any of them elsewhere
 | `verify-tools` | `python .agents/verify.py --package` | the tools and the two package checks alone, without the layer's readings: does this machine still work |
 | `agentic-layer` | `python .agents/verify.py --layer` | the layer alone, with no PHP in it: the fast subset the pre-commit hook runs |
 | `agentic-fix` | `python .agents/verify.py --fix` | repair what a generator owns (the rendered command table, the skill targets), then re-check |
-| `agentic-selftest` | `python .agents/verify.py --selftest` | plant one fault per step in a copy of the layer and require the step to name it |
+| `agentic-selftest` | `python .agents/verify.py --selftest` | plant one fault per step in a copy of the layer and require the step to name it - the `agentic` check in bin/checks.php runs this, so a reading that stopped checking fails the gate rather than passing quietly |
 | `agentic-init` | `python .agents/render_local.py --init` | ask for this machine's PHP and PowerShell, then render every settings file from the answers |
 | `skills-sync` | `python .skills/_sync.py` | regenerate .agents/skills/ and the pointers that read it from the sources in .skills/ |
 
@@ -475,7 +476,7 @@ rendered from it, and `verify.py` refuses a restatement of any of them elsewhere
 
 Before presenting completed work:
 
-- [ ] `composer checks -- --require-all` is green (ten checks, no skips)
+- [ ] `composer checks -- --require-all` is green (eleven checks, no skips)
 - [ ] `composer test:unit` still meets every floor (every `src/` file 100.0%)
 - [ ] a behaviour change carries a test that fails without it
 - [ ] `CHANGELOG.md` has a bullet under `## Unreleased`, in the right section

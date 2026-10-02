@@ -26,7 +26,7 @@ Read, in order:
 ## Before finishing
 
 ```bash
-composer checks -- --require-all   # the nine checks, with a missing tool as a failure
+composer checks -- --require-all   # the eleven checks, with a missing tool as a failure
 composer test:unit                 # the coverage floor
 python .agents/verify.py           # the agentic layer, checked against itself
 ```

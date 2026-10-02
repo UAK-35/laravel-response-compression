@@ -67,7 +67,7 @@
         },
         "gate-local": {
             "line": "composer checks",
-            "purpose": "the same ten checks on a workstation, where half the tools are require-dev and a missing one is a skip"
+            "purpose": "the same eleven checks on a workstation, where half the tools are require-dev and a missing one is a skip"
         },
         "staged": {
             "line": "\"$(python .agents/render_local.py --value __PHP_EXE__)\" bin/checks.php --staged",
@@ -75,7 +75,7 @@
         },
         "checks-list": {
             "line": "\"$(python .agents/render_local.py --value __PHP_EXE__)\" bin/checks.php --list",
-            "purpose": "the ten checks, the condition each one skips on, and the tools the manifest pins - each one's path, the version it is pinned at and what it is for - under this machine's PHP rather than whichever `php` happens to be first on PATH"
+            "purpose": "the eleven checks, the condition each one skips on, and the tools the manifest pins - each one's path, the version it is pinned at and what it is for - under this machine's PHP rather than whichever `php` happens to be first on PATH"
         },
         "which-php": {
             "line": "sh .agents/php-bin.sh --show",
@@ -135,7 +135,7 @@
         },
         "agentic-selftest": {
             "line": "python .agents/verify.py --selftest",
-            "purpose": "plant one fault per step in a copy of the layer and require the step to name it"
+            "purpose": "plant one fault per step in a copy of the layer and require the step to name it - the `agentic` check in bin/checks.php runs this, so a reading that stopped checking fails the gate rather than passing quietly"
         },
         "agentic-init": {
             "line": "python .agents/render_local.py --init",

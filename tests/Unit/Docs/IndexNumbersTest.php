@@ -62,13 +62,13 @@ it('states in the index only the numbers the code produces', function (): void {
 it('names the number when the gate gains a check and the page keeps the old one', function (): void {
     $root = indexNumbersRoot();
 
-    indexNumbersReplace($root, 'docs/guards.md', 'ten checks in one process', 'eleven checks in one process');
+    indexNumbersReplace($root, 'docs/guards.md', 'eleven checks in one process', 'twelve checks in one process');
 
     $findings = implode(PHP_EOL, IndexNumbers::drift($root));
 
-    expect($findings)->toContain('the row says "eleven checks in one process"')
+    expect($findings)->toContain('the row says "twelve checks in one process"')
         ->and($findings)->toContain('docs/guards.md:')
-        ->and($findings)->toContain('defines 10 (ten)');
+        ->and($findings)->toContain('defines 11 (eleven)');
 });
 
 it('names the floor when the code raises one and the page does not', function (): void {
@@ -150,12 +150,12 @@ it('catches the gate\'s size said outside the index', function (): void {
 
     // The same claim in another file, which is what makes the phrase rather than the row the
     // reading: the README, the rules and the workflow write it too, and each should go red.
-    indexNumbersWrite($root, 'README.md', "# A package\n\nIt is eleven checks in one process: one summary, one exit code.\n");
+    indexNumbersWrite($root, 'README.md', "# A package\n\nIt is twelve checks in one process: one summary, one exit code.\n");
 
     $findings = implode(PHP_EOL, IndexNumbers::drift($root));
 
     expect($findings)->toContain('README.md:')
-        ->and($findings)->toContain('eleven checks in one process');
+        ->and($findings)->toContain('twelve checks in one process');
 });
 
 /**

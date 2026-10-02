@@ -13,7 +13,7 @@ in the third.
 
 | Guard | What it catches | Where |
 |---|---|---|
-| `bin/checks.php` | ten checks in one process: syntax, an AST parse, the composer schema, the platform requirements, the toolchain probe, the workflow YAML, PHPStan, Pint, Rector, Pest — one summary, one exit code | [`../bin/checks.php`](../bin/checks.php) |
+| `bin/checks.php` | eleven checks in one process: syntax, an AST parse, the composer schema, the platform requirements, the toolchain probe, the agentic layer, the workflow YAML, PHPStan, Pint, Rector, Pest — one summary, one exit code | [`../bin/checks.php`](../bin/checks.php) |
 | `.githooks/pre-commit` | a commit carrying PHP that does not parse, style the project does not use, a source file the suite that covers it would fail on, a link between the records that no longer resolves, or a claim about a config key that the source has outgrown — by running `bin/checks.php --staged` | [`../.githooks/pre-commit`](../.githooks/pre-commit) |
 | `bin/commit.php` | a commit that carries a file it was not told about: the index is read before anything is staged and the commit refused when it holds a path outside the named set — and the changelog bullet is written and the staged checks run before the commit exists | [`../bin/commit.php`](../bin/commit.php) |
 | `bin/release.php` | a version cut from the wrong branch, over uncommitted work, over a tag that exists, over a red gate, over a commit the remote has not seen — and the numbering of prerelease lanes | [RELEASING.md](../RELEASING.md) |
@@ -330,7 +330,7 @@ the table at the top.
 - **The coverage floor inside the gate.** A floor needs a PCOV or Xdebug driver, and the gate
   is run on machines that have neither. Running it in the gate would fail every check there for
   a reason about the machine rather than about the code, so the floor is CI's second step and
-  `composer test:unit` — which is `bin/coverage.php`, and not part of the ten.
+  `composer test:unit` — which is `bin/coverage.php`, and not part of the eleven.
 - **A `version` field in `composer.json`.** `composer validate` recommends leaving it out on
   a package published from tags, and a number in the repository is a second source of truth
   that drifts from the tag Packagist actually reads. See [RELEASING.md](../RELEASING.md).

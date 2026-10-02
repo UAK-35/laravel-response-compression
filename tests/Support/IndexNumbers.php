@@ -31,7 +31,7 @@ use RuntimeException;
  * `N checks in one process` is this package's own phrase for the gate's size, and it is written in
  * five places — this page, `AGENTS.md`, `README.md`, the gate command and the workflow — which are
  * one claim rather than five facts. The phrase is checked wherever a commit would carry it, so the
- * sentence in the README cannot go on saying nine while the gate runs ten. The `CHANGELOG` is not
+ * sentence in the README cannot go on saying ten while the gate runs eleven. The `CHANGELOG` is not
  * read, because it is a record of the past by construction: a number it wrote about a release that
  * was cut is history rather than a claim about today's tree.
  *
@@ -432,7 +432,7 @@ final class IndexNumbers
      * and each of them should go red on the day the gate gains a check. `docs/guards.md` is left to
      * `gate()`, which reads it as a row rather than as a sentence; the `CHANGELOG` is left alone
      * because a released note is history; and `tests/` is left alone because a test is a fixture
-     * rather than a claim — a case that says "eleven checks in one process" to prove this reading
+     * rather than a claim — a case that says "twelve checks in one process" to prove this reading
      * notices is not a statement about the gate, and neither is the pattern that reads it.
      *
      * @param  list<string>  $checks

@@ -1,11 +1,11 @@
 {
   "name": "package-dev",
   "version": "1.0.0",
-  "description": "This package's daily loop: the nine check gate, the coverage floor, the dev tools, the lists of the guard index, which interpreter the checkout runs, and the check that asks whether the tools themselves still work. Commands - gate, gate-local, staged, which-php, checks-list, index, test, test-unit, test-types, test-lint, tidy, single-test, verify-tools, agentic-check, agentic-layer, agentic-fix, agentic-selftest. Invoke on mentions of a test run, a style fix, the gate, coverage, the guard index, a toolchain that misbehaves, or any change inside this repository.",
+  "description": "This package's daily loop: the eleven check gate, the coverage floor, the dev tools, the lists of the guard index, which interpreter the checkout runs, and the check that asks whether the tools themselves still work. Commands - gate, gate-local, staged, which-php, checks-list, index, test, test-unit, test-types, test-lint, tidy, single-test, verify-tools, agentic-check, agentic-layer, agentic-fix, agentic-selftest. Invoke on mentions of a test run, a style fix, the gate, coverage, the guard index, a toolchain that misbehaves, or any change inside this repository.",
   "author": "UAK35",
   "license": "MIT",
   "date": "2026-10-02",
-  "updated_at": 1790948279474,
+  "updated_at": 1790967000717,
   "tags": [
     "gate",
     "testing",
@@ -20,5 +20,5 @@
   "organization": "UAK35",
   "platform": "codebuff",
   "id": 2523353767,
-  "source_hash": "bccece8675a7428f"
+  "source_hash": "26139517bf6d0dda"
 }

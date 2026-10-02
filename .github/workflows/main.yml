@@ -146,11 +146,15 @@ jobs:
         composer update --no-progress
 
     - name: Run the check suite
-      # Ten checks in one process, and the same gate a tag is cut behind locally:
+      # Eleven checks in one process, and the same gate a tag is cut behind locally:
       # PHP syntax, an AST parse of the same files, `composer validate --strict`,
       # platform requirements (which is where a missing ext-brotli or ext-zstd is
       # reported as a build problem rather than as a test failure), the toolchain
-      # probe — the machine's own question, asked of `.agents/verify.py` — the workflow
+      # probe — the machine's own question, asked of `.agents/verify.py` — the agentic
+      # layer (the same program, `--layer` and `--selftest`: this repository's account
+      # of itself, and the proof that each of its readings still names a planted fault,
+      # so a step that has stopped checking fails here instead of passing quietly), the
+      # workflow
       # YAML — this file included — PHPStan, Pint, Rector and Pest. CI must not be
       # weaker than the gate, so the whole thing runs here rather than the four-step
       # `composer test` subset. A tool the runner is missing drops to a skip;
