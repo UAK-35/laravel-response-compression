@@ -18,6 +18,37 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **A verification run ends with one health table, so a red run says which part of the machine
+  moved.** The `tools` step asks PHP, Composer, Python, PowerShell 7, git and every tool in
+  `bin/tool-paths.php` for a version and holds each answer to the pin the manifest records, and it
+  used to discard those answers once it had decided them - so a reader with a red run had to match a
+  finding's wording back to the tool it was about to learn which one had moved. It now records a row
+  per tool as it goes and prints them together when the run ends: the tool, the version found, the
+  pin it was held to, and whether it ran at all - so a fresh clone with no `vendor/` says `no`
+  against every manifest tool rather than leaving that to a note. The table is one block after the
+  notes and above the closing count, and it is silent when the `tools` step was not run.
+
+- **An interpreter written in front of a command is refused, the way a `vendor/bin` shim already
+  is.** The shim is a second interpreter because it runs whichever `php` is first on `PATH`, and a
+  command written with one in front of it says the same thing with the shim left out - which is why
+  the four commands that need an interpreter render it out of `machine.local.json` in the command
+  itself, and why every program here runs under `PHP_BINARY`. `python .agents/verify.py`'s
+  `toolchain` step reads the layer line by line for that shape and names the file, the line and the
+  command, with `@php` left alone because it is Composer's own word for the interpreter it is already
+  under. The rule is **decided per platform and declared that way**, because an interpreter is
+  spelled differently on each: Windows carries an extension on the name and a shell of its own
+  (`php.exe`, `pwsh.exe`, `powershell`, `cmd`) and calls a program `.php`, `.ps1`, `.bat` or `.cmd`,
+  while Linux and macOS spell PHP as `php` and a program as `.php`. Two of those answers coincide
+  today and are kept apart anyway, since the platform is the axis of the rule rather than a
+  convenience - a Linux rule that started refusing `bash -c '<line>'` would be refusing the way every
+  command is run there by mandate. Each finding names the platform it was found on, because a line
+  this refuses on Windows is a line a Linux reader would not write that way at all. One program is
+  excused, and it is the one that cannot be written otherwise: `bin/bootstrap.php` runs before there
+  is a machine file for the answer to come from, so the command that writes one names an interpreter
+  by necessity. `--selftest` gains a round for it - the restatement planted in the index a session
+  copies a command from, which every platform's rule reads - so the step with two answers now has two
+  breaks rather than one, and a round that proves the step fires proves *which* reading fired.
+
 - **A fresh clone is set up by one command, and a test proves it from an empty checkout.** Three
   things a checkout needs before it can answer anything had a command each and an order between
   them that a reader had to get right: `.agents/render_local.py --init` names this machine's PHP,

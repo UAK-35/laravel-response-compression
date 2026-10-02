@@ -105,6 +105,22 @@ entry file the same way (`.agents/toolchain.json` has the rule). `python .agents
 its own ladder — four rungs is four chances to answer something else, and the shell file is what
 `Tests\Support\PhpBinary` and the hook both believe.
 
+An interpreter written **in front of** a command is refused too, and it is the same failure as a
+`vendor/bin` shim one word further in: the shim is a second interpreter because it runs whichever
+`php` is first on `PATH`, and a command written with one in front of it says the same thing with the
+shim left out. So no command in the layer may be written that way — the four that need an interpreter render it out of
+`.agents/machine.local.json` in the command itself, `@php` is left alone because it is Composer's own
+word for the interpreter it is already under, and one program is excused by name because it cannot be
+written any other way: `bin/bootstrap.php` runs before there is a machine file for the answer to come
+from. **This rule is decided per platform and declared that way**, because an interpreter is spelled
+differently on each: Windows carries an extension on the name (`php.exe`, `pwsh.exe`), reaches a
+shell of its own (`powershell`, `cmd`) and calls a program `.php`, `.ps1`, `.bat` or `.cmd`, while
+Linux and macOS spell PHP as `php` and a program as `.php`. Those two are the same answer today and
+are kept apart anyway — a Linux rule that started refusing `bash -c "<line>"` would be refusing the
+way every command is run there by mandate. `verify.py`'s `toolchain` step reads the layer for it and
+names the platform in the finding, and `--selftest` plants one for every platform's rule at once by
+writing it where a session copies a command from.
+
 Wrap every command in the mandated shell for the platform:
 
 ```bash
@@ -148,9 +164,12 @@ It has two halves. The `tools` step **runs programs**: PHP and its version again
 `ext-*` requirements in `composer.json`, a coverage driver for the floor, composer, Python,
 PowerShell 7 on Windows, git, every tool in `bin/tool-paths.php` asked to start through
 `bin/tool.php`, whether the hook below is enabled in this clone, and whether there is a `vendor/` at
-all. The other nine steps **read files**: this directory against itself, the pointer files, each
+all. The ten layer steps **read files**: this directory against itself, the pointer files, each
 skill target against the source it was generated from, the rendered command table, the settings files
-against their templates, and the tokens.
+against their templates, and the tokens. The `tools` step also keeps what it asked - the tool, the
+version it reported, the pin it was held to, and whether it ran at all - and prints it as one table
+when the run ends, so a red run says which part of the machine moved without the reader matching a
+finding's wording back to the tool it is about.
 
 Neither half replaces the gate: `composer checks` and `composer test:unit` are what decides whether
 the package is right, which section 5 covers. `guards` and `gate` are steps of this program that run
@@ -471,7 +490,9 @@ Before presenting completed work:
 - [ ] no path in this change climbs above the repository root
 - [ ] tools were run through `bin/tool.php` / the Composer scripts, never a `vendor/bin` shim
 - [ ] no interpreter was resolved anywhere but `.agents/php-bin.sh` (the `interpreter` step), and no
-      file names one beyond the `PHP binary` row above
+      file names one beyond the `PHP binary` row above — and no command in the layer writes one in
+      front of a program (the `toolchain` step, which is a rule per platform; only `bin/bootstrap.php`
+      is excused, because it runs before there is a machine file to answer with)
 - [ ] `rg` used for text search
 - [ ] the work is committed as named paths, with its changelog bullet
 - [ ] `python .agents/verify.py` is green: the tools it runs, the two path guards, the gate, and the

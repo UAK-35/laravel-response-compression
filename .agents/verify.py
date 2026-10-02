@@ -145,6 +145,59 @@ PHP_VERSION = re.compile(r"php-version\s*:\s*[\"']?\d|^\s*php\s*:\s*\[?\s*[\"']?
 # answer lives, which three of the files in `bin/` do; reading one is a second answer.
 CONSUMES = re.compile(r"file_get_contents|json_decode|proc_open|shell_exec|popen|exec\(|Process::")
 
+# An interpreter restated in front of a command - the `vendor/bin` shim one word further in. The shim
+# is a second interpreter because it runs whichever `php` is first on PATH; `php bin/checks.php` says
+# the same thing with the shim left out, which is why the four commands that need an interpreter
+# render it out of `machine.local.json` in the command itself, and why everything else here runs under
+# `PHP_BINARY` - the interpreter that is already running. `@php` is not a restatement: it is
+# Composer's own word for the interpreter it is already under, so a composer script states none at all.
+#
+# DECIDED PER PLATFORM, AND DECLARED THAT WAY
+# -------------------------------------------
+# An interpreter is spelled differently on each system, so this is one rule per system and the one
+# that applies is the one for the machine this check is running on. Windows carries an extension on
+# the name (`php.exe`, `pwsh.exe`), reaches a shell of its own (`powershell`, `cmd`) and calls a
+# program `.php`, `.ps1`, `.bat` or `.cmd`; Linux and macOS spell PHP as `php` and a program as
+# `.php`. Two of those answers coincide today and are kept apart anyway, because the platform is the
+# axis of this rule rather than a convenience: a Linux rule that started refusing `bash -c '<line>'`
+# would be refusing the way every command is run there by mandate, and a macOS rule that refused
+# `pwsh` would be refusing a program macOS is not required to have. Neither is a rule about a machine
+# this package is developed on.
+INTERPRETER_RULES: dict[str, dict[str, object]] = {
+    "windows": {
+        "os": "Windows",
+        "names": ("php", "php.exe", "pwsh", "pwsh.exe", "powershell", "powershell.exe", "cmd", "cmd.exe"),
+        "programs": (".php", ".ps1", ".bat", ".cmd"),
+    },
+    "linux": {
+        "os": "Linux",
+        "names": ("php",),
+        "programs": (".php",),
+    },
+    "darwin": {
+        "os": "macOS",
+        "names": ("php",),
+        "programs": (".php",),
+    },
+}
+
+# The one program a command may name an interpreter for, and the reason the rule needs an exception
+# rather than a tidier carve-out: a clone that has never rendered a machine file has no answer for the
+# interpreter to come from, so the command that writes that file cannot be written the way every other
+# command here is. It is a program rather than a line because the same command is written in three
+# places - the manifest, the table rendered from it, and the program's own usage.
+INTERPRETER_PROGRAMS = {"bin/bootstrap.php"}
+
+# The file the rule is written in quotes the failure it refuses, so a reader meets the rule and the
+# shape it refuses in one place - the allowance `FIXTURE_TOKENS` makes for the token it plants. The
+# machine file is deliberately not here: it is the one file an interpreter may be written in, which is
+# the whole reason this reading exists.
+INTERPRETER_FILES = {".agents/verify.py"}
+
+# The machine file, as a path from the root, for the reading above: `MACHINE` is this checkout's own
+# absolute path, and a planted tree is asked the same question about a file of its own.
+MACHINE_NAME = ".agents/machine.local.json"
+
 
 # ---------------------------------------------------------------------------
 # reading
@@ -504,6 +557,103 @@ def step_toolchain(root: Path) -> list[str]:
                 "and bin/tool.php is how a tool is run here"
             )
 
+    # And the same refusal one word further in: a shim is a second interpreter, and an interpreter
+    # written in front of a command is that shim left out. Which names and which programs count is the
+    # platform's answer rather than this function's, because an interpreter is spelled per system.
+    findings += interpreter_restated(root)
+
+    return findings
+
+
+def interpreter_rule() -> dict[str, object]:
+    """This platform's rule: the names it spells an interpreter with, and the programs it runs.
+
+    Three entries and one answer, chosen by the machine rather than by the caller: a rule that took a
+    platform argument would be a rule every caller could ask about a platform it is not running on,
+    and the question here is what *this* machine's commands may say.
+    """
+    if os.name == "nt":
+        return INTERPRETER_RULES["windows"]
+
+    return INTERPRETER_RULES["darwin" if sys.platform == "darwin" else "linux"]
+
+
+def layer_files(root: Path) -> list[Path]:
+    """Every file in the layer, which is where a command is handed over rather than described.
+
+    The prose records are not in it: `docs/`, the README and the changelog explain a command instead
+    of handing one over, and a command inside a sentence is a sentence - the distinction
+    `IndexNumbers::phrase` makes when it leaves the changelog and the tests alone. What is here is the
+    rules, the pointers, the agentic files, the programs in `bin/`, the hook and the workflow.
+    """
+    files: list[Path] = []
+
+    for entry in LAYER:
+        path = root / entry
+
+        if path.is_dir():
+            files += [candidate for candidate in sorted(path.rglob("*")) if candidate.is_file()]
+        elif path.is_file():
+            files.append(path)
+
+    return files
+
+
+def interpreter_restated(root: Path) -> list[str]:
+    """Every line of the layer that writes an interpreter in front of a command, on this platform.
+
+    Read line by line rather than by file, because that is what the failure is: a command a reader
+    copies with the answer to "which PHP" already written into it. The interpreter is one of the
+    platform's names and the program is the word after it, which is what lets the one exception be a
+    program - `bin/bootstrap.php` - rather than a whole line.
+
+    Each finding names the platform it was found on, because that is the axis the rule is decided on:
+    a line this refuses on Windows is a line a Linux reader would not write this way at all, and a
+    reader who does not know which rule they met cannot tell whether the rule or the command is wrong.
+    """
+    rule = interpreter_rule()
+    os_name = str(rule["os"])
+    pattern = re.compile(
+        r"(?<!@)(?<![A-Za-z0-9_-])(?P<interpreter>"
+        + "|".join(re.escape(str(name)) for name in rule["names"])
+        + r")[ \t]+(?P<program>[A-Za-z0-9_./\\-]+(?:"
+        + "|".join(re.escape(str(suffix)) for suffix in rule["programs"])
+        + r"))"
+    )
+    findings: list[str] = []
+
+    for path in layer_files(root):
+        where = rel(path, root)
+
+        if where in INTERPRETER_FILES or where == MACHINE_NAME:
+            continue
+
+        # A file that is not text is not a command: `.agents/` holds byte-code caches beside the
+        # checks that wrote them, and a decode error would be this reading failing on a file it was
+        # never about.
+        try:
+            contents = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+
+        for number, line in enumerate(contents.splitlines(), 1):
+            found = pattern.search(line)
+
+            if found is None:
+                continue
+
+            program = found.group("program").replace("\\", "/").removeprefix("./").lstrip("/")
+
+            if program in INTERPRETER_PROGRAMS:
+                continue
+
+            findings.append(
+                f"{where}:{number}: restates an interpreter in front of a command on {os_name} "
+                f"(`{found.group('interpreter')} {found.group('program')}`) - that runs under whichever "
+                "`php` is first on PATH, and bin/tool.php runs a tool under the interpreter that is "
+                "already running, while `.agents/php-bin.sh` is what says which one that is"
+            )
+
     return findings
 
 
@@ -651,8 +801,13 @@ def step_tokens(root: Path) -> list[str]:
         except json.JSONDecodeError:
             findings.append(f"{rel(template, root)}: not readable as JSON")
 
+    # The comparison needs no repository, and gating it on one is how it stopped checking: it reads a
+    # template and the file rendered from it and asks git nothing. Every tree that is not a checkout -
+    # the archive a consumer unpacks, a copy of the package beside a site, this program's own planted
+    # fixture - used to have the whole question skipped and report nothing about it. What is left that
+    # genuinely needs a repository is the ignore rule above, which asks git.
     renderer = root / ".agents" / "render_local.py"
-    if renderer.is_file() and is_a_repo(root):
+    if renderer.is_file():
         if (root / ".agents" / "machine.local.json").is_file():
             result = subprocess.run(
                 [sys.executable, str(renderer), "--check"],
@@ -817,6 +972,42 @@ def manifest_tools(root: Path) -> dict[str, dict[str, str]]:
     }
 
 
+# The health table the toolchain probe fills in as it asks each question: the version a tool
+# reported, the pin it was held to, and whether it answered at all. It is printed once at the end of
+# a run as a single table, so a red run says which part of the machine moved without the reader
+# having to match a finding's wording back to the tool it is about.
+HEALTH: list[dict[str, str]] = []
+
+
+def health(tool: str, found: str, pin: str, ran: bool) -> None:
+    """Record one row: the version a tool reported, the pin it was held to, and whether it ran."""
+    HEALTH.append(
+        {
+            "tool": tool,
+            "found": " ".join(found.split()) or "-",
+            "pin": pin or "-",
+            "ran": "yes" if ran else "no",
+        }
+    )
+
+
+def health_table() -> str:
+    """The rows the toolchain probe collected, aligned as one table - or nothing if it never ran."""
+    if not HEALTH:
+        return ""
+
+    headers = ("tool", "found", "pin", "ran")
+    rows = [[row[header] for header in headers] for row in HEALTH]
+    widths = [max(len(headers[index]), *(len(row[index]) for row in rows)) for index in range(len(headers))]
+
+    lines = ["  ".join(headers[index].ljust(widths[index]) for index in range(len(headers))).rstrip()]
+    lines += [
+        "  ".join(row[index].ljust(widths[index]) for index in range(len(headers))).rstrip() for row in rows
+    ]
+
+    return "\n\nhealth\n" + "\n".join(f"  {line}" for line in lines)
+
+
 def step_tools(root: Path) -> list[str]:
     """Every tool and every process this package needs, asked to work rather than assumed to.
 
@@ -864,6 +1055,7 @@ def step_tools(root: Path) -> list[str]:
     else:
         version = capture(root, php, "-r", "echo PHP_VERSION;")
         pin = str(tools.get("php", {}).get("pin", ""))
+        health("php", version or "", pin, version is not None)
 
         if version is None:
             findings.append(f"php: {php} could not be run")
@@ -896,21 +1088,28 @@ def step_tools(root: Path) -> list[str]:
     phar = root / "composer.phar"
     composer_command: list[str] = [php, str(phar)] if php and phar.is_file() else ["composer"]
     composer_output = capture(root, *composer_command, "--version")
+    composer_pin = str(tools.get("composer", {}).get("pin", ""))
+    composer_found = ""
 
     if composer_output is None:
         findings.append("composer: not runnable - neither composer.phar beside this checkout nor composer on PATH")
     else:
         match = re.search(r"Composer version\s+(\S+)", composer_output)
-        pin = str(tools.get("composer", {}).get("pin", ""))
+        if match is not None:
+            composer_found = match.group(1)
         if match is None:
             findings.append(f"composer: could not read a version out of `{' '.join(composer_command)} --version`")
-        elif not satisfies(match.group(1), pin):
+        elif not satisfies(match.group(1), composer_pin):
             findings.append(
-                f"composer: {match.group(1)} does not answer the pin `{pin}` - every script in "
+                f"composer: {match.group(1)} does not answer the pin `{composer_pin}` - every script in "
                 "composer.json is a Composer 2 script, and this is what runs them"
             )
 
+    health("composer", composer_found, composer_pin, composer_output is not None)
+
     # 3. Python, which is running this program, and PowerShell 7, which the Windows snippets assume.
+    health("python", sys.version.split()[0], "3.9", True)
+
     if sys.version_info < (3, 9):
         findings.append(f"python: {sys.version.split()[0]} is older than the 3.9 these programs need")
 
@@ -919,6 +1118,7 @@ def step_tools(root: Path) -> list[str]:
         pwsh = pwsh or (shutil.which("pwsh") or "")
         output = capture(root, pwsh, "-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()") if pwsh else None
         pin = str(tools.get("pwsh", {}).get("pin", ""))
+        health("pwsh", output or "", pin, output is not None)
 
         if output is None:
             findings.append(
@@ -934,7 +1134,10 @@ def step_tools(root: Path) -> list[str]:
     #    that has not enabled it is a note rather than a finding - but it is worth saying out loud,
     #    because the gate is what a contributor is told runs before a commit.
     git = shutil.which("git")
-    if git is None or capture(root, "git", "--version") is None:
+    git_output = capture(root, "git", "--version") if git else None
+    health("git", (git_output or "").removeprefix("git version "), "-", git_output is not None)
+
+    if git is None or git_output is None:
         findings.append("git: not runnable, and every part of this repository's process is around it")
     elif is_a_repo(root):
         hooks = (capture(root, "git", "config", "--get", "core.hooksPath") or "").strip()
@@ -959,6 +1162,8 @@ def step_tools(root: Path) -> list[str]:
             "tools: no vendor/ beside this checkout, so the tools were not run - "
             "composer install puts them there"
         )
+        for name, entry in sorted(entries.items()):
+            health(name, "", str(entry.get("pin", "")), False)
     else:
         for name, entry in sorted(entries.items()):
             path = entry["path"]
@@ -974,6 +1179,8 @@ def step_tools(root: Path) -> list[str]:
             # as well as the tool: bin/tool.php resolves the path from the manifest and runs it under
             # PHP_BINARY, which is the interpreter that installed the dependencies.
             output = capture(root, *tool_command(root, name, "--version"), timeout=120)
+            first = (output or "").strip().splitlines()[0] if output and output.strip() else ""
+            health(name, first, str(entry.get("pin", "")), bool(output and output.strip()))
 
             if output is None:
                 findings.append(f"{name}: `bin/tool.php {name} --version` could not be run")
@@ -1097,6 +1304,13 @@ ALL_STEPS = STEPS + PACKAGE_STEPS
 # would be a second implementation of the thing they check.
 SELFTESTABLE = list(STEPS) + [step for step in PACKAGE_STEPS if step[0] == "tools"]
 
+# The breaks the selftest plants, one per round: every step's own, plus the ones a step has a second
+# reading for. A step that refuses two things needs two rounds, because one break proves the step
+# fires and only the second proves *which* of its answers fired - the failure a single break hides is
+# a step that reports everything through one reading while the other has gone quiet, which is exactly
+# the state the mutation harness exists to refuse.
+MUTATIONS = [(step[0], step[0]) for step in SELFTESTABLE] + [("toolchain", "interpreter-restated")]
+
 
 def repair(root: Path) -> list[str]:
     repaired: list[str] = []
@@ -1139,6 +1353,7 @@ NOTES: list[str] = []
 
 def run(root: Path, only: list[str] | None, scope: str) -> int:
     NOTES.clear()
+    HEALTH.clear()
 
     if only is not None:
         unknown = [name for name in only if name not in {step[0] for step in ALL_STEPS}]
@@ -1174,6 +1389,10 @@ def run(root: Path, only: list[str] | None, scope: str) -> int:
     for note in NOTES:
         print(f"[NOTE] {note}")
 
+    table = health_table()
+    if table:
+        print(table)
+
     print(f"\n{len(selected)} step(s) run, {failed} with findings, {len(ALL_STEPS) - len(selected)} not selected")
     return 1 if failed else 0
 
@@ -1201,6 +1420,22 @@ def plant(root: Path) -> None:
     phar = ROOT / "composer.phar"
     if phar.is_file():
         shutil.copy2(phar, root / "composer.phar")
+
+    # The planted tree is brought into the state a machine is in once it has rendered its settings.
+    # The rendered files are per machine and are not committed, so a copy of this checkout may hold
+    # none of them, or hold files rendered from another machine's paths. Every step that reads the
+    # planted tree is therefore judged on a tree that is clean by construction, and the drift half of
+    # `tokens` is judged on a tree that has something to compare rather than on whatever the copy
+    # happened to carry.
+    renderer = root / ".agents" / "render_local.py"
+    if renderer.is_file() and (root / ".agents" / "machine.local.json").is_file():
+        subprocess.run(
+            [sys.executable, str(renderer)],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
 
 def mutate(name: str, root: Path) -> None:
@@ -1231,6 +1466,18 @@ def mutate(name: str, root: Path) -> None:
         manifest = json.loads(read(path))
         manifest["tools"]["php"]["pin"] = "^8.3"
         path.write_text(json.dumps(manifest, indent=4) + "\n", encoding="utf-8")
+    elif name == "interpreter-restated":
+        # A command written with the interpreter in front of it, which is the shape that comes back
+        # because it is shorter than the one that asks. Written into the index a session copies a
+        # command from, and on the machine this round is running on: every rule in the table reads the
+        # same line, so this round answers on all three platforms rather than only on the one this
+        # package is developed on.
+        path = root / ".agents" / "README.md"
+        path.write_text(
+            read(path)
+            + "\n- `php bin/checks.php` - the gate, under whichever interpreter is first on PATH\n",
+            encoding="utf-8",
+        )
     elif name == "interpreter":
         # The hook climbing the ladder again, which is the second copy this step is about and the one
         # that would come back by accident: four lines that look like they belong beside the skip
@@ -1258,30 +1505,93 @@ def mutate(name: str, root: Path) -> None:
         path.write_text(json.dumps(data, indent=4) + "\n", encoding="utf-8")
 
 
+def selftest_rendered() -> int:
+    """Prove `tokens` still notices a settings file that drifted from its template.
+
+    The generic round cannot ask this question. The files this half compares are rendered per machine
+    and are not committed, so the planted tree has to be given a machine file and rendered from its
+    templates before a hand edit can mean anything - and it has to be clean first, or a file that was
+    already wrong would be the finding this reports. So the round is its own: write a machine file,
+    render every target from it, require nothing to be reported, edit one line of one rendered file,
+    and require that to be reported. Without it the half that names a drifted file could stop firing
+    and every other round would still pass.
+    """
+    with tempfile.TemporaryDirectory(prefix="agentic-selftest-") as directory:
+        root = Path(directory)
+        plant(root)
+
+        # A machine file of the round's own, so the comparison does not depend on whether this machine
+        # has one: the values only have to resolve, not to name anything that exists.
+        (root / ".agents" / "machine.local.json").write_text(
+            json.dumps(
+                {
+                    "php": {"exe": "php.exe", "dir": "php-dir"},
+                    "pwsh": {"exe": "pwsh.exe"},
+                    "package": {"dir": root.as_posix()},
+                },
+                indent=4,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        renderer = root / ".agents" / "render_local.py"
+        subprocess.run(
+            [sys.executable, str(renderer)],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        clean = step_tokens(root)
+        if clean:
+            print(f"[FAIL] selftest rendered: the rendered tree is not clean - {clean[0]}")
+            return 1
+
+        target = root / ".trae" / "settings.json"
+        target.write_text(read(target).replace("{", '{\n    "handEdited": true,', 1), encoding="utf-8")
+
+        broken = step_tokens(root)
+        if not broken:
+            print(
+                "[FAIL] selftest rendered: a hand-edited settings file was not reported - "
+                "this half has stopped checking"
+            )
+            return 1
+
+        print(f"[ OK ] selftest {'rendered'.ljust(12)} {broken[0]}")
+        return 0
+
+
 def selftest() -> int:
     failures = 0
+    steps = {name: function for name, function, _why in ALL_STEPS}
 
-    for name, function, _why in SELFTESTABLE:
+    for name, mutation in MUTATIONS:
         with tempfile.TemporaryDirectory(prefix="agentic-selftest-") as directory:
             root = Path(directory)
             plant(root)
 
+            function = steps[name]
             clean = function(root)
             if clean:
-                print(f"[FAIL] selftest {name}: the planted layer is not clean - {clean[0]}")
+                print(f"[FAIL] selftest {mutation}: the planted layer is not clean - {clean[0]}")
                 failures += 1
                 continue
 
-            mutate(name, root)
+            mutate(mutation, root)
             broken = function(root)
 
             if not broken:
-                print(f"[FAIL] selftest {name}: the mutation was not reported - this step has stopped checking")
+                print(f"[FAIL] selftest {mutation}: the mutation was not reported - this step has stopped checking")
                 failures += 1
             else:
-                print(f"[ OK ] selftest {name.ljust(12)} {broken[0]}")
+                print(f"[ OK ] selftest {mutation.ljust(22)} {broken[0]}")
 
-    print(f"\n{len(SELFTESTABLE)} mutation(s) planted, {failures} not reported")
+    failures += selftest_rendered()
+
+    print(f"\n{len(MUTATIONS) + 1} mutation(s) planted, {failures} not reported")
     return 1 if failures else 0
 
 
