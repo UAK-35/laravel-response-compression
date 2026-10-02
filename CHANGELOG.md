@@ -510,6 +510,11 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **The release runbook describes the gate as it is now.** `RELEASING.md` said the gate was
+  `composer checks` "exactly as CI runs it", while the workflow runs `composer checks --
+  --require-all`, and it said the gate "calls every tool as `PHP_BINARY <entry file>`" after the gate
+  gained two checks that ask Python. The runbook now names the CI form and says which half runs as a
+  PHP tool and which two skip without a Python 3.
 - **The release runbook now cuts from the lane this repository develops on.** Every command in
   `RELEASING.md` passes `--branch=development`: the release program defaults to `main`, and its
   branch rail refuses a cut anywhere else, so the short version, the prerelease examples, the

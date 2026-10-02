@@ -13,7 +13,7 @@ prereleases as well as releases, counted from the tags themselves.
 ## The short version
 
 ```powershell
-# 1. the gate, exactly as CI runs it — the script runs it again before it tags
+# 1. the gate. CI runs the same checks with --require-all; the script runs them again before it tags.
 composer checks
 
 # 2. see the plan: the number, the promoted changelog, the commands. Writes nothing.
@@ -44,11 +44,13 @@ The script runs `composer checks` before it tags, so a red gate stops the releas
 than being discovered afterwards — and it refuses to tag a commit the remote has not
 seen, because a tag is where CI's answer about that commit is published.
 
-`composer checks` is the portable gate, and the reason `bin/checks.php` exists: it calls
-every tool as `PHP_BINARY <entry file>`, so it depends on neither the platform nor
-`vendor/bin` having the right shims. The coverage floor lives in `composer test:unit`,
-which needs a PCOV or Xdebug driver, so it is CI's second step rather than part of the
-gate — a machine with neither cannot measure it.
+`composer checks` is the portable gate, and the reason `bin/checks.php` exists: its PHP tools are
+called as `PHP_BINARY <entry file>` rather than through the `vendor/bin` shims, so it depends on
+neither the platform nor those shims being reliable. Two of its checks ask Python instead — the
+toolchain probe and the agentic layer — and both skip rather than fail where there is no Python 3,
+which is what `--require-all` turns into a failure on a runner. The coverage floor lives in
+`composer test:unit`, which needs a PCOV or Xdebug driver, so it is CI's second step rather than
+part of the gate — a machine with neither cannot measure it.
 
 ## Cutting a prerelease
 
