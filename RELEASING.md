@@ -373,9 +373,10 @@ The stamp is the first `#` line of each inventory file — the tag the rows desc
 cut writes that line and the rows for the tree being tagged, which is what `bin/release.php` does
 before it commits.
 
-**Annotated, not lightweight**: every existing tag is annotated (`git ls-remote --tags`
-shows a peeled `^{}` ref for each), and `--follow-tags` only carries annotated tags — a
-lightweight tag reaches the remote but not with the push that carries its commit. Pushing
+**Annotated, not lightweight**: every tag here except `v0.0.1` is annotated (`git ls-remote --tags`
+shows a peeled `^{}` ref for each of those), and `--follow-tags` only carries annotated tags — a
+lightweight tag reaches the remote but not with the push that carries its commit. `v0.0.1` is the
+one lightweight tag in this repository, so it is the one `--follow-tags` would not carry. Pushing
 the branch and the tag together is the point: a tag whose commit is not on the branch is a
 version nobody can install from it.
 

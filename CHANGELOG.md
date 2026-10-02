@@ -510,6 +510,10 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **The release runbook's tag note names the one exception.** `RELEASING.md` said "every existing tag
+  is annotated", but `v0.0.1` is a lightweight tag and has no peeled `^{}` ref — the one tag
+  `--follow-tags` would not carry. The paragraph now says which tag is the exception and why the
+  caveat is there.
 - **The by-hand release recipe stages what the release commit actually carries.** `RELEASING.md` said
   the script writes "three things" and then staged only `CHANGELOG.md`; the release commit has also
   carried files.tsv and methods.tsv, restamped with the tag being created, since the inventory
