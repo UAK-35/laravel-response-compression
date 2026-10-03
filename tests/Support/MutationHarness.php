@@ -574,6 +574,287 @@ final class MutationHarness
     }
 
     /**
+     * The inversions: each reading's own detector, rewritten so it cannot fire, with that guard's
+     * tests required to go red.
+     *
+     * WHY THIS IS THE OTHER DIRECTION
+     * -------------------------------
+     * A mutation above breaks the *tree* and requires the reading to name the break. It catches a
+     * reading that stopped asking the right question of its input, because the input it is handed
+     * now has something wrong in it. What it cannot catch is a reading whose *test* stopped
+     * asserting: a test that asks a call whose answer is empty both before and after, or one whose
+     * expectations a walk that reached nothing satisfies. The reading would be broken and the suite
+     * green, in both directions at once.
+     *
+     * So the detector itself is rewritten — a pattern that cannot match, a walk that returns before
+     * it reads — and the guard's own tests are run against it. They have to go red. A test that
+     * stays green while the reading it is supposed to be checking cannot fire is the vacuous test
+     * this exists to refuse, and it is a failure the mutation above cannot see: the planted tree is
+     * broken, the reading names the break, the test passes — and the reading is one character away
+     * from answering "nothing" for every tree.
+     *
+     * HOW A REWRITTEN READING IS LOADED
+     * ---------------------------------
+     * It cannot be planted in this checkout: the class is already loaded in the process running
+     * these tests, so a second copy on disk would be read as the one it was loaded from. Instead a
+     * copy is written into an overlay directory, and a bootstrap prepends that directory to
+     * Composer's PSR-4 mapping for `Tests\\Support` before Pest starts. The guard's own tests are
+     * then run in a child process under that bootstrap, with every other class resolved from this
+     * checkout — so the rewrite in the overlay is the only difference between the green run and the
+     * red one, which is what `unblinded()` exists to show.
+     *
+     * @return list<array{guard: string, test: string, reading: string, blind: Closure(string): string}>
+     */
+    public static function inversions(): array
+    {
+        return [
+            [
+                'guard' => 'the machine-path reading',
+                'test' => 'tests/Unit/Support/MachinePathsTest.php',
+                'reading' => 'MachinePaths',
+                // The drive pattern's own character class, made one no drive can match: the detector
+                // is still a pattern, still run on every line, and can no longer fire.
+                'blind' => static fn (string $source): string => str_replace('([A-Za-z]:', '(NEVER:', $source),
+            ],
+            [
+                'guard' => 'the repository-escape reading',
+                'test' => 'tests/Unit/Support/RepoEscapesTest.php',
+                'reading' => 'RepoEscapes',
+                // The path token, replaced whole: the walk still runs and the samples the two
+                // exempt files carry stop being found, which is the assertion this has to redden.
+                'blind' => static fn (string $source): string => preg_replace(
+                    '~private const string TOKEN = .*;~',
+                    "private const string TOKEN = '~NEVER-MATCHES~';",
+                    $source,
+                ) ?? $source,
+            ],
+            [
+                'guard' => 'the changelog-preamble reading',
+                'test' => 'tests/Unit/Docs/ChangelogPreambleTest.php',
+                'reading' => 'ChangelogPreamble',
+                // No second-level heading is read as a released version, so a preamble naming one
+                // the file has released reads as clean.
+                'blind' => static fn (string $source): string => str_replace(
+                    "preg_match_all('/^##[ \\t]+\\[?v?(\\d+\\.\\d+\\.\\d+)/m', \$content, \$matches)",
+                    "preg_match_all('/NEVER-MATCHES/m', \$content, \$matches)",
+                    $source,
+                ),
+            ],
+            [
+                'guard' => 'the README-versus-config reading',
+                'test' => 'tests/Unit/Config/ConfigDocTest.php',
+                'reading' => 'ConfigDoc',
+                // The parse returns before it reads a line: the reader that found nothing, which
+                // is the shape a test asserting on its own substance is there to refuse.
+                'blind' => static fn (string $source): string => str_replace(
+                    '        ksort($leaves);',
+                    "        return ['leaves' => [], 'lists' => [], 'docblocks' => []];\n\n        ksort(\$leaves);",
+                    $source,
+                ),
+            ],
+            [
+                'guard' => 'the config-key reading',
+                'test' => 'tests/Unit/Config/ConfigKeysTest.php',
+                'reading' => 'ConfigKeys',
+                // The walk over `src/` returns before it descends, so the source reads as a tree
+                // that asks for no key at all.
+                'blind' => static fn (string $source): string => str_replace(
+                    "    private static function phpFiles(string \$directory): array\n    {\n        \$files = [];",
+                    "    private static function phpFiles(string \$directory): array\n    {\n        return [];\n        \$files = [];",
+                    $source,
+                ),
+            ],
+            [
+                'guard' => 'the config-claim reading',
+                'test' => 'tests/Unit/Config/ConfigClaimsTest.php',
+                'reading' => 'ConfigClaims',
+                // No marker is recognised, so a docblock saying a key is unread stops being a claim
+                // and the pairing with the reader that contradicts it has nothing to pair.
+                'blind' => static fn (string $source): string => str_replace(
+                    "        foreach (self::MARKERS as \$marker) {\n            if (str_contains(\$text, \$marker)) {",
+                    "        foreach (self::MARKERS as \$marker) {\n            if (false) {",
+                    $source,
+                ),
+            ],
+            [
+                'guard' => 'the docs-link reading',
+                'test' => 'tests/Unit/Docs/DocsLinksTest.php',
+                'reading' => 'Docs',
+                // The link pattern cannot match, so every document reads as holding no links — the
+                // half both of this guard's questions are asked through.
+                'blind' => static fn (string $source): string => str_replace(
+                    "preg_match_all('/\\]\\(([^)\\s]+)\\)/', \$line, \$matches)",
+                    "preg_match_all('/NEVER-MATCHES/', \$line, \$matches)",
+                    $source,
+                ),
+            ],
+            [
+                'guard' => 'the guard-index reading',
+                'test' => 'tests/Unit/Docs/GuardIndexTest.php',
+                'reading' => 'GuardIndex',
+                // The table parser answers with no header and no rows, which is the shape a
+                // document with no table has — so the row walk has nothing to resolve.
+                'blind' => static fn (string $source): string => str_replace(
+                    "        return ['header' => \$header, 'rows' => \$rows];",
+                    "        return ['header' => [], 'rows' => []];",
+                    $source,
+                ),
+            ],
+            [
+                'guard' => 'the number-claims reading',
+                'test' => 'tests/Unit/Docs/IndexNumbersTest.php',
+                'reading' => 'IndexNumbers',
+                // The gate's `$checks` keys are no longer parsed, so the count the document states
+                // has nothing to be compared with and the reading refuses rather than agreeing.
+                'blind' => static fn (string $source): string => str_replace(
+                    'preg_match_all("/^ {4}',
+                    'preg_match_all("/NEVER-MATCHES {4}',
+                    $source,
+                ),
+            ],
+            [
+                'guard' => 'the log-message reading',
+                'test' => 'tests/Unit/Middleware/LogMessagesTest.php',
+                'reading' => 'LogMessages',
+                // No `case` line is read, so the file declares nothing and the collision it exists
+                // to find has nothing to be found in.
+                'blind' => static fn (string $source): string => str_replace(
+                    "    private const string CASE = '~^\\s*case ([A-Za-z_][A-Za-z0-9_]*) = \\'((?:[^\\'\\\\\\\\]|\\\\\\\\.)*)\\';\\s*\$~';",
+                    "    private const string CASE = '~NEVER-MATCHES~';",
+                    $source,
+                ),
+            ],
+            [
+                'guard' => 'the tool-path reading',
+                'test' => 'tests/Unit/Support/ToolPathsTest.php',
+                'reading' => 'ToolPaths',
+                // A tool name cannot be read out of a program, so nothing is asked for and the
+                // manifest's names all read as names nothing runs.
+                'blind' => static fn (string $source): string => str_replace(
+                    '(?<name>[a-z0-9-]+)',
+                    '(?<name>NEVER_MATCHES)',
+                    $source,
+                ),
+            ],
+        ];
+    }
+
+    /**
+     * One guard's tests, run in a child process under an overlay that holds a rewritten reading.
+     *
+     * The overlay is a directory of `Tests\\Support` files that Composer's PSR-4 mapping is pointed
+     * at first, and the bootstrap that does that is written beside it. Every file in the overlay is
+     * a full copy of the one it stands for — rewritten for an inversion, verbatim for the control —
+     * so a class that is not in it resolves from this checkout exactly as it does in the suite.
+     *
+     * @param  array<string, string>  $readings  class name => the file's contents, as it should load
+     * @param  list<string>  $tests  the guard's test files, one or more
+     * @return array{exit: int, output: string}
+     */
+    public static function under(array $readings, array $tests): array
+    {
+        $root = sys_get_temp_dir().'/rc-inversion-'.bin2hex(random_bytes(6));
+
+        self::makeDirectory($root.'/Support');
+
+        foreach ($readings as $reading => $contents) {
+            self::write($root.'/Support/'.$reading.'.php', $contents);
+        }
+
+        $bootstrap = $root.'/bootstrap.php';
+
+        self::write($bootstrap, sprintf(
+            "<?php\n\n\$loader = require %s;\n\n\$loader->setPsr4('Uak35\\\\ResponseCompression\\\\Tests\\\\Support\\\\', [%s, %s]);\n",
+            var_export(self::package().'/vendor/autoload.php', true),
+            var_export($root.'/Support', true),
+            var_export(self::package().'/tests/Support', true),
+        ));
+
+        register_shutdown_function(static function () use ($root): void {
+            ReleaseRepo::remove($root);
+        });
+
+        // The manifest's own Pest rather than a path written here: which file runs the suite is one
+        // fact about this package, and `ToolPaths` is where it is stated.
+        $pest = self::package().'/'.ToolPaths::manifest(self::package().'/'.ToolPaths::MANIFEST)['pest']['path'];
+
+        $files = array_map(static fn (string $file): string => self::package().'/'.$file, $tests);
+
+        $command = [PHP_BINARY, $pest, '--no-coverage', '--colors=never', '--bootstrap', $bootstrap, ...$files];
+
+        $process = proc_open(
+            $command,
+            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]],
+            $pipes,
+            self::package(),
+        );
+
+        if (! is_resource($process)) {
+            throw new RuntimeException('Could not run '.implode(' ', $tests).' under the inversion overlay');
+        }
+
+        fclose($pipes[0]);
+        $output = (string) stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+
+        return ['exit' => proc_close($process), 'output' => $output];
+    }
+
+    /**
+     * One inversion: the reading's detector rewritten, and that guard's tests run against it.
+     *
+     * @param  array{guard: string, test: string, reading: string, blind: Closure(string): string}  $inversion
+     * @return array{exit: int, output: string}
+     */
+    public static function blinded(array $inversion): array
+    {
+        $source = self::reading($inversion['reading']);
+        $rewritten = ($inversion['blind'])($source);
+
+        // A rewrite whose needle stopped matching would leave the detector whole and the guard
+        // green, which is exactly the passing test this exists to make impossible.
+        if ($rewritten === $source) {
+            throw new RuntimeException(sprintf(
+                'The rewrite of %s left it exactly as it was, so there is no broken detector for the guard to catch.',
+                $inversion['reading'],
+            ));
+        }
+
+        return self::under([$inversion['reading'] => $rewritten], [$inversion['test']]);
+    }
+
+    /**
+     * The control: every reading copied in verbatim, and every guard's tests run under them.
+     *
+     * Without this, a red run could be the overlay, the bootstrap or the child process rather than
+     * the rewrite — and the whole point of an inversion is that the rewrite is the only difference
+     * between the two answers. One run rather than one per inversion, because the claim is about the
+     * overlay mechanism rather than about a reading: if a verbatim overlay is transparent to every
+     * guard at once, it is transparent to each of them.
+     *
+     * @param  list<array{guard: string, test: string, reading: string, blind: Closure(string): string}>  $inversions
+     * @return array{exit: int, output: string}
+     */
+    public static function unblinded(array $inversions): array
+    {
+        $readings = [];
+        $tests = [];
+
+        foreach ($inversions as $inversion) {
+            $readings[$inversion['reading']] = self::reading($inversion['reading']);
+            $tests[] = $inversion['test'];
+        }
+
+        return self::under($readings, array_values(array_unique($tests)));
+    }
+
+    /** One reading, as this checkout ships it. */
+    private static function reading(string $reading): string
+    {
+        return (string) file_get_contents(self::package().'/tests/Support/'.$reading.'.php');
+    }
+
+    /**
      * The path a mutation leaks, assembled rather than written out.
      *
      * A file that spells a machine path is a file this package's own machine-path guard has to be

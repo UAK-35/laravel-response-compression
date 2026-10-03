@@ -18,6 +18,19 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **The mutation harness is inverted, so a guard whose test has stopped asserting fails as well as
+  a guard whose reading has stopped looking.** A mutation breaks the tree and requires the reading
+  to name the break; what that cannot see is a test whose expectations a reading that reached
+  nothing satisfies — a call that answers empty both before and after, a walk that found no file.
+  So each reading's own detector is now rewritten in place — a pattern that cannot match, a walk
+  that returns before it descends, a marker no longer recognised — and that guard's tests are run
+  against it and have to go red. The rewrite is planted in an overlay directory that a bootstrap
+  prepends to Composer's PSR-4 mapping for `Tests\Support`, so the guard's tests run in a child
+  process with every other class resolved from this checkout; a control run, every reading copied
+  in verbatim, is asserted green so the rewrite is the only difference between the two answers.
+  All eleven readings with a detector of their own are inverted, and a rewrite whose needle stopped
+  matching raises rather than planting nothing.
+
 - **The mutation harness now covers the three readings it used to decline, so the guard that keeps
   the other guards honest is itself quiet-proof.** `Docs::broken()`, `ConfigKeys::unknown()` and
   `ToolPaths::copies()` are new public readings: each is the walk the docs-link, config-key and

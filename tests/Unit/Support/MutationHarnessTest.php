@@ -69,6 +69,33 @@ foreach (MutationHarness::mutations() as $mutation) {
     });
 }
 
+it('runs every guard\'s tests green under an overlay that copies every reading verbatim', function (): void {
+    // The control for the inversions below, asserted once rather than beside each of them: the
+    // same overlay mechanism, the same bootstrap and the same child process, with every reading
+    // copied in verbatim. If a red run below could be any of those rather than the rewrite, it
+    // would be red here too — so this is what makes the rewrite the only difference.
+    $control = MutationHarness::unblinded(MutationHarness::inversions());
+
+    expect($control['exit'])->toBe(0, $control['output']);
+});
+
+foreach (MutationHarness::inversions() as $inversion) {
+    it(sprintf('turns %s red when its detector is rewritten under it', $inversion['guard']), function () use ($inversion): void {
+        $blinded = MutationHarness::blinded($inversion);
+
+        // Red, and for the right reason: a detector that cannot fire has to fail the guard's own
+        // assertions, not its syntax. A run that could not load the file at all would be red too,
+        // so the two are told apart — a parse error is not a broken detector.
+        expect($blinded['exit'])->not->toBe(0)
+            ->and($blinded['output'])->not->toContain('PHP Parse error')
+            ->and($blinded['output'])->not->toContain('Error in bootstrap script')
+
+            // And the guard's own words are in the output, so the run reached the assertion rather
+            // than stopping at a fatal before it.
+            ->and($blinded['output'])->toContain('FAILED');
+    });
+}
+
 it('accounts for every guard the index records, and names the ones it does not mutate', function (): void {
     // The set comes from `docs/guards.md` rather than from a scan of this directory, because that
     // document is where a guard is recorded — the guard-index test already refuses a guard that is

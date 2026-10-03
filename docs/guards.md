@@ -269,6 +269,28 @@ and a planted tree therefore never carries. A fixture record would be the harnes
 pins the guard exists to keep in one place, so the pin half stays held by its own test against the
 real record, and the exception is named here rather than left as a silence.
 
+The harness is also inverted, once per reading, and it is the same guard broken the other way. A
+mutation breaks the tree and requires the reading to name the break, which catches a reading that
+stopped asking the right question of its input. What it cannot catch is a reading whose *test*
+stopped asserting: a test that asks a call whose answer is empty both before and after, or one
+whose expectations a walk that reached nothing satisfies. The reading would be broken and the suite
+green, in both directions at once.
+
+So the detector itself is rewritten — a pattern that cannot match, a walk that returns before it
+descends, a marker no longer recognised — and that guard's own tests are run against it, and have
+to go red. A test that stays green while the reading it is supposed to be checking cannot fire is
+the vacuous test this exists to refuse. The rewrite is planted in an overlay directory that a
+bootstrap prepends to Composer's PSR-4 mapping for `Tests\Support`, so the guard's tests run in a
+child process with every other class resolved from this checkout and the rewrite the only
+difference between the two answers — which is what the control run, every reading copied in
+verbatim, is asserted green for.
+
+The eleven readings with a detector of their own are all inverted: the two path readings, the
+changelog preamble, the README-versus-config comparison, the config keys and claims, the docs
+links, the guard index, the number claims, the log messages and the tool paths. Each inversion
+carries the rewrite as a closure over the reading's own text, so a needle that stopped matching
+raises rather than planting nothing — the same rule the mutations above are held to.
+
 Declining is a claim rather than a silence, and what is still declined is named and reasoned — the
 guards that are programs rather than readings, and the harness's own test. Every guard the table
 above records is either mutated or declined, both lists are read back against this document, and a
