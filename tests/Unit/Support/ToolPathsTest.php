@@ -43,18 +43,6 @@ use Uak35\ResponseCompression\Tests\Support\ToolPaths;
 | @guards-index guard
 */
 
-/** The package's own programs that run a tool, as path => its text. */
-function toolReaders(): array
-{
-    $sources = [];
-
-    foreach (ToolPaths::READERS as $reader) {
-        $sources[$reader] = (string) file_get_contents(packageRoot().'/'.$reader);
-    }
-
-    return $sources;
-}
-
 /** The manifest this package ships. */
 function toolManifest(): array
 {
@@ -69,14 +57,6 @@ function toolManifest(): array
 function toolEntry(string $path, string $pin = '1.0.0', string $why = 'a fixture'): array
 {
     return ['path' => $path, 'pin' => $pin, 'why' => $why];
-}
-
-/** What `composer.json` asks for, which is the first half a pin is compared with. */
-function toolRequired(): array
-{
-    $composer = json_decode((string) file_get_contents(packageRoot().'/composer.json'), true);
-
-    return is_array($composer) && is_array($composer['require-dev'] ?? null) ? $composer['require-dev'] : [];
 }
 
 /** Where Composer records what it installed, which is the other half. */
@@ -95,33 +75,6 @@ function toolScripts(): array
 function toolWorkflow(): string
 {
     return (string) file_get_contents(packageRoot().'/'.ToolPaths::WORKFLOW);
-}
-
-/**
- * Every tool something in this package asks the manifest for, and what asked: a script, which hands
- * the name to `bin/tool.php`, or one of the programs, which looks the name up itself.
- */
-function toolsAsked(): array
-{
-    $asked = [];
-
-    foreach (toolScripts() as $script) {
-        if ($script['path'] !== 'bin/tool.php') {
-            continue;
-        }
-
-        // The first word after the program is the tool; a script that names none is asked for with
-        // an empty name, which is a name the manifest does not have and so a finding.
-        $asked[] = ['from' => 'the '.$script['script'].' script', 'tool' => (string) strtok($script['arguments'], ' ')];
-    }
-
-    foreach (toolReaders() as $reader => $source) {
-        foreach (ToolPaths::namesIn($source) as $name) {
-            $asked[] = ['from' => $reader, 'tool' => $name];
-        }
-    }
-
-    return $asked;
 }
 
 it('keeps every tool path in the manifest, and in no script or program', function (): void {
@@ -220,13 +173,15 @@ it('names a file inside vendor/ that is on disk, and never a vendor/bin shim', f
 });
 
 it('has a name for every tool something asks for, and no name nothing runs', function (): void {
-    $asked = toolsAsked();
-
     // Every asker has to have been read: the scripts, the gate's `$tools['…']` lookups, and the one
     // `bin/coverage.php` makes. A name that is missing reads as "not installed" at runtime, which is
     // a skip in the summary that looks like a machine without the tool rather than a typo here.
-    expect($asked)->not->toBeEmpty()
-        ->and(ToolPaths::unshared(toolManifest(), $asked))->toBe([]);
+    //
+    // The walk lives in `ToolPaths::asked()` rather than here, so the test and the mutation harness
+    // ask the same call: a name something asks for that the manifest does not have is the break it
+    // has to name, and both read the scripts and the programs through one definition.
+    expect(ToolPaths::asked(packageRoot()))->not->toBeEmpty()
+        ->and(ToolPaths::unsharedNames(packageRoot()))->toBe([]);
 });
 
 it('reports a name nobody has, and an entry nothing runs, in the words of what asked', function (): void {
@@ -298,16 +253,18 @@ it('takes the package a tool lives in out of the path, and reads no version of i
 });
 
 it('holds every pin to what composer.json requires and to what is installed here', function (): void {
-    $manifest = toolManifest();
-    $required = toolRequired();
-    $installed = ToolPaths::installed(toolInstalledFile());
-
     // Both halves have to have found something before their agreement means anything: a
     // `require-dev` that came back empty, or a record with no packages in it, would let the
     // comparison below pass for a tree where nothing was compared.
-    expect($required)->not->toBeEmpty()
-        ->and($installed)->not->toBeEmpty()
-        ->and(ToolPaths::drift($manifest, $required, $installed))->toBe([]);
+    //
+    // The walk lives in `ToolPaths::pinDrift()` rather than here, so the reading has one definition
+    // and the test asks for it rather than composing it: the manifest, what `composer.json` requires
+    // and what Composer recorded installing are gathered in one place. The harness does not mutate
+    // it — half of what it reads is `vendor/composer/installed.json`, which a planted tree never
+    // carries — so this test, against the real record, is what holds the pin half.
+    expect(ToolPaths::required((string) file_get_contents(packageRoot().'/composer.json')))->not->toBeEmpty()
+        ->and(ToolPaths::installed(toolInstalledFile()))->not->toBeEmpty()
+        ->and(ToolPaths::pinDrift(packageRoot()))->toBe([]);
 
     // And each way it can disagree, on a fixture of its own, because a tree where all three agree
     // passes whether or not the reading looks at any of them.

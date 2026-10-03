@@ -56,6 +56,9 @@ final class ConfigKeys
     /** The namespace every key of this package lives under. */
     public const string NAMESPACE = 'response-compression';
 
+    /** The one file whose reader names are the list above. */
+    public const string SOURCE = 'src/Support/Config.php';
+
     /**
      * The readers `Config` offers. The scan reads a reader's *name*, so a reader that is not
      * here would be a read invisible to both directions — and the test that checks this list
@@ -251,6 +254,50 @@ final class ConfigKeys
         }
 
         return $unread;
+    }
+
+    /**
+     * Every reader the class declares that the list does not know, and every name in the list the
+     * class does not declare.
+     *
+     * The scan reads a reader's *name*, so a reader missing from `READERS` would be a key read
+     * invisibly in both directions at once. The list is held to the class in that order — a name the
+     * class declares and the list does not is the one that reads a key behind the scan's back — and
+     * the other direction is reported too, because a name left in the list after the method it named
+     * was renamed is a reader the scan thinks exists.
+     *
+     * `validate()` is the one method left out: it reads no key of its own, it reads everything the
+     * middleware and the encoders read, so it is not a reader the scan has to know.
+     *
+     * @return list<string>
+     */
+    public static function unknownReaders(string $root): array
+    {
+        $root = rtrim(str_replace('\\', '/', $root), '/');
+        $source = (string) file_get_contents($root.'/'.self::SOURCE);
+
+        preg_match_all('/public static function (\w+)\(/', $source, $matched);
+
+        $declared = array_values(array_filter(
+            $matched[1],
+            static fn (string $name): bool => $name !== 'validate',
+        ));
+        sort($declared);
+
+        $known = self::READERS;
+        sort($known);
+
+        $findings = [];
+
+        foreach (array_diff($declared, $known) as $name) {
+            $findings[] = sprintf('%s declares %s(), which ConfigKeys::READERS does not know', self::SOURCE, $name);
+        }
+
+        foreach (array_diff($known, $declared) as $name) {
+            $findings[] = sprintf('ConfigKeys::READERS names %s(), which %s does not declare', $name, self::SOURCE);
+        }
+
+        return $findings;
     }
 
     /**

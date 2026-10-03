@@ -36,16 +36,27 @@ use RuntimeException;
  * WHAT IS A MUTATION, AND WHAT IS NOT
  * -----------------------------------
  * The reading is the guard's own — the call its test asserts on, not a second implementation of
- * it. `MachinePaths::scan`, `RepoEscapes::scan`, `ChangelogPreamble::stale`, `ConfigClaims::all`,
- * `Docs::broken`, `ConfigKeys::unknown`, `ToolPaths::copies`, `GuardIndex::drift`,
+ * it. `MachinePaths::scan`, `RepoEscapes::scan`, `ChangelogPreamble::stale`, `ConfigClaims::stale`,
+ * `Docs::broken`, `Docs::unlinkedRecords`, `ConfigKeys::unknown`, `ConfigKeys::unknownReaders`,
+ * `ToolPaths::copies`, `ToolPaths::unsharedNames`, `GuardIndex::drift`,
  * `IndexNumbers::drift` and `LogMessages::duplicates` are one call each, and
  * `ConfigDoc`'s two halves are one comparison, so this class is a caller rather than a copy for
  * each of them. Where a walk used to be composed in the test — the docs links, the config keys,
- * the tool paths — the walk now lives in the support class the guard is about, so there is one
- * definition of it rather than a second one here. What `UNAUDITED` still declines is the two
- * guards that are programs rather than readings, and this harness's own test.
+ * the config claims, the tool paths — the walk now lives in the support class the guard is about,
+ * so there is one definition of it rather than a second one here. What `UNAUDITED` still declines
+ * is the two guards that are programs rather than readings, and this harness's own test.
  * `MutationHarnessTest` checks both directions of that list, so a guard cannot be added without
  * either a mutation or a reason that is still true.
+ *
+ * One reading a guard asserts on is deliberately not mutated, and the reason is a fact about the
+ * tree rather than about the reading. `ToolPaths::pinDrift()` holds a pin to what `composer.json`
+ * requires and to what Composer recorded installing, and that second half lives in
+ * `vendor/composer/installed.json` — a file this repository ignores, so the planted tree, which is
+ * the files a commit would carry, never holds one. A mutation could plant a fixture record, but a
+ * record of its own would be the harness writing down the very pins the guard exists to keep in
+ * one place, and it would ask the reading a question about a checkout that is not this one. So the
+ * pin half is held by its own test, against this machine's real record, and it is said here rather
+ * than left as a gap in the list below.
  *
  * WHY THE TREE IS A COPY
  * ----------------------
@@ -327,7 +338,8 @@ final class MutationHarness
                 'plant' => static function (string $root): string {
                     // A docblock beside a key the source reads, saying that nothing reads it: the
                     // claim was true when it was written and the wiring made it false, which is
-                    // the defect this guard came from.
+                    // the defect this guard came from. The key is the marker, because it is what
+                    // the reading has to pair with the reader that contradicts it.
                     $key = 'min_length';
 
                     self::replace($root, 'config/response-compression.php', static fn (string $text): string => str_replace(
@@ -338,14 +350,10 @@ final class MutationHarness
 
                     return $key;
                 },
-                'read' => static function (string $root): array {
-                    $published = ConfigKeys::published($root.'/config/response-compression.php');
-
-                    return array_map(
-                        static fn (array $claim): string => sprintf('%s: %s', $claim['where'], $claim['claim']),
-                        ConfigClaims::all($root, $published),
-                    );
-                },
+                // The pairing of a claim with the reader that contradicts it is one call, which is
+                // what the guard's test asserts on: a claim planted where the source reads the key
+                // is the break it names.
+                'read' => ConfigClaims::stale(...),
             ],
             [
                 'guard' => 'the guard-index reading',
@@ -401,6 +409,22 @@ final class MutationHarness
                 'read' => Docs::broken(...),
             ],
             [
+                'guard' => 'the docs-link reading, on a record nothing links to',
+                'test' => 'tests/Unit/Docs/DocsLinksTest.php',
+                'plant' => static function (string $root): string {
+                    // A record added to `docs/` that the README does not link: the doc that was
+                    // never explained to anyone, which is the other half of this guard and the one
+                    // a walk over the links alone cannot see. The filename is the marker, because
+                    // a reading that answered "nothing" for every tree would answer it here too.
+                    $file = 'docs/mutation-unlinked-record.md';
+
+                    self::add($root, $file, "# A record nobody is sent to\n\nIt explains itself to no one.\n");
+
+                    return basename($file);
+                },
+                'read' => Docs::unlinkedRecords(...),
+            ],
+            [
                 'guard' => 'the config-key reading',
                 'test' => 'tests/Unit/Config/ConfigKeysTest.php',
                 'plant' => static function (string $root): string {
@@ -418,6 +442,27 @@ final class MutationHarness
                     return 'response-compression.mutation_level is read by int() in MutationConfigRead.php';
                 },
                 'read' => ConfigKeys::unknown(...),
+            ],
+            [
+                'guard' => 'the config-reader-list reading',
+                'test' => 'tests/Unit/Config/ConfigKeysTest.php',
+                'plant' => static function (string $root): string {
+                    // A reader renamed in the class the list describes: the method and the list then
+                    // disagree, and the scan — which reads a reader's *name* — would read a key
+                    // invisibly in both directions at once. The new name is the marker, so a
+                    // reading that looked at the list alone is told apart from one that read the
+                    // class.
+                    $renamed = 'intOrElse';
+
+                    self::replace($root, ConfigKeys::SOURCE, static fn (string $text): string => str_replace(
+                        'public static function intOr(',
+                        'public static function '.$renamed.'(',
+                        $text,
+                    ));
+
+                    return $renamed;
+                },
+                'read' => ConfigKeys::unknownReaders(...),
             ],
             [
                 'guard' => 'the tool-path reading',
@@ -440,6 +485,30 @@ final class MutationHarness
                 },
                 'read' => ToolPaths::copies(...),
             ],
+            [
+                'guard' => 'the tool-name reading',
+                'test' => 'tests/Unit/Support/ToolPathsTest.php',
+                'plant' => static function (string $root): string {
+                    // A program asking the manifest for a name it does not have: the typo that reads
+                    // as "not installed" at runtime, which is a skip in the summary that looks
+                    // like a machine without the tool rather than a name nothing defines. The name
+                    // is planted as a lookup the reader already knows how to read, so the marker is
+                    // the name and not the file that carries it.
+                    $name = 'mutation-tool';
+
+                    self::replace($root, 'bin/checks.php', static fn (string $text): string => str_replace(
+                        'declare(strict_types=1);',
+                        "declare(strict_types=1);\n\n// \$tools['".$name."'], which nothing names.",
+                        $text,
+                    ));
+
+                    return $name;
+                },
+                'read' => ToolPaths::unsharedNames(...),
+            ],
+            // `ToolPaths::pinDrift()` has no mutation here, and the reason is in this class's
+            // docblock: half of what it reads is `vendor/composer/installed.json`, which this
+            // repository ignores and a planted tree therefore never carries.
             [
                 'guard' => 'the number-claims reading',
                 'test' => 'tests/Unit/Docs/IndexNumbersTest.php',

@@ -198,6 +198,58 @@ final class ConfigClaims
     }
 
     /**
+     * The claims the source contradicts: a claim that a key is unread, where the source reads it.
+     *
+     * The comparison the config-claim guard asserts on, as one call, so the test and the mutation
+     * harness ask the same thing rather than each pairing the claims with the read set on its own. A
+     * claim is read in the two places it is written (the reading above), and the read set is
+     * `ConfigKeys::read()`; a key in both is the defect this guard exists for — `enable_logging`'s
+     * docblock said it was inert after the middleware had been wired to read it.
+     *
+     * Only the first read of a key is reported, because the same key is read in more than one place
+     * on purpose and any of them makes the claim stale. A claim about a key nothing reads is not a
+     * finding here: that is `ConfigKeysTest`'s direction, and `ConfigKeys::UNWIRED` is the record
+     * that makes it a decision rather than an oversight.
+     *
+     * @return list<string>
+     */
+    public static function stale(string $root): array
+    {
+        $root = rtrim(str_replace('\\', '/', $root), '/');
+        $published = ConfigKeys::published($root.'/config/response-compression.php');
+        $reads = ConfigKeys::read($root.'/src');
+
+        $readers = [];
+
+        foreach ($reads['reads'] as $read) {
+            $readers[$read['path']] ??= $read;
+        }
+
+        $findings = [];
+
+        foreach (self::all($root, $published) as $claim) {
+            $read = $readers[$claim['key']] ?? null;
+
+            if ($read === null) {
+                continue;
+            }
+
+            $findings[] = sprintf(
+                '%s says "%s" about %s.%s, and %s() reads it in %s:%d',
+                $claim['where'],
+                $claim['claim'],
+                ConfigKeys::NAMESPACE,
+                $claim['key'],
+                $read['reader'],
+                $read['file'],
+                $read['line'],
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
      * The documents read as prose: the README, and each design record under `docs/`.
      *
      * @return list<string>

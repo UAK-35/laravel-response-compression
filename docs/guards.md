@@ -254,8 +254,21 @@ which is why the harness covers the guards whose answer is one call — the two 
 changelog preamble, the config claims, the README-versus-config comparison, the docs links, the
 config keys, the tool paths, the guard index and the log messages. Where that call did not exist,
 because the walk was composed in the test rather than in the support class the guard is about, the
-walk was moved into that class: `Docs::broken()`, `ConfigKeys::unknown()` and `ToolPaths::copies()`,
-so there is one definition of the reading rather than a second one written out in the harness.
+walk was moved into that class, so there is one definition of the reading rather than a second one
+written out in the harness: the docs links, the config keys and the tool paths each gave up the
+walks their tests used to compose — `Docs::broken()` and `Docs::unlinkedRecords()`,
+`ConfigKeys::unknown()` and `ConfigKeys::unknownReaders()`, `ConfigClaims::stale()` for the claims,
+and `ToolPaths::copies()`, `ToolPaths::asked()`, `ToolPaths::unsharedNames()` and
+`ToolPaths::required()` for the paths, names and pins — and each is now the call its guard asserts
+on and the call the harness reads back.
+
+One reading a guard asserts on is not mutated, and the reason is the tree rather than the reading:
+`ToolPaths::pinDrift()` holds a pin to what `composer.json` requires and to what Composer recorded
+installing, and the second half is `vendor/composer/installed.json`, which this repository ignores
+and a planted tree therefore never carries. A fixture record would be the harness writing down the
+pins the guard exists to keep in one place, so the pin half stays held by its own test against the
+real record, and the exception is named here rather than left as a silence.
+
 Declining is a claim rather than a silence, and what is still declined is named and reasoned — the
 guards that are programs rather than readings, and the harness's own test. Every guard the table
 above records is either mutated or declined, both lists are read back against this document, and a

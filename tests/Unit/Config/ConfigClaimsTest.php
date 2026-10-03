@@ -47,39 +47,13 @@ it('claims nothing is unread that the source reads', function (): void {
 
     $missing = array_values(array_diff($this->published, array_keys($docblocks)));
 
-    // The first read of a key is the one reported, because the same key is read in more than
-    // one place on purpose and any of them makes the claim stale.
-    $readers = [];
-
-    foreach ($this->reads['reads'] as $read) {
-        $readers[$read['path']] ??= $read;
-    }
-
-    $stale = [];
-
-    foreach ($this->claims as $claim) {
-        $read = $readers[$claim['key']] ?? null;
-
-        if ($read === null) {
-            continue;
-        }
-
-        $stale[] = sprintf(
-            '%s says "%s" about %s.%s, and %s() reads it in %s:%d',
-            $claim['where'],
-            $claim['claim'],
-            ConfigKeys::NAMESPACE,
-            $claim['key'],
-            $read['reader'],
-            $read['file'],
-            $read['line'],
-        );
-    }
-
+    // The pairing of a claim with the reader that contradicts it lives in
+    // `ConfigClaims::stale()` rather than here, so the test and the mutation harness ask the same
+    // call: a claim planted where the source reads the key is the break it has to name.
     expect($this->published)->not->toBeEmpty()
         ->and($this->reads['reads'])->not->toBeEmpty()
         ->and($missing)->toBe([])
-        ->and($stale)->toBe([]);
+        ->and(ConfigClaims::stale($this->root))->toBe([]);
 });
 
 it('claims an unread key only where the record allows it', function (): void {

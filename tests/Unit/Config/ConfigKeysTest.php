@@ -83,22 +83,11 @@ it('names the record that lets an unread key exist', function (): void {
 });
 
 it('reads the source with a reader the package has', function (): void {
-    // The scan reads the *name* of each reader, so a reader this class does not know would be
-    // a key read invisibly — invisible in both directions at once. Reading the class itself
+    // The walk lives in `ConfigKeys::unknownReaders()` rather than here, so the test and the
+    // mutation harness ask the same call: a reader renamed in the class is the break it has to
+    // name. The scan reads the *name* of each reader, so a reader this class does not know would
+    // be a key read invisibly — invisible in both directions at once. Reading the class itself
     // keeps the list complete: a new reader, or one renamed, fails here first.
-    preg_match_all(
-        '/public static function (\w+)\(/',
-        (string) file_get_contents(packageRoot().'/src/Support/Config.php'),
-        $matched,
-    );
-
-    $declared = array_values(array_filter($matched[1], static fn (string $name): bool => $name !== 'validate'));
-
-    sort($declared);
-
-    $known = ConfigKeys::READERS;
-    sort($known);
-
-    expect($declared)->toBe($known)
+    expect(ConfigKeys::unknownReaders(packageRoot()))->toBe([])
         ->and($this->read)->not->toBeEmpty();
 });

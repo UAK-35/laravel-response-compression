@@ -38,25 +38,16 @@ it('resolves every relative link in every markdown file the package ships', func
 });
 
 it('links every design record from the README', function (): void {
+    // The walk lives in `Docs::unlinkedRecords()` rather than here, so the test and the mutation
+    // harness ask the same call — a record added to `docs/` that no link reaches is the break it
+    // has to name. The README is read rather than every document, because it is the page a reader
+    // starts from: a record it does not name is one nobody is sent to.
     $root = str_replace('\\', '/', packageRoot());
-    $readme = $root.'/README.md';
-
-    $linked = [];
-
-    foreach (Docs::links($readme) as $link) {
-        $target = Docs::resolve($root, $readme, $link['target']);
-
-        if ($target !== null && str_starts_with($target, $root.'/docs/')) {
-            $linked[] = basename($target);
-        }
-    }
-
-    sort($linked);
 
     // A guard that reads nothing agrees with a README that links nothing, so the records
-    // found on disk are checked for substance before they are compared.
+    // found on disk are checked for substance before the reading's clean answer is believed.
     expect(Docs::records($root))->not->toBeEmpty()
-        ->and($linked)->toBe(Docs::records($root));
+        ->and(Docs::unlinkedRecords($root))->toBe([]);
 });
 
 it('reads links and resolves them against the file they are written in', function (): void {

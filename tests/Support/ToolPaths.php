@@ -482,19 +482,117 @@ final class ToolPaths
         $manifest = self::manifest($root.'/'.self::MANIFEST);
         $scripts = self::scriptsIn((string) file_get_contents($root.'/composer.json'));
 
+        $workflow = (string) file_get_contents($root.'/'.self::WORKFLOW);
+
+        return [
+            ...self::foreignScripts($scripts),
+            ...self::secondCopies($manifest, self::readerSources($root)),
+            ...self::secondCopies($manifest, [self::WORKFLOW => $workflow]),
+        ];
+    }
+
+    /**
+     * The programs that run a tool, as path => the text it is read from.
+     *
+     * The reader walk the tool-path guard is about, written here so the test, the mutation harness
+     * and `copies()` share one definition of "the programs that run a tool". A reader that moved
+     * would otherwise be a path somebody writes down beside a list that no longer names it.
+     *
+     * @return array<string, string>
+     */
+    public static function readerSources(string $root): array
+    {
+        $root = rtrim(str_replace('\\', '/', $root), '/');
         $sources = [];
 
         foreach (self::READERS as $reader) {
             $sources[$reader] = (string) file_get_contents($root.'/'.$reader);
         }
 
-        $workflow = (string) file_get_contents($root.'/'.self::WORKFLOW);
+        return $sources;
+    }
 
-        return [
-            ...self::foreignScripts($scripts),
-            ...self::secondCopies($manifest, $sources),
-            ...self::secondCopies($manifest, [self::WORKFLOW => $workflow]),
-        ];
+    /**
+     * Every tool something in this package asks the manifest for, and what asked: a script, which
+     * hands the name to `bin/tool.php`, or one of the programs, which looks the name up itself.
+     *
+     * The name walk the guard is about, as one call: a name that is missing reads as "not installed"
+     * at runtime, which is a skip in the summary that looks like a machine without the tool rather
+     * than a typo here. The walk lives here rather than in the test so the test and the mutation
+     * harness ask the same thing.
+     *
+     * @return list<array{from: string, tool: string}>
+     */
+    public static function asked(string $root): array
+    {
+        $root = rtrim(str_replace('\\', '/', $root), '/');
+        $asked = [];
+
+        foreach (self::scriptsIn((string) file_get_contents($root.'/composer.json')) as $script) {
+            if ($script['path'] !== 'bin/tool.php') {
+                continue;
+            }
+
+            $asked[] = ['from' => 'the '.$script['script'].' script', 'tool' => (string) strtok($script['arguments'], ' ')];
+        }
+
+        foreach (self::readerSources($root) as $reader => $source) {
+            foreach (self::namesIn($source) as $name) {
+                $asked[] = ['from' => $reader, 'tool' => $name];
+            }
+        }
+
+        return $asked;
+    }
+
+    /**
+     * Every name something asks for that the manifest does not hold, and every name nothing asks for.
+     *
+     * The guard's name half, as one call: the manifest and the askers are gathered here so the test
+     * and the mutation harness ask the same thing rather than each reading the two sides on its own.
+     *
+     * @return list<string>
+     */
+    public static function unsharedNames(string $root): array
+    {
+        $root = rtrim(str_replace('\\', '/', $root), '/');
+
+        return self::unshared(self::manifest($root.'/'.self::MANIFEST), self::asked($root));
+    }
+
+    /**
+     * Every pin that disagrees with `composer.json` or with what is installed here.
+     *
+     * The guard's pin half, as one call: the manifest, the requirement and Composer's own record of
+     * what it installed are gathered here so the test and the mutation harness ask the same thing
+     * rather than each reading the three sides on its own.
+     *
+     * @return list<string>
+     */
+    public static function pinDrift(string $root): array
+    {
+        $root = rtrim(str_replace('\\', '/', $root), '/');
+
+        return self::drift(
+            self::manifest($root.'/'.self::MANIFEST),
+            self::required((string) file_get_contents($root.'/composer.json')),
+            self::installed($root.'/vendor/composer/installed.json'),
+        );
+    }
+
+    /**
+     * What `composer.json` asks for, as package => constraint: the first half a pin is compared with.
+     *
+     * Read here rather than in the test so the requirement has one definition, and a mutation can
+     * move a constraint and ask the pin reading to name it.
+     *
+     * @return array<string, string>
+     */
+    public static function required(string $composerJson): array
+    {
+        $composer = json_decode($composerJson, true);
+
+        return is_array($composer) && is_array($composer['require-dev'] ?? null) ? $composer['require-dev'] : [];
     }
 
     /**

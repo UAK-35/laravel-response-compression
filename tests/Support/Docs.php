@@ -65,6 +65,36 @@ final class Docs
     }
 
     /**
+     * The design records nothing links to: the `docs/` files the README does not name.
+     *
+     * The walk the other half of the docs-link guard asserts on, written here for the same reason
+     * `broken()` is: the test calls it, and the mutation harness asks the same call with a record
+     * added that no link reaches — where a walk written out in the test a second time would be the
+     * second implementation this package's readings exist to avoid.
+     *
+     * Only the README is read, which is the shape the guard is about: it lists the records a reader
+     * is meant to start from, so a record it does not name is one nobody is sent to.
+     *
+     * @return list<string>
+     */
+    public static function unlinkedRecords(string $root): array
+    {
+        $root = self::normalise(str_replace('\\', '/', $root));
+        $readme = $root.'/README.md';
+        $linked = [];
+
+        foreach (self::links($readme) as $link) {
+            $target = self::resolve($root, $readme, $link['target']);
+
+            if ($target !== null && str_starts_with($target, $root.'/docs/')) {
+                $linked[] = basename($target);
+            }
+        }
+
+        return array_values(array_diff(self::records($root), array_values(array_unique($linked))));
+    }
+
+    /**
      * Every relative link in the markdown this package ships that resolves to nothing.
      *
      * The walk the docs-link guard asserts on, written here rather than in the test so that the
