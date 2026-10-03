@@ -510,6 +510,20 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **Every walk the mutation harness used to compose in a test now lives in the reading it asserts
+  on, so the harness can point the last four guards at a broken tree.** The docs-link, config-key,
+  config-claim and tool-path guards each built their walk inside the test — a link resolved, a key
+  compared, a path counted — which left the harness with nothing to call. Each walk moved into the
+  support class the guard is about: `Docs::unlinkedRecords()` for the record nothing links to,
+  `ConfigKeys::unknownReaders()` for the reader the class no longer declares, `ConfigClaims::stale()`
+  for the claim a reader contradicts, and `ToolPaths::asked()`, `unsharedNames()` and `required()`
+  for the names, the paths and the pins. Three mutations were added — an unlinked record planted in
+  `docs/`, a reader renamed in `src/Support/Config.php`, and a tool name nothing defines planted in
+  `bin/checks.php` — and the config-claim mutation was rewired to the new reading, so each guard is
+  now broken on purpose and asked to name the break. One reading is deliberately left unmutated:
+  `ToolPaths::pinDrift()` reads `vendor/composer/installed.json`, which this repository ignores and
+  a planted tree never carries, so its pin half stays held by its own test against the real record.
+  The harness docblock and `docs/guards.md` say why rather than leaving a gap in the list.
 - **The release runbook's tag note names the one exception.** `RELEASING.md` said "every existing tag
   is annotated", but `v0.0.1` is a lightweight tag and has no peeled `^{}` ref — the one tag
   `--follow-tags` would not carry. The paragraph now says which tag is the exception and why the
