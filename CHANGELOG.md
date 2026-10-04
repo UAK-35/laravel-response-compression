@@ -758,6 +758,20 @@ read as a runner that still runs the gate.
 
 ### Fixed
 
+- **The push runbook's evidence table was re-read against the tree, and every number in it is the
+  one the repository answers now.** `PUSHING.md` recorded the lane at `9e00b11` and said the two refs
+  named the same commit, and a push has since moved it nine commits: the reflog's newest entry
+  carries `9e00b11` → `4e1f561`, so the table says the tracking ref names `4e1f561`, `HEAD` is
+  `84eefbd` thirty commits past it, `git status -sb` reads `[ahead 30]`, the public probe answers
+  `4e1f561 refs/heads/development`, the reflog holds six `update by push` entries rather than five,
+  and `git rev-list --left-right --count main...development` answers `0 51` rather than `0 12`. The
+  tag rows were re-read and stand as written: all eleven tags are on the remote with the hashes this
+  clone holds — a `diff` of the two listings is empty — and every one but `v0.0.1` is annotated. The
+  closing section is the part that could not simply be confirmed, because the lane is no longer in
+  sync: a bare `git push` now has thirty commits to send, and the commits past `v0.0.10` divide into
+  the fifteen that are published and the thirty that are local only. The credential and ssh rows were
+  re-run and left as written.
+
 - **`bin/release.php` no longer says every version is cut from `main` when this repository's lane is
   `development`.** The header's `ONE LANE AT A TIME` paragraph opened with "Everything is cut from
   `main`, releases and prereleases alike", which reads as a statement of fact about this repository
