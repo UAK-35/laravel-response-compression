@@ -85,11 +85,13 @@ it('reads the files a commit carries into the tests that cover them', function (
         ->and(TestMap::covering(['tests/Unit/Gate/ToolTest.php']))->toBe(['tests/Unit/Gate/ToolTest.php'])
         ->and(TestMap::covering(['tests/Support/ReleaseRepo.php']))->toBe(['tests/Unit'])
 
-        // The documents are the gate's two old cases, kept in the same reading rather than beside
-        // it, so the two cannot come to disagree about what a commit runs.
+        // The documents are the gate's two old cases — kept in the same reading rather than beside
+        // it, so the three cannot come to disagree about what a commit runs — and the lane a runbook
+        // names, which is the one claim in them that no other test reads.
         ->and(TestMap::covering(['docs/guards.md']))->toBe([
             'tests/Unit/Config/ConfigClaimsTest.php',
             'tests/Unit/Docs/DocsLinksTest.php',
+            'tests/Unit/Docs/ReleaseLaneTest.php',
         ])
         ->and(TestMap::covering(['config/response-compression.php']))->toBe(['tests/Unit/Config/ConfigClaimsTest.php'])
 

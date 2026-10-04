@@ -1,6 +1,10 @@
 # Path-based git attributes
 # https://www.kernel.org/pub/software/scm/git/docs/gitattributes.html
 
+# @guards-index guard `* text=auto`
+#
+# whether a CRLF file is committed as CRLF depending on each contributor's `core.autocrlf`
+
 # Line endings: LF in the repository, and whatever the platform wants in a working tree.
 # Without this, whether a CRLF file is committed as CRLF depends on each contributor's
 # core.autocrlf — `true` on the machine this package is written on, unset elsewhere. No
@@ -24,6 +28,12 @@
 # it, which is a worse thing to leave in their path than a sentence that names a file.
 /RELEASING.md       export-ignore
 /PUSHING.md         export-ignore
+
+# The lane a release is cut from, in one line. `bin/release.php` reads it as its default branch, the
+# release-lane reading holds every other statement of it to this one, and the workflow reads it to
+# check that the branch it gates is the branch a version comes from. It is this repository's own
+# statement, so it is not installed beside the package either.
+/.release-lane      export-ignore
 
 # Development tooling: these drive this repository's own gate and releases, and reach for
 # tools that are require-dev, so an installer has nothing to run them against.

@@ -20,25 +20,25 @@ branch is invisible to a consumer, which is the fact every step below is arrange
   `.agents/machine.local.json` is the only file in this repository that carries a PHP path, and
   `.agents/php-bin.sh` is the one place that decides which interpreter runs here — `sh
   .agents/php-bin.sh --show` prints it, and the hook and the workflow ask the same file.
-- The lane is `development`. `bin/release.php` defaults to `main` and refuses a cut anywhere it was
-  not told to expect one, so every run passes `--branch=development`.
+- The lane is `development`, written once in `.release-lane`. `bin/release.php` reads that file as its
+  default branch and refuses a cut anywhere other than it, so no run here has to name the branch.
 
 ## Commands
 
 - `unreleased`: read `## Unreleased` in `CHANGELOG.md` and say what it adds up to in one line per
   bullet group. This is the notes a release promotes, so a release that cannot be weighed from it is a
   changelog that needs writing first.
-- `weigh`: run `composer release -- --weigh --branch=development`. It cuts nothing: it reads the
+- `weigh`: run `composer release -- --weigh`. It cuts nothing: it reads the
   commits since the last tag and the public surface between the two revisions and answers whether the
   next number is a patch, a minor or a major.
 - `weigh-dry-run`: run the same command with `--dry-run`, which prints the notes it would write. Use it
   whenever the number is in question, and quote the surface change it found rather than the number it
   printed.
-- `release-cut`: run `composer release -- --branch=development` after the weighing has been agreed. It
+- `release-cut`: run `composer release --` after the weighing has been agreed. It
   writes the release commit — the version heading, the notes, the inventory — and tags it. Nothing is
   pushed by this command.
 - `prerelease`: cut an alpha, beta or rc with
-  `composer release -- --prerelease=alpha --branch=development --push`. The tag is what makes it
+  `composer release -- --prerelease=alpha --push`. The tag is what makes it
   installable, and a prerelease is skipped by a default `composer require` — a consumer needs
   `"minimum-stability": "alpha"` or a constraint like `^0.1.0@alpha`.
 - `push`: run `git push origin development --follow-tags` from PowerShell 7, never from MSYS. A
@@ -66,7 +66,7 @@ branch is invisible to a consumer, which is the fact every step below is arrange
 
 | Symptom | What it means |
 |---|---|
-| the releaser refuses the branch | the run has no `--branch=development`, or the checkout is on another branch |
+| the releaser refuses the branch | the checkout is on a branch other than the lane `.release-lane` names |
 | the weighing says major and nobody agrees | the surface signal found a change to `src/`; read what it named before rewording anything |
 | a tag exists locally and is not on the remote | it was cut without `--push`; the version is not published, and `PUSHING.md` has the rest |
 | `--follow-tags` carried nothing | the tag is lightweight, or there are no new annotated tags to carry |

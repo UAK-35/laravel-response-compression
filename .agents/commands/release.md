@@ -1,17 +1,17 @@
 # `release`
 
 Weigh what the tree adds up to, and cut a version only when one was asked for. The lane is
-`development`; the releaser defaults to `main` and refuses a cut anywhere it was not told to expect
-one, so every run passes `--branch=development`.
+`development`, written once in `.release-lane`; the releaser reads that file as its default branch and
+refuses a cut anywhere else, so no command here passes `--branch=`.
 
 ## Usage
 
 ```bash
-composer release -- --weigh --branch=development            # what the tree adds up to; cuts nothing
-composer release -- --weigh --dry-run --branch=development  # the same, with the notes printed
-composer release -- --branch=development                    # cut the version and stop
-composer release -- --branch=development --push             # cut it and push the commit and the tag
-composer release -- --prerelease=alpha --branch=development --push   # a prerelease lane
+composer release -- --weigh             # what the tree adds up to; cuts nothing
+composer release -- --weigh --dry-run   # the same, with the notes printed
+composer release --                      # cut the version and stop
+composer release -- --push               # cut it and push the commit and the tag
+composer release -- --prerelease=alpha --push   # a prerelease lane
 ```
 
 ## What to do with it
@@ -29,6 +29,7 @@ composer release -- --prerelease=alpha --branch=development --push   # a prerele
 
 ## Related
 
+- `.release-lane` — the lane itself, one line, read by the releaser as its default branch.
 - `.agents/toolchain.json` — the `release` command.
 - `AGENTS.md` section 10 — the lane, the numbering and the two runbooks.
 - `.github/workflows/main.yml` — the same gate on the runner, and the monthly run that unpins the dev

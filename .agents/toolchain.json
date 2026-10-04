@@ -115,7 +115,7 @@
         },
         "release": {
             "line": "composer release -- --weigh",
-            "purpose": "the releaser: weigh the tree against the last tag first, and cut a version only on a second, deliberate run"
+            "purpose": "the releaser: weigh the tree against the last tag first, and cut a version only on a second, deliberate run - the branch is not named here because the program reads it from `.release-lane` and refuses a cut anywhere else"
         },
         "agentic-check": {
             "line": "python .agents/verify.py",

@@ -33,8 +33,10 @@ use SplFileInfo;
  *     below is a file nothing covers, which is a fact this reading declines to guess at.
  *   - `config/response-compression.php`: the config-claim test, because a claim about a key is
  *     written in the markdown that repeats it or in the docblock beside it in the config.
- *   - a markdown record: the docs-link test, and the config-claim test — the second because the
- *     README carries a copy of the config the claims are checked against.
+ *   - a markdown record: the docs-link test, the config-claim test and the release-lane test — the
+ *     second because the README carries a copy of the config the claims are checked against, and
+ *     the third because `RELEASING.md` and `PUSHING.md` are where a release command is written
+ *     out for someone to copy.
  *   - a file under `tests/`: itself when it is a test, so a changed test is run rather than trusted,
  *     and the whole suite otherwise, because a shared fixture is a thing every test is built on and
  *     there is no narrower true answer to which of them it can have broken.
@@ -52,6 +54,16 @@ final class TestMap
 
     /** What a markdown record is measured by: the links in it and the claims it repeats. */
     public const string LINKS = 'tests/Unit/Docs/DocsLinksTest.php';
+
+    /**
+     * The third thing a document is measured by: the lane it names where a release or a push runs.
+     *
+     * A runbook is where a release command is a command rather than a description, and the branch it
+     * names has to be the one `.release-lane` holds - a whole file rather than a default, because the
+     * default was exactly what a document drifted back to. Nothing runs a runbook, which is why the
+     * read has to happen at the commit that changes one.
+     */
+    public const string LANE = 'tests/Unit/Docs/ReleaseLaneTest.php';
 
     /** What the config file a claim is about is measured by. */
     public const string CLAIMS = 'tests/Unit/Config/ConfigClaimsTest.php';
@@ -188,6 +200,7 @@ final class TestMap
             if (str_ends_with($path, '.md')) {
                 $tests[self::LINKS] = true;
                 $tests[self::CLAIMS] = true;
+                $tests[self::LANE] = true;
 
                 continue;
             }

@@ -1,10 +1,24 @@
+# @guards-index guard CI on `tags: ["v*"]`
+#
+# a published version — release or prerelease — with no CI record against it
+
+# @guards-index guard CI running the gate
+#
+# a gate that is weaker than the one a tag is cut behind
+
+# @guards-index guard `composer checks -- --require-all` in CI
+#
+# a check that *skipped* on the runner — a tool that did not install is a hole in the build, not a fact about the machine
+
 name: PHP Composer
 
 on:
   push:
-    # `development` is the lane these releases are cut from — every cut passes
-    # `--branch=development` — so it is gated the way `main` is rather than being the one
-    # branch no run ever sees. A push to any other branch still triggers nothing.
+    # `development` is the lane these releases are cut from — the branch `.release-lane` names —
+    # so it is gated the way `main` is rather than being the one branch no run ever sees. A push
+    # to any other branch still triggers nothing. The ref list below has to stay literal: GitHub
+    # evaluates `on.push.branches` before any step runs, so this cannot read the file. The step in
+    # the build job reads it instead and requires this list to gate it.
     branches: [ "main", "development" ]
     # A tag is what Packagist publishes, and `branches` alone excludes tag refs: without this
     # every published version — release or prerelease — would carry no CI record at all. The
@@ -64,6 +78,20 @@ jobs:
         # Full history: `bin/release.php` counts a prerelease lane from the tags, and Composer
         # guesses the root package version from them too, which a shallow clone gets wrong.
         fetch-depth: 0
+
+    - name: The lane a release is cut from is gated
+      # The lane is written down once, in `.release-lane`, and `bin/release.php` reads it there as the
+      # branch it releases from. This workflow cannot: `on.push.branches` is evaluated before any step
+      # runs, so the ref list above has to be literal. This is where the two are reconciled — the file
+      # is read, and the literal list has to gate what it names, so moving the lane to a branch no run
+      # ever sees fails here instead of leaving every release from it with no CI record at all.
+      run: |
+        lane="$(cat .release-lane)"
+        if ! grep -q "\"$lane\"" .github/workflows/main.yml; then
+          echo "The lane is $lane, and this workflow's push trigger does not gate it."
+          exit 1
+        fi
+        echo "The lane is $lane, and this workflow gates it."
 
     - name: Pin the root package version
       # Branch builds only. `dev-` plus the ref name is how a branch is spelled as a version,

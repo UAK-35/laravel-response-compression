@@ -383,9 +383,23 @@ final class MutationHarness
                     // at the tests at all.
                     $file = 'tests/Unit/Support/MutationGuardTest.php';
 
-                    self::add($root, $file, "<?php\n\ndeclare(strict_types=1);\n\n/*\n * A guard the table has no row for.\n *\n * @guards-index guard\n */\nfinal class MutationGuardTest\n");
+                    self::add($root, $file, "<?php\n\ndeclare(strict_types=1);\n\n/*\n * A guard the table has no row for.\n *\n * @guards-index guard the mutation guard\n */\n\nit('a planted test', function (): void {});\n");
 
                     return $file;
+                },
+                'read' => GuardIndex::drift(...),
+            ],
+            [
+                'guard' => 'the guard index, on a guard no row records',
+                'test' => 'tests/Unit/Docs/GuardIndexTest.php',
+                'plant' => static function (string $root): string {
+                    // A guard declared in a file of its own, which the table has no row for: the
+                    // half the rendering adds — the table is written from the files now, so a
+                    // guard arriving in one and going unrecorded is the way this reading can go
+                    // quiet. The name is the marker, because it is what the failure prints.
+                    self::add($root, 'bin/mutation-guard.php', "<?php\n\ndeclare(strict_types=1);\n\n/**\n * @guards-index guard the mutation guard row\n *\n * a break no row records\n */\n");
+
+                    return 'no row declares the guard `the mutation guard row`';
                 },
                 'read' => GuardIndex::drift(...),
             ],
@@ -570,6 +584,25 @@ final class MutationHarness
                     LogMessages::declaredIn((string) file_get_contents($root.'/'.LogMessages::SOURCE)),
                 ),
             ],
+            [
+                'guard' => 'the release-lane reading',
+                'test' => 'tests/Unit/Docs/ReleaseLaneTest.php',
+                'plant' => static function (string $root): string {
+                    // The drift this guard was written for, planted back: the by-hand push naming
+                    // the branch the release program *defaults* to. It is the shape that reads as
+                    // correct — every word of it is a command somebody would run — and the one that
+                    // stops at the branch rail the moment it is run, which is why nothing noticed
+                    // it for a release.
+                    self::replace($root, 'RELEASING.md', static fn (string $text): string => str_replace(
+                        'git push origin development --follow-tags',
+                        'git push origin main --follow-tags',
+                        $text,
+                    ));
+
+                    return 'git push origin names `main`, and releases are cut from `development`';
+                },
+                'read' => ReleaseLane::drift(...),
+            ],
         ];
     }
 
@@ -733,6 +766,19 @@ final class MutationHarness
                 'blind' => static fn (string $source): string => str_replace(
                     '(?<name>[a-z0-9-]+)',
                     '(?<name>NEVER_MATCHES)',
+                    $source,
+                ),
+            ],
+            [
+                'guard' => 'the release-lane reading',
+                'test' => 'tests/Unit/Docs/ReleaseLaneTest.php',
+                'reading' => 'ReleaseLane',
+                // The flag pattern, made one no `--branch=` can match: the shape is still read on
+                // every line, and a command stops being told from a sentence that mentions one —
+                // which is the assertion the guard's own test has to redden on.
+                'blind' => static fn (string $source): string => str_replace(
+                    "preg_match_all('#--branch=([A-Za-z0-9][A-Za-z0-9._/-]*)#', \$line, \$matches) > 0",
+                    "preg_match_all('#NEVER-MATCHES#', \$line, \$matches) > 0",
                     $source,
                 ),
             ],

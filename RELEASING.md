@@ -17,22 +17,23 @@ prereleases as well as releases, counted from the tags themselves.
 composer checks
 
 # 2. see the plan: the number, the promoted changelog, the commands. Writes nothing.
-composer release -- --weigh --dry-run --branch=development
+composer release -- --weigh --dry-run
 
 # 3. cut it, and take the branch and the tag to the remote
-composer release -- --weigh --push --branch=development
+composer release -- --weigh --push
 ```
 
 Every cut in this repository is from `development` — that is the lane it develops on, and the
-branch rail refuses a cut anywhere else. `bin/release.php`'s default is `main`, so each command
-here passes `--branch=development`, and a run that leaves it out stops before it changes anything.
+branch rail refuses a cut anywhere else. `bin/release.php` reads that lane from `.release-lane`,
+the one place it is written down, so no command here has to pass `--branch=development` to say it
+again; a run on any other branch stops before it changes anything.
 
 `composer release --` passes the rest of the line to the script, and running the script itself is
 the same thing under the same interpreter:
 
 ```bash
-composer release -- --weigh --push --branch=development
-"$(python .agents/render_local.py --value __PHP_EXE__)" bin/release.php --weigh --push --branch=development
+composer release -- --weigh --push
+"$(python .agents/render_local.py --value __PHP_EXE__)" bin/release.php --weigh --push
 ```
 
 The second form is the one to reach for where `composer` is not on `PATH`. Neither writes an
@@ -55,10 +56,10 @@ part of the gate — a machine with neither cannot measure it.
 ## Cutting a prerelease
 
 ```powershell
-composer release -- --prerelease=alpha --branch=development     # 0.1.0-alpha1, then -alpha2, -alpha3 …
-composer release -- --prerelease=beta --branch=development      # 0.1.0-beta1 — same line, later lane
-composer release -- --prerelease=rc --branch=development        # 0.1.0-rc1
-composer release -- --weigh --branch=development                # 0.1.0 — the release the line was named after
+composer release -- --prerelease=alpha   # 0.1.0-alpha1, then -alpha2, -alpha3 …
+composer release -- --prerelease=beta    # 0.1.0-beta1 — same line, later lane
+composer release -- --prerelease=rc      # 0.1.0-rc1
+composer release -- --weigh              # 0.1.0 — the release the line was named after
 ```
 
 The rules the lanes follow, all of them counted from the tags rather than remembered:
@@ -283,7 +284,7 @@ third-level headings and keep their notes, their credits and their dates.
 as versions this repository documented, and `--weigh` takes the minor it was refusing over:
 
 ```powershell
-composer release -- --weigh --dry-run --branch=development     # plans 0.1.0, no declaration, no override
+composer release -- --weigh --dry-run                           # plans 0.1.0, no declaration, no override
 ```
 
 Editing sections this repository did not write is the cost of that way, and the fold is
@@ -305,7 +306,7 @@ chooses inside the policy rather than around it, which is the one hole a floor o
 alone would have left. The command said so out loud:
 
 ```powershell
-composer release -- --version=0.0.10 --ignore-policy --branch=development
+composer release -- --version=0.0.10 --ignore-policy
 ```
 
 and the plan printed what was overridden rather than quietly shipping a minor's worth of
@@ -335,7 +336,7 @@ cannot hold the number the tree asks for.
 | Rail | Condition |
 |---|---|
 | no repository | the directory is not a git repository |
-| wrong branch | `HEAD` is not the branch being released (the default is `main`; this repository releases from `development`) |
+| wrong branch | `HEAD` is not the branch being released (the default is the branch `.release-lane` names, `development` here) |
 | dirty tree | tracked files are uncommitted, so the tag would point at a commit that lacks them |
 | tag exists | the version is already tagged — a published tag is never moved or reused |
 | not newer | the version is not above the newest tag |

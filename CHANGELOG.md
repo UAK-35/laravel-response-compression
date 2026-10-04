@@ -30,6 +30,28 @@ release — which is why it sits in the repository rather than in the package.
   and so is the rendering that replaces it, and `--selftest` plants the bare line in `.agents/README.md`
   and requires it to be named.
 
+- **The branch releases are cut from has one source of truth, so a runbook cannot drift back to
+  `main`.** The lane was written down four times and three of those had drifted
+  to `main` at once — the short version, the by-hand push and the prerelease examples in
+  `RELEASING.md` and `PUSHING.md` — and nothing noticed, because a runbook is not run by anything
+  and because `main` is what `bin/release.php` *defaults* to: every drifted command still read as
+  one somebody would run, and each stops at the branch rail the moment it is. The lane is now read
+  out of `.release-lane`, one line holding the branch, which `bin/release.php` reads as the branch it
+  releases from and the workflow reads in a step to require that the branch its trigger gates is the
+  lane. That is what made the copies go away rather than need watching: nothing has to pass the flag
+  any more, so `--branch=development` is gone from both runbooks, `AGENTS.md`, the release command and
+  the skill, and the lane is instructed in exactly one place. What is left to hold is what still names
+  a branch — a `--branch=` a runbook mentions, a `git push` to this repository's own remote, and the
+  workflow's literal trigger, which cannot read the file because GitHub evaluates `on.push.branches`
+  before any step runs. A sentence that mentions `main` is left alone, which it has to be, because the
+  runbooks explain what the default is — and the default is no longer written into the program at all:
+  it is the file, or `main` where a repository declares none. The reading throws rather than agreeing
+  with a file that names no branch, or with one it could not read; `tests/Unit/Docs/ReleaseLaneTest.php`
+  asserts the clean tree and then the shapes it must still tell apart; a mutation plants the by-hand
+  push back on `main` and requires the drift to be named; its detector is inverted with the rest of
+  the readings; and a markdown change now carries it in the hook, out of `tests/Support/TestMap.php`,
+  because the commit that edits a runbook is the only moment the drift exists to be caught.
+
 - **The mutation harness is inverted, so a guard whose test has stopped asserting fails as well as
   a guard whose reading has stopped looking.** A mutation breaks the tree and requires the reading
   to name the break; what that cannot see is a test whose expectations a reading that reached
@@ -549,6 +571,17 @@ read as a runner that still runs the gate.
   interpreter: `Foo.php` followed by a tab and another path is a filename rather than the word `php`,
   which is what `files.tsv` and the tables in `docs/` had been reading as one file running another.
   The selftest's own round still plants the restatement in `.agents/README.md` and requires it named.
+
+- **The command table's release row names the lane too, so the fourth copy of the command is the one
+  that runs.** The runbook, the rules and the release skill were each corrected to pass
+  `--branch=development`, and the row in the table rendered into `AGENTS.md` from
+  `.agents/toolchain.json` was left as `composer release -- --weigh` — a command that stops at the
+  branch rail on this repository's own checkout, which is exactly the failure the other three were
+  fixed for. The manifest is the source of that row, so the lane is written there and rendered from
+  it rather than corrected in the table a generator owns; the purpose cell says why the lane is
+  named. It is the one release command in the repository that is not quoted from a runbook, which is
+  how it escaped the sweep: a row in a rendered table reads as a rendering rather than as a command
+  somebody copies.
 
 - **Every walk the mutation harness used to compose in a test now lives in the reading it asserts
   on, so the harness can point the last four guards at a broken tree.** The docs-link, config-key,

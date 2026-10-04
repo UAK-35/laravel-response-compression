@@ -78,9 +78,10 @@ declare(strict_types=1);
  * ------------------
  *   The suffix decides the *version*, not the branch: releases and prereleases alike are cut from
  *   the one branch a repository develops on, which is why the rail below refuses a cut on any
- *   other. This program's default is `main`, and this repository's lane is `development` - every
- *   cut here passes `--branch=development` - so the default is a default rather than a permission.
- *   `--branch=NAME` releases from somewhere else, and the name given is the only one accepted.
+ *   other. That branch is this repository's own, so it is declared once in `.release-lane` and read
+ *   from there as the default - `main` for a repository that declares none. The default is what the
+ *   rail expects rather than a permission. `--branch=NAME` releases from somewhere else, and the name
+ *   given is the only one accepted.
  *
  *   Because a prerelease precedes the release it is named after, a prerelease cannot be cut
  *   once its release exists: `0.0.10-alpha1` is not newer than `0.0.10`, and the rail that
@@ -124,6 +125,12 @@ declare(strict_types=1);
  * ----------
  *   0 released (or planned), 1 a precondition failed, 2 usage error.
  */
+
+/**
+ * @guards-index guard `bin/release.php`
+ *
+ * a version cut from the wrong branch, over uncommitted work, over a tag that exists, over a red gate, over a commit the remote has not seen — and the numbering of prerelease lanes
+ */
 $root = str_replace('\\', '/', dirname(__DIR__));
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -139,7 +146,7 @@ $options = [
     'dry-run' => false,
     'yes' => false,
     'push' => false,
-    'branch' => 'main',
+    'branch' => releaseLane($root),
     'remote' => 'origin',
     'allow-dirty' => false,
     'ignore-policy' => false,
@@ -705,8 +712,8 @@ function usage(): void
           --dry-run        Print the plan, the promoted changelog head and the commands.
       -y, --yes            Do not ask before committing and tagging.
           --push           Push the branch with --follow-tags when done.
-          --branch=NAME    The branch to release from (default: main). This repository's lane is
-                           development, so every cut here passes --branch=development.
+          --branch=NAME    The branch to release from. The default is the branch `.release-lane`
+                           names - development here - and `main` where there is no such file.
           --remote=NAME    The remote to check and push to (default: origin).
           --allow-dirty    Release though tracked files are uncommitted.
           --ignore-policy  Release though the declared bump undersells the changes.
@@ -818,6 +825,23 @@ function runCommand(array $command, string $cwd): array
     fclose($pipes[1]);
 
     return ['exit' => proc_close($process), 'output' => $output];
+}
+
+/**
+ * The branch this repository releases from: the one line `.release-lane` holds.
+ *
+ * The lane is this repository's own statement rather than a fact about the program, so it is written
+ * down once, in a file, and read here - the branch rail below is built from it and refuses a cut on any
+ * other branch. A repository that declares no lane is released from `main`: that is the conventional
+ * name a release is cut from, and it is the answer this program gave before there was a file to ask.
+ * The fallback is for a repository that has not made the statement, not a second answer for one that has.
+ */
+function releaseLane(string $root): string
+{
+    $declared = $root.'/.release-lane';
+    $lane = is_file($declared) ? trim((string) file_get_contents($declared)) : '';
+
+    return $lane === '' ? 'main' : $lane;
 }
 
 /**

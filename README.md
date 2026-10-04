@@ -336,8 +336,8 @@ the run it starts has one.
 
 `.githooks/pre-commit` runs `bin/checks.php --staged`: the same tools pointed at the files a
 commit carries — syntax, Pint, and the tests those files are covered by, which for a document or
-the config are the docs-link and config-claim tests and for a source file is the suite that
-covers it, out of `tests/Support/TestMap.php` — so none of them can land broken. Enable it once
+the config are the docs-link, config-claim and release-lane tests and for a source file is the suite
+that covers it, out of `tests/Support/TestMap.php` — so none of them can land broken. Enable it once
 per clone with `git config core.hooksPath .githooks`, and bypass it for one commit with
 `git commit --no-verify`.
 

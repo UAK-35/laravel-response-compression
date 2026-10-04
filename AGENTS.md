@@ -374,13 +374,13 @@ Two rules follow, and both are enforced rather than asked for:
 ## 10. Releases and the two runbooks
 
 A version is a tag, and Packagist publishes tags — not branches, not commits. The lane is
-**`development`**, and every cut passes `--branch=development`, because `bin/release.php` defaults to
-`main` and refuses a release anywhere it was not told to expect one.
+**`development`**, written down once in `.release-lane`; `bin/release.php` reads that file as its
+default branch and refuses a release anywhere else, so no command here has to say the branch again.
 
 ```bash
-composer release -- --weigh --branch=development            # what the tree adds up to; cuts nothing
-composer release -- --weigh --dry-run --branch=development  # the same, with the notes printed
-composer release -- --branch=development --push             # cut, write the notes, and push
+composer release -- --weigh             # what the tree adds up to; cuts nothing
+composer release -- --weigh --dry-run   # the same, with the notes printed
+composer release -- --push              # cut, write the notes, and push
 ```
 
 - `RELEASING.md` — what a version *is*: the numbering, the prerelease lanes, what the releaser writes
@@ -453,7 +453,7 @@ rendered from it, and `verify.py` refuses a restatement of any of them elsewhere
 | `test-types` | `composer test:types` | PHPStan at max, through bin/tool.php |
 | `test-lint` | `composer test:lint` | Pint in test mode, which writes nothing |
 | `tidy` | `composer tidy` | lint, then refactor, then lint again - the second pass is what checks Rector's output |
-| `release` | `composer release -- --weigh` | the releaser: weigh the tree against the last tag first, and cut a version only on a second, deliberate run |
+| `release` | `composer release -- --weigh` | the releaser: weigh the tree against the last tag first, and cut a version only on a second, deliberate run - the branch is not named here because the program reads it from `.release-lane` and refuses a cut anywhere else |
 | `agentic-check` | `python .agents/verify.py` | everything in one run: the tools and processes this package needs, its two path guards, its gate, and the layer against itself - read-only, exit 1 on a finding |
 | `verify-tools` | `python .agents/verify.py --package` | the tools and the two package checks alone, without the layer's readings: does this machine still work |
 | `agentic-layer` | `python .agents/verify.py --layer` | the layer alone, with no PHP in it: the fast subset the pre-commit hook runs |
