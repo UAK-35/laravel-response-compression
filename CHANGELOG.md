@@ -18,6 +18,18 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **A layer step refuses the token left standing where an interpreter goes.** `verify.py` already
+  refused an interpreter's *name* written in front of a command, which runs whatever that name is
+  first on `PATH`. The token that stands for this machine's PHP is the same failure one
+  word further out, and it was only a rule in prose: nothing stopped `__PHP_EXE__ bin/checks.php`
+  being written into the layer, where a reader copies a line the shell hands to a program called
+  `__PHP_EXE__`. The new `interpreter-token` step reads every file of the layer for a token that is
+  neither quoted nor resolved and is followed by a word naming a file; a token in backticks is a
+  reader being told what it is, and `__PHP_EXE__ is this machine's PHP` has no program after it, so
+  both are left alone. The rule is platform-free, because a token is spelled the same on every system
+  and so is the rendering that replaces it, and `--selftest` plants the bare line in `.agents/README.md`
+  and requires it to be named.
+
 - **The mutation harness is inverted, so a guard whose test has stopped asserting fails as well as
   a guard whose reading has stopped looking.** A mutation breaks the tree and requires the reading
   to name the break; what that cannot see is a test whose expectations a reading that reached
@@ -523,6 +535,21 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **The interpreter rule now reads the whole repository, so a later change cannot put a restated
+  interpreter back by hand.** The refusal was written over the layer — the rules, the agentic files,
+  the programs in `bin/`, the hook and the workflow — which is the set a command is handed over in,
+  and it left the prose records and everything outside them unread. That is the wrong set for this
+  question: the failure is a reader copying an answer to "which PHP" out of whatever they are
+  reading, and a runbook, the README or a test states it exactly as `AGENTS.md` does. The reading is
+  therefore taken over the files a commit would carry — one `git ls-files`, the same listing the PHP
+  guards read, falling back to a walk past `.git`, `vendor` and the caches where there is no checkout
+  to ask — so `.agents/machine.local.json` is the one file an interpreter may still be written in, as
+  it is the file that names this machine's PHP. Two changelog sentences that quoted the refused
+  command as prose were reworded to describe it instead. The pattern also gained a dot in front of the
+  interpreter: `Foo.php` followed by a tab and another path is a filename rather than the word `php`,
+  which is what `files.tsv` and the tables in `docs/` had been reading as one file running another.
+  The selftest's own round still plants the restatement in `.agents/README.md` and requires it named.
+
 - **Every walk the mutation harness used to compose in a test now lives in the reading it asserts
   on, so the harness can point the last four guards at a broken tree.** The docs-link, config-key,
   config-claim and tool-path guards each built their walk inside the test — a link resolved, a key
@@ -641,9 +668,9 @@ read as a runner that still runs the gate.
 
 - **One file names this machine's PHP, and every command that needs an interpreter asks it.** The
   machine file above covered the paths; the interpreter was still restated wherever a command was
-  written down, and `php bin/checks.php` is the same restatement as a drive path — it names whichever
-  interpreter happens to be first on `PATH`, which on this box is not the PHP that installed the
-  dependencies. `AGENTS.md` now carries the question as a row of its environment table, together
+  written down, and a command written with the interpreter in front of the program it runs is the
+  same restatement as a drive path — it names whichever interpreter happens to be first on `PATH`,
+  which on this box is not the PHP that installed the dependencies. `AGENTS.md` now carries the question as a row of its environment table, together
   with the half of the answer that is *nothing*: most commands name no interpreter at all, because
   Composer runs a script under the PHP that is running Composer. The pre-commit hook asks
   `.agents/php-bin.sh`, which is that ladder in one place now — the environment, then the machine

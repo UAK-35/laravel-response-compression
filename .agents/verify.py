@@ -198,6 +198,25 @@ INTERPRETER_FILES = {".agents/verify.py"}
 # absolute path, and a planted tree is asked the same question about a file of its own.
 MACHINE_NAME = ".agents/machine.local.json"
 
+# A token left standing where an interpreter goes, in front of a program: `__PHP_EXE__ bin/checks.php`.
+# The rule above refuses an interpreter's *name* written in front of a command; this is the same
+# failure one word further out, and the one the token exists to avoid. A token is a placeholder a
+# reader has to substitute before anything runs, so a line written that way is not a command a skill
+# can hand over - the command carries the rendering in the line itself,
+# `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged`, and the tokens
+# that reach `.agents/machine.local.json` are the two that stand where an interpreter goes.
+#
+# Two things are deliberately not findings, and both are how the token is *shown* rather than run: a
+# token the reader is being told about - the one the token table defines, and the one AGENTS.md quotes
+# to teach this very rule - is introduced by a backtick or a quote, and prose that mentions the token
+# (`__PHP_EXE__ is this machine's PHP`) has no program after it. So the shape read is a token that is
+# neither quoted nor resolved, followed by a word that names a file.
+BARE_TOKEN_NAMES = ("__PHP_EXE__", "__PWSH_EXE__")
+BARE_TOKEN = re.compile(
+    r"(?<![\w`\"'])(?P<token>" + "|".join(BARE_TOKEN_NAMES) + r")[ \t]+"
+    r"(?P<program>[A-Za-z0-9_./\\-]*\.[A-Za-z0-9][A-Za-z0-9_-]*)"
+)
+
 
 # ---------------------------------------------------------------------------
 # reading
@@ -599,13 +618,64 @@ def layer_files(root: Path) -> list[Path]:
     return files
 
 
+# What a walk over the repository leaves out, for the case where there is no git to ask: the
+# version-control internals, the two dependency trees and the byte-code caches a tool leaves beside
+# its source. None of them is this repository's content, and a tree that is not a checkout is the
+# selftest's own planted copy rather than something a reader was handed.
+WALK_PAST = {".git", "vendor", "node_modules", "__pycache__"}
+
+
+def repository_files(root: Path) -> list[Path]:
+    """Every file this repository carries, wherever it is - which is what "anywhere" has to mean.
+
+    The layer is where a command is handed over rather than described, and it was the right set for as
+    long as this question was only asked of the agentic files. It is the wrong set for the question
+    itself: a restated interpreter in a runbook, in the README or in a test is the same failure as one
+    in `AGENTS.md`, and reading only the layer left every one of those unread - so a later change could
+    put back by hand what the layer had already been made to satisfy, and nothing would say so.
+
+    Asked of git where there is a repository to ask, because the answer wanted is the files a commit
+    would carry rather than everything on the disk: one `ls-files` gives the tracked files and the
+    untracked ones no ignore rule covers, in one process, and it is the same listing the PHP guards
+    read. A tree that is not a checkout - the selftest's planted copy - has no git to ask, so it is
+    walked instead, past the three directories in `WALK_PAST`.
+    """
+    if is_a_repo(root):
+        result = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        if result.returncode == 0:
+            return [root / name for name in result.stdout.splitlines() if name and (root / name).is_file()]
+
+    files: list[Path] = []
+
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or any(part in WALK_PAST for part in path.relative_to(root).parts):
+            continue
+
+        files.append(path)
+
+    return files
+
+
 def interpreter_restated(root: Path) -> list[str]:
-    """Every line of the layer that writes an interpreter in front of a command, on this platform.
+    """Every line of the repository that writes an interpreter in front of a command, on this platform.
 
     Read line by line rather than by file, because that is what the failure is: a command a reader
     copies with the answer to "which PHP" already written into it. The interpreter is one of the
     platform's names and the program is the word after it, which is what lets the one exception be a
     program - `bin/bootstrap.php` - rather than a whole line.
+
+    Read over the whole repository rather than over the layer, because the failure is about the answer
+    to "which PHP" rather than about which file gives it: a runbook, a README or a program that
+    restates an interpreter is the same failure as `AGENTS.md` doing it. The one file that may write
+    the interpreter itself is `.agents/machine.local.json`, which is where this machine's PHP is
+    named; the file this rule is written in is excused beside it, because the rule has to quote the
+    shape it refuses.
 
     Each finding names the platform it was found on, because that is the axis the rule is decided on:
     a line this refuses on Windows is a line a Linux reader would not write this way at all, and a
@@ -613,8 +683,13 @@ def interpreter_restated(root: Path) -> list[str]:
     """
     rule = interpreter_rule()
     os_name = str(rule["os"])
+    # The interpreter has to be a word of its own. `@` is Composer's word for the interpreter it is
+    # already under, and a dot is what keeps the tail of a filename out of the reading: `Foo.php` is a
+    # path, not the word `php`, and a listing with two paths a tab apart - `files.tsv`, a table in
+    # `docs/` - would otherwise read as one of them running the other. A path that really names the
+    # interpreter is still read, because `/` and a space are neither.
     pattern = re.compile(
-        r"(?<!@)(?<![A-Za-z0-9_-])(?P<interpreter>"
+        r"(?<!@)(?<![A-Za-z0-9_.-])(?P<interpreter>"
         + "|".join(re.escape(str(name)) for name in rule["names"])
         + r")[ \t]+(?P<program>[A-Za-z0-9_./\\-]+(?:"
         + "|".join(re.escape(str(suffix)) for suffix in rule["programs"])
@@ -622,7 +697,7 @@ def interpreter_restated(root: Path) -> list[str]:
     )
     findings: list[str] = []
 
-    for path in layer_files(root):
+    for path in repository_files(root):
         where = rel(path, root)
 
         if where in INTERPRETER_FILES or where == MACHINE_NAME:
@@ -752,6 +827,60 @@ def step_interpreter(root: Path) -> list[str]:
                     "the answer is `.agents/php-bin.sh`'s, and Tests\\Support\\PhpBinary is the one PHP "
                     "reader of it"
                 )
+
+    return findings
+
+
+def step_interpreter_token(root: Path) -> list[str]:
+    """No token is left where the interpreter goes.
+
+    The `interpreter` step and the `toolchain` rule beside it refuse an interpreter written as a name
+    in front of a command, because a name runs whatever that name is first on `PATH`. This is the
+    other half of the same line: the token that stands for this machine's PHP, left bare in front of
+    the program instead of being rendered into the command. It is not a second copy of an answer -
+    it is the absence of one, and it fails differently: nothing substitutes the placeholder, so what
+    a reader copies is a line the shell hands to a program called `__PHP_EXE__`.
+
+    The rule is platform-free on purpose. A name is spelled per system, which is why the rule above is
+    decided by the machine it runs on; a token is the same nine characters everywhere, and the rendering
+    that replaces it is the same command everywhere too - so this fires on all three platforms rather
+    than only on the one this package is developed on.
+
+    What it leaves alone is the token being *shown*: quoted by a backtick or a quote, because that is a
+    reader being told what the token is, and a sentence that mentions it, because `__PHP_EXE__ is this
+    machine's PHP` has no program after it. The file this rule is written in is excused the same way the
+    `interpreter` rule excuses it - the rule quotes the failure it refuses.
+    """
+    findings: list[str] = []
+
+    for path in layer_files(root):
+        where = rel(path, root)
+
+        if where in INTERPRETER_FILES or where == MACHINE_NAME:
+            continue
+
+        # A file that is not text is not a command, the same way the `interpreter` rule reads it: a
+        # decode error would be this reading failing on a file it was never about.
+        try:
+            contents = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+
+        for number, line in enumerate(contents.splitlines(), 1):
+            found = BARE_TOKEN.search(line)
+
+            if found is None:
+                continue
+
+            token = found.group("token")
+            program = found.group("program")
+
+            findings.append(
+                f"{where}:{number}: leaves `{token}` standing where an interpreter goes "
+                f"(`{token} {program}`) - the token is a placeholder a reader has to substitute before "
+                "anything runs, so the command renders it in the line itself: "
+                f'"$(python .agents/render_local.py --value {token})" {program}'
+            )
 
     return findings
 
@@ -1284,6 +1413,7 @@ STEPS = [
     ("windsurf", step_windsurf, "every skill has a pointer rule"),
     ("toolchain", step_toolchain, "the commands and pins are the ones the package actually has"),
     ("interpreter", step_interpreter, "one file decides which PHP runs, and nothing else decides again"),
+    ("interpreter-token", step_interpreter_token, "no token is left standing where an interpreter goes"),
     ("tokens", step_tokens, "every token is one of the four, and no rendered file has drifted"),
     ("descriptions", step_descriptions, "a description names only commands its skill defines"),
 ]
@@ -1476,6 +1606,18 @@ def mutate(name: str, root: Path) -> None:
         path.write_text(
             read(path)
             + "\n- `php bin/checks.php` - the gate, under whichever interpreter is first on PATH\n",
+            encoding="utf-8",
+        )
+    elif name == "interpreter-token":
+        # The placeholder left where the interpreter goes, which is the shape that comes back because it
+        # is shorter than the rendering: a reader copies the token out of the table that defines it and
+        # runs the line. Written unquoted on a line of its own, because a token in backticks is the one
+        # shape this reading deliberately leaves alone - a mention rather than a command - and a mutation
+        # that wrote one would prove nothing about the line a reader actually hands over.
+        path = root / ".agents" / "README.md"
+        path.write_text(
+            read(path)
+            + "\n__PHP_EXE__ bin/checks.php --staged\n",
             encoding="utf-8",
         )
     elif name == "interpreter":
