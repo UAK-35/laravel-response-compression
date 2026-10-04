@@ -56,6 +56,11 @@ declare(strict_types=1);
 | program it needs is not here), and 2 for a usage error.
 */
 
+/**
+ * @guards-index guard `bin/bootstrap.php`
+ *
+ * a clone that is half set up and reads as ready: the three steps a fresh checkout needs — name this machine's PHP, install the dependencies, verify the tree — in the one order that works, each ending the run when it fails rather than being followed by the next
+ */
 $root = str_replace('\\', '/', dirname(__DIR__));
 
 // ─────────────────────────────────────────────────────────────────────────────

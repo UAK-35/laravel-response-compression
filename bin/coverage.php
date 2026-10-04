@@ -79,6 +79,11 @@ use Uak35\ResponseCompression\Tests\Support\ScriptCoverage;
 | and no other, and `docs/guards.md` records it.
 */
 
+/**
+ * @guards-index guard `bin/coverage.php`
+ *
+ * the two scripts in `bin/` that no test can run directly: the coverage each child process writes is collected, mapped back onto the file it was copied from, and merged before the floor is read — 100.0% for every `src/` file on its own, a ratchet per script that may only rise, and a header naming the PHP and the coverage driver the run is under
+ */
 $root = str_replace('\\', '/', dirname(__DIR__));
 
 /**

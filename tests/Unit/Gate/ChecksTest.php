@@ -25,8 +25,13 @@ use Uak35\ResponseCompression\Tests\Support\ToolPaths;
 | the tool paths are the planted tree's own — the manifest is copied in beside the gate — and a
 | tree that was never installed has none of them on any platform.
 |
-| @guards-index guard
 */
+
+/**
+ * @guards-index guard the gate's own tests
+ *
+ * the script everything else is measured by, which no test had ever run — its exit codes, its skips and its refusals, in a planted tree
+ */
 
 /**
  * A planted tree with the real gate in it, in place of the stub the release rails plant.

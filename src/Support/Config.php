@@ -51,6 +51,18 @@ use Uak35\ResponseCompression\Exceptions\InvalidConfigurationException;
  * The readers ending in `Or` differ from the others in one way only: a default applies
  * when the key is **absent**. A key that is present and unreadable is refused by both.
  */
+
+/**
+ * @guards-index guard the config readers
+ *
+ * a value that cannot be read: refused with the key and the value rather than replaced by a default
+ */
+
+/**
+ * @guards-index guard `Config::validate()`
+ *
+ * the same, at boot rather than on the request that first needs the value
+ */
 final class Config
 {
     /**

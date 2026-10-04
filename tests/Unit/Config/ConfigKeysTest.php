@@ -18,9 +18,13 @@ use Uak35\ResponseCompression\Tests\Support\ConfigKeys;
 | So the two sets are read and compared in both directions. A typo in a key is one failing
 | assertion instead of a setting that quietly does nothing.
 |
-| @guards-index guard
 */
 
+/**
+ * @guards-index guard the config-key test
+ *
+ * a key read that the config does not publish, and a key published that nothing reads
+ */
 beforeEach(function (): void {
     $this->published = ConfigKeys::published(packageRoot().'/config/response-compression.php');
     // One record per read rather than per key: `Config::validate()` reads everything the

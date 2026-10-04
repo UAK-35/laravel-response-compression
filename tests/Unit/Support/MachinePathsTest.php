@@ -24,9 +24,13 @@ use Uak35\ResponseCompression\Tests\Support\MachinePaths;
 | nothing leaks, that the detector fires at all, and that the two files allowed to hold
 | samples still need to.
 |
-| @guards-index guard
 */
 
+/**
+ * @guards-index guard the machine-path test
+ *
+ * a path that only resolves on the machine it was written on — a drive letter, a home directory, a network share, and the same drive as a POSIX shell mounts it (`/e/…`, `/mnt/e/…`, `/cygdrive/e/…`) — in any file a commit would carry
+ */
 it('reports no machine-local path in the files a commit would carry', function (): void {
     $scan = MachinePaths::scan(packageRoot());
 

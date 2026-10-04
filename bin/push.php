@@ -55,6 +55,11 @@ declare(strict_types=1);
 | and 2 for a usage error.
 */
 
+/**
+ * @guards-index guard `bin/push.php`
+ *
+ * a push reported as done before the run it started was read — the commit that was pushed is asked of GitHub, the run for it is waited for, and only `success` exits 0; a push that started no run is refused rather than read as a pass
+ */
 $root = str_replace('\\', '/', dirname(__DIR__));
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -19,9 +19,13 @@ use Uak35\ResponseCompression\Tests\Support\ChangelogPreamble;
 | readable and is not a release of this package — and the level is what lets the guard tell one
 | from the other, which is also the level the preamble is written at.
 |
-| @guards-index guard
 */
 
+/**
+ * @guards-index guard the changelog-preamble test
+ *
+ * a preamble that goes on naming a version as inherited once this package has released it — the stale claim the next release would otherwise write into the file
+ */
 it('keeps the changelog preamble from naming a version the file has released', function (): void {
     $content = (string) file_get_contents(packageRoot().'/CHANGELOG.md');
     $read = ChangelogPreamble::read($content);

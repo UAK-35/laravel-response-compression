@@ -41,8 +41,13 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRun;
 | also the failure this header has to survive — the floor is not reported at all rather than
 | reported as a floor of nothing.
 |
-| @guards-index guard
 */
+
+/**
+ * @guards-index guard `tests/Unit/Gate/CoverageTest.php`
+ *
+ * a floor run that keeps quiet about the machine it is on: the interpreter is named before the suite starts and again at the foot of a failure, so a floor that moved is attributable to the code or to the PHP — and a run that collected nothing says so rather than reporting every file at 0.0%
+ */
 
 /**
  * This package's own floor runner, in place rather than in a planted tree: it resolves the

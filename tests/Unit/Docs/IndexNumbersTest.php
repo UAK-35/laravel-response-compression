@@ -21,9 +21,13 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 | the tree this package ships, and it names the file and the number when the document and the code
 | are pulled apart — one mutation at a time, in a copy, with the whole tree otherwise in step.
 |
-| @guards-index guard
 */
 
+/**
+ * @guards-index guard the number-claims test
+ *
+ * a number this page states having stopped matching the code that produces it — how many checks the gate runs, the floor every file is held to, and how many guards and files the page is about — read out of the document and out of `bin/checks.php`, `bin/coverage.php` and the directory
+ */
 it('reads the gate, the floors and the counts out of the code', function (): void {
     $root = str_replace('\\', '/', packageRoot());
 
@@ -88,8 +92,8 @@ it('names the count when a guard is added to the table', function (): void {
     indexNumbersReplace(
         $root,
         'docs/guards.md',
-        '| `bin/index.php` and the two rendered lists |',
-        "| a guard added to a copy | its own row now | [`../bin/index.php`](../bin/index.php) |\n| `bin/index.php` and the two rendered lists |",
+        '| `bin/index.php` and the three rendered tables |',
+        "| a guard added to a copy | its own row now | [`../bin/index.php`](../bin/index.php) |\n| `bin/index.php` and the three rendered tables |",
     );
 
     // The count the reading has to name is the one the table produces with this fixture's row in
@@ -127,7 +131,7 @@ it('refuses a document that has stopped stating the number at all', function ():
     // there are today.
     $guards = IndexNumbers::counts(packageRoot())['guards'];
 
-    indexNumbersReplace($root, 'docs/guards.md', 'The table records '.$guards.' guards.', 'The table records many guards.');
+    indexNumbersReplace($root, 'docs/guards.md', 'The table records '.$guards.' guards,', 'The table records many guards,');
 
     expect(implode(PHP_EOL, IndexNumbers::drift($root)))
         ->toContain('no longer states how many guards the table records');

@@ -21,9 +21,13 @@ use Uak35\ResponseCompression\Tests\Support\RepoEscapes;
 | asserted rather than one: that nothing climbs out, that the detector fires at all, and that
 | the two files allowed to hold samples still need to.
 |
-| @guards-index guard
 */
 
+/**
+ * @guards-index guard the repository-escape test
+ *
+ * a relative path that climbs above the repository root — written out, or computed as `dirname(__DIR__, n)` — in any file a commit would carry
+ */
 it('reports no path that climbs out of the repository', function (): void {
     $scan = RepoEscapes::scan(packageRoot());
 

@@ -557,6 +557,22 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **The guards table is a rendering now, from the files the guards live in, and the guard-index
+  check is harder to satisfy.** `docs/guards.md` had three tables and only two were written: the
+  guards themselves were kept by hand, on the reasoning that what a guard refuses is an argument.
+  An argument still is, but it has a home — one comment block in the file the guard's row names
+  carries `@guards-index guard <name>`, and the block's own first sentence is what it catches. The
+  file is the `Where` cell, read in whichever comment the file writes in — a PHP banner or docblock,
+  a run of `#` lines, an XML comment — so a guard that moves moves its row with it, and a row left
+  linking a path that moved is no longer a thing that can be written. The test side is the same
+  question: a test under `tests/Unit/` declares `@guards-index guard <name>`, which names its own
+  row, or `@guards-index test`. A declaration is then held to the kind of file it is in and to what
+  the file actually holds: a `guard` line in `tests/Support/` is refused, because that directory is
+  readings and fixtures rather than guards, and a file that says it is a test while carrying none —
+  or a reading that carries one — is refused rather than recorded. `bin/index.php` writes all three
+  tables, `GuardIndex::drift` is what the suite asserts on, and the mutation harness plants a guard
+  no row records and requires the rendering to name it.
+
 - **The interpreter rule now reads the whole repository, so a later change cannot put a restated
   interpreter back by hand.** The refusal was written over the layer — the rules, the agentic files,
   the programs in `bin/`, the hook and the workflow — which is the set a command is handed over in,

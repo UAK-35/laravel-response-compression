@@ -103,6 +103,24 @@ use Uak35\ResponseCompression\Tests\Support\TestMap;
  * the version it is pinned at and what it is for. That is the gate describing itself out of the
  * manifest rather than out of a sentence beside this file that nothing compares with it.
  */
+
+/**
+ * @guards-index guard `bin/checks.php`
+ *
+ * eleven checks in one process: syntax, an AST parse, the composer schema, the platform requirements, the toolchain probe, the agentic layer, the workflow YAML, PHPStan, Pint, Rector, Pest — one summary, one exit code
+ */
+
+/**
+ * @guards-index guard a lock-aware `composer validate`
+ *
+ * a stale lock: the check runs only when the repository actually ships one
+ */
+
+/**
+ * @guards-index guard `composer check-platform-reqs`
+ *
+ * a missing `ext-brotli` or `ext-zstd`, reported as a build problem rather than as a failing test
+ */
 $root = str_replace('\\', '/', dirname(__DIR__));
 
 // ─────────────────────────────────────────────────────────────────────────────

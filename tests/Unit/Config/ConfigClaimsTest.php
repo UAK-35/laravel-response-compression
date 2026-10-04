@@ -28,9 +28,13 @@ use Uak35\ResponseCompression\Tests\Support\ConfigKeys;
 | defect — and the reader behind this is exercised on that distinction below, because its
 | green tick here is a scan that found no claims at all.
 |
-| @guards-index guard
 */
 
+/**
+ * @guards-index guard the config-claim test
+ *
+ * a docblock or a record that says a key is unread while the source reads it
+ */
 beforeEach(function (): void {
     $this->root = str_replace('\\', '/', packageRoot());
     $this->published = ConfigKeys::published($this->root.'/config/response-compression.php');

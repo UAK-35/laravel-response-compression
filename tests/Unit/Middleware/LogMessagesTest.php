@@ -32,9 +32,13 @@ use Uak35\ResponseCompression\Tests\Support\ResponseWithNoReadableContent;
 | read every case the type declares rather than part of it, that every reason writes a line carrying
 | its code, and that the lines the middleware really emits are the reasons that file declares.
 |
-| @guards-index guard
 */
 
+/**
+ * @guards-index guard the log-message test
+ *
+ * two reasons the middleware reports a skip as carrying one code, or two that write the same sentence — read out of the type that holds each sentence once, so a line a branch invents and a line two branches share are both the file's to refuse, and nothing in PHP refuses the duplicate code a backed enum is loaded with
+ */
 it('declares one code and one sentence per reason, and no two the same', function (): void {
     // The report names both cases and the code or the sentence they share, so a failure sends the
     // reader to the pair to fix rather than to the file to search.

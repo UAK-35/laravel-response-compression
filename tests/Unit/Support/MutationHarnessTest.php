@@ -32,9 +32,13 @@ use Uak35\ResponseCompression\Tests\Support\MutationHarness;
 | here or declined with a reason, and both lists are read back against the index, so adding a
 | guard is a decision rather than a silence.
 |
-| @guards-index guard
 */
 
+/**
+ * @guards-index guard the mutation harness
+ *
+ * the guards above, going quiet: one break at a time is planted in a copy of this checkout, and the guard's own reading has to name it — so a reading that stopped asking the right question fails there instead of reporting nothing forever
+ */
 beforeEach(function (): void {
     MutationHarness::restore();
 });

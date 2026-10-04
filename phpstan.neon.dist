@@ -1,3 +1,7 @@
+# @guards-index guard `phpVersion: 80400`
+#
+# analysis against the PHP the analyst happens to run rather than the floor the package promises
+
 parameters:
     # The PHP floor this package is analysed against, pinned rather than inferred.
     #

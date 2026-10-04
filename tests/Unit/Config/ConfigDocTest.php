@@ -18,9 +18,13 @@ use Uak35\ResponseCompression\Tests\Support\ConfigDoc;
 | Both sides are read by the same reader, so this compares the README with the config
 | file rather than comparing a test's own retyped copy with either.
 |
-| @guards-index guard
 */
 
+/**
+ * @guards-index guard the README↔config test
+ *
+ * a published default that disagrees with the config file it documents
+ */
 it('documents every config key with the value the config file ships', function (): void {
     $shipped = ConfigDoc::shipped(packageRoot().'/config/response-compression.php');
     $documented = ConfigDoc::documented(packageRoot().'/README.md', '## Config');

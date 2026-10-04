@@ -40,8 +40,13 @@ use Uak35\ResponseCompression\Tests\Support\ToolPaths;
 | file nobody compares with a local run. So the workflow is parsed rather than searched: what the
 | runner runs is held to `ToolPaths::CI`, and no tool's path may be written in it either.
 |
-| @guards-index guard
 */
+
+/**
+ * @guards-index guard the tool-path test
+ *
+ * a tool's path written down in a second place — in a composer script, or in one of the three programs that runs a tool — a `vendor/bin` shim, which is a second interpreter, a path that is not on disk, a name nothing asks for, an entry nothing runs, and the two facts an entry carries beside the path: a pin that is not the version `composer.json` requires or not the one installed, and an entry with no line saying what its tool is for; and the runner — `.github/workflows/main.yml`, the third place a tool can be invoked and the one that had no reader — held to the gate it has to run (`composer checks -- --require-all` and `composer test:unit`, with a shell comment in a step no substitute for the command) and to the manifest for a tool path written into it
+ */
 
 /** The manifest this package ships. */
 function toolManifest(): array

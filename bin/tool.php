@@ -46,6 +46,11 @@ use Uak35\ResponseCompression\Tests\Support\PhpBinary;
 | have, a tool that is not installed, a manifest that cannot be read.
 */
 
+/**
+ * @guards-index guard `bin/tool.php`
+ *
+ * a composer script that writes a tool's path down instead of naming a tool: the script names this program and the tool, the manifest answers with the path, and the exit code is the tool's own — a wrapper that swallowed it would report every script as passing
+ */
 $root = str_replace('\\', '/', dirname(__DIR__));
 $manifest = $root.'/bin/tool-paths.php';
 

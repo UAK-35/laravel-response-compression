@@ -21,9 +21,13 @@ use Uak35\ResponseCompression\Tests\Support\Docs;
 | that is the only way to catch the second kind of mistake: a path that looks right and is
 | wrong.
 |
-| @guards-index guard
 */
 
+/**
+ * @guards-index guard the docs-link test
+ *
+ * a broken link between the records, and a record nothing links to
+ */
 it('resolves every relative link in every markdown file the package ships', function (): void {
     // The walk lives in `Docs::broken()` rather than here, so the mutation harness can ask the same
     // call with a broken link planted in a copy of the tree — a walk written out a second time in

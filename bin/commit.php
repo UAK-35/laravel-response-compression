@@ -35,6 +35,12 @@ declare(strict_types=1);
  *       the changelog could not be written, or the staged checks failed
  *   2   the command line itself was wrong
  */
+
+/**
+ * @guards-index guard `bin/commit.php`
+ *
+ * a commit that carries a file it was not told about: the index is read before anything is staged and the commit refused when it holds a path outside the named set — and the changelog bullet is written and the staged checks run before the commit exists
+ */
 $root = dirname(__DIR__);
 
 $options = [

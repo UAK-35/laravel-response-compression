@@ -8,44 +8,46 @@ answer is not always "port it".
 
 ## Kept
 
-The table records 33 guards. What each one catches is in the second column, and where it lives is
-in the third.
+The table records 34 guards, and it is rendered from the files the guards live in: each row's name
+and its argument are a comment block in that file, and the file itself is the third column. What each
+one catches is in the second column, and where it lives is in the third.
 
 | Guard | What it catches | Where |
 |---|---|---|
-| `bin/checks.php` | eleven checks in one process: syntax, an AST parse, the composer schema, the platform requirements, the toolchain probe, the agentic layer, the workflow YAML, PHPStan, Pint, Rector, Pest — one summary, one exit code | [`../bin/checks.php`](../bin/checks.php) |
-| `.githooks/pre-commit` | a commit carrying PHP that does not parse, style the project does not use, a source file the suite that covers it would fail on, a link between the records that no longer resolves, or a claim about a config key that the source has outgrown — by running `bin/checks.php --staged` | [`../.githooks/pre-commit`](../.githooks/pre-commit) |
-| `bin/commit.php` | a commit that carries a file it was not told about: the index is read before anything is staged and the commit refused when it holds a path outside the named set — and the changelog bullet is written and the staged checks run before the commit exists | [`../bin/commit.php`](../bin/commit.php) |
-| `bin/release.php` | a version cut from the wrong branch, over uncommitted work, over a tag that exists, over a red gate, over a commit the remote has not seen — and the numbering of prerelease lanes | [RELEASING.md](../RELEASING.md) |
-| `bin/bootstrap.php` | a clone that is half set up and reads as ready: the three steps a fresh checkout needs — name this machine's PHP, install the dependencies, verify the tree — in the one order that works, each ending the run when it fails rather than being followed by the next | [`../bin/bootstrap.php`](../bin/bootstrap.php) |
-| the config readers | a value that cannot be read: refused with the key and the value rather than replaced by a default | [config-reading.md](config-reading.md) |
-| `Config::validate()` | the same, at boot rather than on the request that first needs the value | [`../src/Support/Config.php`](../src/Support/Config.php) |
-| the README↔config test | a published default that disagrees with the config file it documents | [`../tests/Unit/Config/ConfigDocTest.php`](../tests/Unit/Config/ConfigDocTest.php) |
-| the config-key test | a key read that the config does not publish, and a key published that nothing reads | [`../tests/Unit/Config/ConfigKeysTest.php`](../tests/Unit/Config/ConfigKeysTest.php) |
-| the config-claim test | a docblock or a record that says a key is unread while the source reads it | [`../tests/Unit/Config/ConfigClaimsTest.php`](../tests/Unit/Config/ConfigClaimsTest.php) |
-| the docs-link test | a broken link between the records, and a record nothing links to | [`../tests/Unit/Docs/DocsLinksTest.php`](../tests/Unit/Docs/DocsLinksTest.php) |
-| the changelog-preamble test | a preamble that goes on naming a version as inherited once this package has released it — the stale claim the next release would otherwise write into the file | [`../tests/Unit/Docs/ChangelogPreambleTest.php`](../tests/Unit/Docs/ChangelogPreambleTest.php) |
-| the machine-path test | a path that only resolves on the machine it was written on — a drive letter, a home directory, a network share, and the same drive as a POSIX shell mounts it (`/e/…`, `/mnt/e/…`, `/cygdrive/e/…`) — in any file a commit would carry | [`../tests/Unit/Support/MachinePathsTest.php`](../tests/Unit/Support/MachinePathsTest.php) |
-| the repository-escape test | a relative path that climbs above the repository root — written out, or computed as `dirname(__DIR__, n)` — in any file a commit would carry | [`../tests/Unit/Support/RepoEscapesTest.php`](../tests/Unit/Support/RepoEscapesTest.php) |
-| the log-message test | two reasons the middleware reports a skip as carrying one code, or two that write the same sentence — read out of the type that holds each sentence once, so a line a branch invents and a line two branches share are both the file's to refuse, and nothing in PHP refuses the duplicate code a backed enum is loaded with | [`../tests/Unit/Middleware/LogMessagesTest.php`](../tests/Unit/Middleware/LogMessagesTest.php) |
-| the mutation harness | the guards above, going quiet: one break at a time is planted in a copy of this checkout, and the guard's own reading has to name it — so a reading that stopped asking the right question fails there instead of reporting nothing forever | [`../tests/Support/MutationHarness.php`](../tests/Support/MutationHarness.php), [`../tests/Unit/Support/MutationHarnessTest.php`](../tests/Unit/Support/MutationHarnessTest.php) |
-| the tool-path test | a tool's path written down in a second place — in a composer script, or in one of the three programs that runs a tool — a `vendor/bin` shim, which is a second interpreter, a path that is not on disk, a name nothing asks for, an entry nothing runs, and the two facts an entry carries beside the path: a pin that is not the version `composer.json` requires or not the one installed, and an entry with no line saying what its tool is for; and the runner — `.github/workflows/main.yml`, the third place a tool can be invoked and the one that had no reader — held to the gate it has to run (`composer checks -- --require-all` and `composer test:unit`, with a shell comment in a step no substitute for the command) and to the manifest for a tool path written into it | [`../tests/Unit/Support/ToolPathsTest.php`](../tests/Unit/Support/ToolPathsTest.php) |
-| `bin/tool.php` | a composer script that writes a tool's path down instead of naming a tool: the script names this program and the tool, the manifest answers with the path, and the exit code is the tool's own — a wrapper that swallowed it would report every script as passing | [`../bin/tool.php`](../bin/tool.php) |
-| `bin/push.php` | a push reported as done before the run it started was read — the commit that was pushed is asked of GitHub, the run for it is waited for, and only `success` exits 0; a push that started no run is refused rather than read as a pass | [`../bin/push.php`](../bin/push.php) |
-| the gate's own tests | the script everything else is measured by, which no test had ever run — its exit codes, its skips and its refusals, in a planted tree | [`../tests/Unit/Gate/ChecksTest.php`](../tests/Unit/Gate/ChecksTest.php) |
-| `bin/coverage.php` | the two scripts in `bin/` that no test can run directly: the coverage each child process writes is collected, mapped back onto the file it was copied from, and merged before the floor is read — 100.0% for every `src/` file on its own, a ratchet per script that may only rise, and a header naming the PHP and the coverage driver the run is under | [`../bin/coverage.php`](../bin/coverage.php) |
-| `tests/Unit/Gate/CoverageTest.php` | a floor run that keeps quiet about the machine it is on: the interpreter is named before the suite starts and again at the foot of a failure, so a floor that moved is attributable to the code or to the PHP — and a run that collected nothing says so rather than reporting every file at 0.0% | [`../tests/Unit/Gate/CoverageTest.php`](../tests/Unit/Gate/CoverageTest.php) |
-| `phpVersion: 80400` | analysis against the PHP the analyst happens to run rather than the floor the package promises | [`../phpstan.neon.dist`](../phpstan.neon.dist) |
-| `failOnWarning`/`failOnRisky`/`failOnDeprecation` | a test that warns, is risky, or leans on a deprecation and still reports green | [`../phpunit.xml.dist`](../phpunit.xml.dist) |
 | `* text=auto` | whether a CRLF file is committed as CRLF depending on each contributor's `core.autocrlf` | [`../.gitattributes`](../.gitattributes) |
+| `.githooks/pre-commit` | a commit carrying PHP that does not parse, style the project does not use, a source file the suite that covers it would fail on, a link between the records that no longer resolves, or a claim about a config key that the source has outgrown — by running `bin/checks.php --staged` | [`../.githooks/pre-commit`](../.githooks/pre-commit) |
+| CI on `tags: ["v*"]` | a published version — release or prerelease — with no CI record against it | [`../.github/workflows/main.yml`](../.github/workflows/main.yml) |
+| CI running the gate | a gate that is weaker than the one a tag is cut behind | [`../.github/workflows/main.yml`](../.github/workflows/main.yml) |
+| `composer checks -- --require-all` in CI | a check that *skipped* on the runner — a tool that did not install is a hole in the build, not a fact about the machine | [`../.github/workflows/main.yml`](../.github/workflows/main.yml) |
+| `bin/bootstrap.php` | a clone that is half set up and reads as ready: the three steps a fresh checkout needs — name this machine's PHP, install the dependencies, verify the tree — in the one order that works, each ending the run when it fails rather than being followed by the next | [`../bin/bootstrap.php`](../bin/bootstrap.php) |
+| `bin/checks.php` | eleven checks in one process: syntax, an AST parse, the composer schema, the platform requirements, the toolchain probe, the agentic layer, the workflow YAML, PHPStan, Pint, Rector, Pest — one summary, one exit code | [`../bin/checks.php`](../bin/checks.php) |
 | a lock-aware `composer validate` | a stale lock: the check runs only when the repository actually ships one | [`../bin/checks.php`](../bin/checks.php) |
 | `composer check-platform-reqs` | a missing `ext-brotli` or `ext-zstd`, reported as a build problem rather than as a failing test | [`../bin/checks.php`](../bin/checks.php) |
-| CI on `tags: ["v*"]` | a published version — release or prerelease — with no CI record against it | [`../.github/workflows/main.yml`](../.github/workflows/main.yml) |
-| CI running the gate | CI that is weaker than the gate a tag is cut behind | [`the same workflow`](../.github/workflows/main.yml) |
-| `composer checks -- --require-all` in CI | a check that *skipped* on the runner — a tool that did not install is a hole in the build, not a fact about the machine | [`the same workflow`](../.github/workflows/main.yml) |
-| the guard-index test | a guard that is not in this table, and a row that links a file the repository no longer has — every row's `Where` cell is resolved, every file in `tests/Support/` says which list it is in, and every test in `tests/Unit/` says whether it is a guard — so the next guard cannot be added without a place in the index, from either side | [`../tests/Unit/Docs/GuardIndexTest.php`](../tests/Unit/Docs/GuardIndexTest.php) |
-| `bin/index.php` and the two rendered lists | a list of files that has stopped being a list of the files: which list a file in `tests/Support/` is in, and the words beside its row, are read from the file itself, this program writes the two tables below from that, and `--check` is what fails when the document and the directory disagree | [`../bin/index.php`](../bin/index.php) |
+| `bin/commit.php` | a commit that carries a file it was not told about: the index is read before anything is staged and the commit refused when it holds a path outside the named set — and the changelog bullet is written and the staged checks run before the commit exists | [`../bin/commit.php`](../bin/commit.php) |
+| `bin/coverage.php` | the two scripts in `bin/` that no test can run directly: the coverage each child process writes is collected, mapped back onto the file it was copied from, and merged before the floor is read — 100.0% for every `src/` file on its own, a ratchet per script that may only rise, and a header naming the PHP and the coverage driver the run is under | [`../bin/coverage.php`](../bin/coverage.php) |
+| `bin/index.php` and the three rendered tables | a table that has stopped being a rendering of the tree: which list a file in `tests/Support/` is in, the words beside its row, and each guard's own row are read from the file itself, this program writes the three tables below from that, and `--check` is what fails when the document and the tree disagree | [`../bin/index.php`](../bin/index.php) |
+| `bin/push.php` | a push reported as done before the run it started was read — the commit that was pushed is asked of GitHub, the run for it is waited for, and only `success` exits 0; a push that started no run is refused rather than read as a pass | [`../bin/push.php`](../bin/push.php) |
+| `bin/release.php` | a version cut from the wrong branch, over uncommitted work, over a tag that exists, over a red gate, over a commit the remote has not seen — and the numbering of prerelease lanes | [`../bin/release.php`](../bin/release.php) |
+| `bin/tool.php` | a composer script that writes a tool's path down instead of naming a tool: the script names this program and the tool, the manifest answers with the path, and the exit code is the tool's own — a wrapper that swallowed it would report every script as passing | [`../bin/tool.php`](../bin/tool.php) |
+| `phpVersion: 80400` | analysis against the PHP the analyst happens to run rather than the floor the package promises | [`../phpstan.neon.dist`](../phpstan.neon.dist) |
+| `failOnWarning`/`failOnRisky`/`failOnDeprecation` | a test that warns, is risky, or leans on a deprecation and still reports green | [`../phpunit.xml.dist`](../phpunit.xml.dist) |
+| the config readers | a value that cannot be read: refused with the key and the value rather than replaced by a default | [`../src/Support/Config.php`](../src/Support/Config.php) |
+| `Config::validate()` | the same, at boot rather than on the request that first needs the value | [`../src/Support/Config.php`](../src/Support/Config.php) |
+| the config-claim test | a docblock or a record that says a key is unread while the source reads it | [`../tests/Unit/Config/ConfigClaimsTest.php`](../tests/Unit/Config/ConfigClaimsTest.php) |
+| the README↔config test | a published default that disagrees with the config file it documents | [`../tests/Unit/Config/ConfigDocTest.php`](../tests/Unit/Config/ConfigDocTest.php) |
+| the config-key test | a key read that the config does not publish, and a key published that nothing reads | [`../tests/Unit/Config/ConfigKeysTest.php`](../tests/Unit/Config/ConfigKeysTest.php) |
+| the changelog-preamble test | a preamble that goes on naming a version as inherited once this package has released it — the stale claim the next release would otherwise write into the file | [`../tests/Unit/Docs/ChangelogPreambleTest.php`](../tests/Unit/Docs/ChangelogPreambleTest.php) |
+| the docs-link test | a broken link between the records, and a record nothing links to | [`../tests/Unit/Docs/DocsLinksTest.php`](../tests/Unit/Docs/DocsLinksTest.php) |
+| the guard-index test | a table that has stopped being a rendering of the tree: a guard a file declares and the table has no row for, a row no file declares, a row whose words or link have drifted from the file, and rows out of the order the files declare them in — and beside it every file in `tests/Support/` says which list it is in, and every test in `tests/Unit/` says which guard it declares or that it is a test of the code, so the next guard cannot arrive unrecorded from either side | [`../tests/Unit/Docs/GuardIndexTest.php`](../tests/Unit/Docs/GuardIndexTest.php) |
 | the number-claims test | a number this page states having stopped matching the code that produces it — how many checks the gate runs, the floor every file is held to, and how many guards and files the page is about — read out of the document and out of `bin/checks.php`, `bin/coverage.php` and the directory | [`../tests/Unit/Docs/IndexNumbersTest.php`](../tests/Unit/Docs/IndexNumbersTest.php) |
+| the release-lane test | a branch written where a release or a push runs that is not the one releases are cut from: the lane is read out of the release command in `.agents/toolchain.json`, and the runbooks and the workflow's own trigger comment have to name it — so all four drift to `main` together or none of them does, and a sentence that mentions the default is left alone because the runbooks have to explain it | [`../tests/Unit/Docs/ReleaseLaneTest.php`](../tests/Unit/Docs/ReleaseLaneTest.php) |
+| the gate's own tests | the script everything else is measured by, which no test had ever run — its exit codes, its skips and its refusals, in a planted tree | [`../tests/Unit/Gate/ChecksTest.php`](../tests/Unit/Gate/ChecksTest.php) |
+| `tests/Unit/Gate/CoverageTest.php` | a floor run that keeps quiet about the machine it is on: the interpreter is named before the suite starts and again at the foot of a failure, so a floor that moved is attributable to the code or to the PHP — and a run that collected nothing says so rather than reporting every file at 0.0% | [`../tests/Unit/Gate/CoverageTest.php`](../tests/Unit/Gate/CoverageTest.php) |
+| the log-message test | two reasons the middleware reports a skip as carrying one code, or two that write the same sentence — read out of the type that holds each sentence once, so a line a branch invents and a line two branches share are both the file's to refuse, and nothing in PHP refuses the duplicate code a backed enum is loaded with | [`../tests/Unit/Middleware/LogMessagesTest.php`](../tests/Unit/Middleware/LogMessagesTest.php) |
+| the machine-path test | a path that only resolves on the machine it was written on — a drive letter, a home directory, a network share, and the same drive as a POSIX shell mounts it (`/e/…`, `/mnt/e/…`, `/cygdrive/e/…`) — in any file a commit would carry | [`../tests/Unit/Support/MachinePathsTest.php`](../tests/Unit/Support/MachinePathsTest.php) |
+| the mutation harness | the guards above, going quiet: one break at a time is planted in a copy of this checkout, and the guard's own reading has to name it — so a reading that stopped asking the right question fails there instead of reporting nothing forever | [`../tests/Unit/Support/MutationHarnessTest.php`](../tests/Unit/Support/MutationHarnessTest.php) |
+| the repository-escape test | a relative path that climbs above the repository root — written out, or computed as `dirname(__DIR__, n)` — in any file a commit would carry | [`../tests/Unit/Support/RepoEscapesTest.php`](../tests/Unit/Support/RepoEscapesTest.php) |
+| the tool-path test | a tool's path written down in a second place — in a composer script, or in one of the three programs that runs a tool — a `vendor/bin` shim, which is a second interpreter, a path that is not on disk, a name nothing asks for, an entry nothing runs, and the two facts an entry carries beside the path: a pin that is not the version `composer.json` requires or not the one installed, and an entry with no line saying what its tool is for; and the runner — `.github/workflows/main.yml`, the third place a tool can be invoked and the one that had no reader — held to the gate it has to run (`composer checks -- --require-all` and `composer test:unit`, with a shell comment in a step no substitute for the command) and to the manifest for a tool path written into it | [`../tests/Unit/Support/ToolPathsTest.php`](../tests/Unit/Support/ToolPathsTest.php) |
 
 The gate drops a check to a skip when a tool is missing, which is right on a developer's
 machine — half of these tools are `require-dev` — and wrong on a runner, where a tool that
@@ -56,8 +58,8 @@ The hook is that same gate, earlier and narrower. `bin/checks.php --staged` — 
 `.githooks/pre-commit` runs, under the PHP that `.agents/php-bin.sh` resolves — points its staged
 checks at the files a commit holds: syntax over the staged PHP, Pint over the staged PHP, and
 the tests those files are covered by. Which tests those are is `tests/Support/TestMap.php`: the
-docs-link and config-claim tests for a document or the config, and the suite that covers a
-changed source file for the rest — so a commit that breaks a release rail runs the rails.
+docs-link, config-claim and release-lane tests for a document or the config, and the suite that
+covers a changed source file for the rest — so a commit that breaks a release rail runs the rails.
 Those are what a commit can break on its own; the rest of the gate is a tree-shaped
 question, because PHPStan and Rector read every file that references the ones you changed. It
 reuses `bin/checks.php` rather than being a script of its own for the same reason CI runs the
@@ -219,11 +221,13 @@ every file has to be in one of the two lists below, each of those lists is a lis
 list of files written into a document is a copy of a directory, which is the thing this page exists
 to catch elsewhere. It went stale between releases: a file renamed in `tests/Support/` left its old
 name in a row and its new name nowhere, the reading resolved the row's link, and the page read as
-though a file that had moved had never existed. So the two lists are rendered now — the file says
-which one it is in, in its own header, and its own first sentence is the words beside its row — and
-the part that is left by hand is the part that is an argument. `bin/index.php` writes them; the
+though a file that had moved had never existed. So all three tables are rendered now: the guards
+from the files that declare them — a guard's own comment block carries `@guards-index guard <name>`,
+and the file the block is in is the `Where` cell — and the two lists from the files that make them up,
+each file saying which list it is in, in its own header, with its own first sentence as the words
+beside its row. `bin/index.php` writes them; the
 reading above the write, `GuardIndex::drift`, is one call and is asserted empty by the suite; and
-the mutation harness breaks the directory under it the way it breaks it under every other reading,
+the mutation harness breaks the tree under it the way it breaks it under every other reading,
 because a rendering that answered "nothing to write" for every tree would pass every assertion
 about a document in step. The one row this page had that the table reader could not see — the
 guard-index row, sitting below a blank line of its own — moved back into the table it belongs to
@@ -285,9 +289,10 @@ child process with every other class resolved from this checkout and the rewrite
 difference between the two answers — which is what the control run, every reading copied in
 verbatim, is asserted green for.
 
-The eleven readings with a detector of their own are all inverted: the two path readings, the
+The twelve readings with a detector of their own are all inverted: the two path readings, the
 changelog preamble, the README-versus-config comparison, the config keys and claims, the docs
-links, the guard index, the number claims, the log messages and the tool paths. Each inversion
+links, the guard index, the number claims, the log messages, the tool paths and the release lane.
+Each inversion
 carries the rewrite as a closure over the reading's own text, so a needle that stopped matching
 raises rather than planting nothing — the same rule the mutations above are held to.
 
@@ -312,7 +317,7 @@ nothing, declares a list this page does not have, or has no sentence to quote is
 than left out, because "not in the list" and "in it and correct" are the two answers a rendering
 has to be able to tell apart.
 
-The two lists name 16 readings and 4 files that are not guards, 20 files in `tests/Support/` in
+The two lists name 17 readings and 4 files that are not guards, 21 files in `tests/Support/` in
 all.
 
 | Reading | What it reads |
@@ -329,6 +334,7 @@ all.
 | [`../tests/Support/MachinePaths.php`](../tests/Support/MachinePaths.php) | paths that only resolve on the machine they were written on, found in the files a commit would carry |
 | [`../tests/Support/MutationHarness.php`](../tests/Support/MutationHarness.php) | one break at a time, planted in a copy of this checkout, read back through the guard that is supposed to catch it |
 | [`../tests/Support/PhpBinary.php`](../tests/Support/PhpBinary.php) | which PHP this repository runs, read the one way it is decided |
+| [`../tests/Support/ReleaseLane.php`](../tests/Support/ReleaseLane.php) | the branch releases are cut from, read out of the one file that states it, and held in every other place this repository states it again |
 | [`../tests/Support/RepoEscapes.php`](../tests/Support/RepoEscapes.php) | paths that climb out of this repository, found in the files a commit would carry |
 | [`../tests/Support/ScriptCoverage.php`](../tests/Support/ScriptCoverage.php) | what the spawned scripts covered, read back out of the files they wrote and mapped onto the repository's own copies |
 | [`../tests/Support/TestMap.php`](../tests/Support/TestMap.php) | the tests a commit runs, chosen from the files it carries: which test covers each source file, what a document change can stale, and which test a staged test file is measured by |
@@ -381,18 +387,23 @@ that would otherwise be re-argued. It has to fail loudly on the day the disagree
 — a check that reports green when it read nothing is worse than no check, which is why the
 config, README and docs guards all assert that they found something before they compare it.
 
-A guard is added in two places: a row in the table above, and — when it has a reading of its own —
-a file in `tests/Support/` that says which of the two lists it is in — an `@guards-index` line in its
-header, reading `reading` or `support`. Then `bin/index.php` (or `composer index`)
-writes the row, and the suite refuses a document that has not caught up: the reading that compares
-the two is what the guard-index test asserts on, so the two places cannot drift apart. A file whose
-header carries no declaration is refused by name rather than left out of both lists, which is the
-one thing that would let a decision go unmade while the page still read as complete.
+A guard is declared in the file it lives in: a comment block there carries `@guards-index guard
+<name>`, and the first sentence of that block is what the guard catches. A guard with a reading of
+its own adds the file in `tests/Support/` that says which of the two lists it is in — an
+`@guards-index` line, reading `reading` or `support` — and a guard whose own test is a test under
+`tests/Unit/` declares its row from that test. Nor is a declaration taken on trust: it is held to
+the kind of file it is in, so a `guard` row in `tests/Support/`, which is where readings and
+fixtures live, is refused, and to what the file actually holds, so a file that says it is a test
+while carrying none — or a reading that carries one — is refused rather than listed. Then
+`bin/index.php` (or `composer index`) writes the
+rows, and the suite refuses a document that has not caught up: the reading that compares them is what
+the guard-index test asserts on, so the places cannot drift apart. A file whose block carries no
+declaration is refused by name rather than left out, which is the one thing that would let a decision
+go unmade while the page still read as complete.
 
-The test side is the same question the other way. The table is hand-written, because what a guard
-refuses is an argument, so it cannot be rendered from a directory the way the two lists are — but it
-is still a claim about one. Every test under `tests/Unit/` declares itself a `guard`, which the table
-has to link from a row, or a `test` of the code, which the table is not about; a test that declares
-nothing is refused rather than read as one of them, because an ordinary test that stayed silent and
-a guard that forgot are the same file from the outside. So a guard cannot arrive with a test, a
-reading and a real defect behind it and read as though it had always been part of the list.
+The test side is the same question the other way. Every test under `tests/Unit/` declares
+`@guards-index guard <name>`, which names its own row, or `@guards-index test`, which the table is not
+about; a test that declares nothing is refused rather than read as one of them, because an ordinary
+test that stayed silent and a guard that forgot are the same file from the outside. So a guard cannot
+arrive with a test, a reading and a real defect behind it and read as though it had always been part
+of the list.

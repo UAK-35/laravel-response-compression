@@ -19,26 +19,27 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRun;
 | no test knew what a guard is — so the next one could arrive unrecorded and read as though it had
 | always been part of the list.
 |
-| So the table is read as a claim about two directories, one from each side. Every row has to link
-| a file the repository has; every file in `tests/Support/` has to be named in the document — a
-| reading in the section that lists them, or support in the section saying it is not a guard; and
-| every test in `tests/Unit/` has to declare itself a `guard` the table links, or a `test` the
-| table is not about. A file that declares nothing on either side is refused rather than left out,
-| which is what makes the decision impossible to leave unmade. The reading is exercised on its own
-| at the foot of this file, because a reader that found no rows agrees with a table that has none.
-|
-| The two lists below that table are the same question one step further on. They were prose, and
-| prose about a directory is a copy of it: a file that moved had to be moved by hand in the
-| document as well, and a file that arrived was in no list until somebody remembered it. So each
-| file declares which list it is in, in its own header, and its own first sentence is the words
-| the row carries — `bin/index.php` writes the two tables from that, and the test here holds the
-| document to what the directory produces. `tests/Support/MutationHarness.php` breaks the tree
+| So all three tables are read as a claim about the tree. The guards are declared where they live —
+| a comment block in the file a row names carries `@guards-index guard <name>`, and the block's own
+| first sentence is what the guard catches — so the table is a rendering of the files the guards
+| live in rather than a list kept beside them. The two lists below are the same question one step
+| further on: a file in `tests/Support/` says which list it is in, in its own header, and its own
+| first sentence is the words the row carries. Every test in `tests/Unit/` declares `@guards-index
+| guard <name>` (naming its own row) or `@guards-index test`, and a file that declares nothing on
+| any side is refused rather than left out, which is what makes the decision impossible to leave
+| unmade. `bin/index.php` writes the three tables from that, and the test here holds the document
+| to what the tree produces. The reading is exercised on its own at the foot of this file, because
+| a reader that found no rows agrees with a table that has none. `tests/Support/MutationHarness.php` breaks the tree
 | under the reading for the same reason it breaks it under the others: a rendering that answered
 | "nothing to write" for every tree would pass every assertion about a document in step.
 |
-| @guards-index guard
 */
 
+/**
+ * @guards-index guard the guard-index test
+ *
+ * a table that has stopped being a rendering of the tree: a guard a file declares and the table has no row for, a row no file declares, a row whose words or link have drifted from the file, and rows out of the order the files declare them in — and beside it every file in `tests/Support/` says which list it is in, and every test in `tests/Unit/` says which guard it declares or that it is a test of the code, so the next guard cannot arrive unrecorded from either side
+ */
 it('links every row of the guard table to a file that exists', function (): void {
     [$root, $document, $markdown] = guardIndexDocument();
 
@@ -316,16 +317,17 @@ it('refuses a test that says nothing, and names a guard the table has no row for
 
     unlink($root.'/tests/Unit/SilentTest.php');
 
-    // A test that declares itself a guard, with no row in the table: the guard that arrives
-    // unrecorded, which is the half the two rendered lists below cannot see.
-    guardIndexWrite($root, 'tests/Unit/LonelyTest.php', guardIndexHeader('A guard nobody recorded', 'guard'));
+    // A test that declares a guard the table has no row for: the guard that arrives unrecorded,
+    // which is the half the two rendered lists below cannot see.
+    guardIndexWrite($root, 'tests/Unit/LonelyTest.php', guardIndexGuard('a guard nobody recorded', 'a break nobody recorded'));
 
     expect(implode(PHP_EOL, GuardIndex::drift($root)))
-        ->toContain('tests/Unit/LonelyTest.php')
-        ->toContain('no row for it');
+        ->toContain('no row declares the guard')
+        ->toContain('a guard nobody recorded')
+        ->toContain('tests/Unit/LonelyTest.php');
 
     // A test that declares itself a test of the code needs nothing more: the table is not about it.
-    guardIndexWrite($root, 'tests/Unit/PlainTest.php', guardIndexHeader('A test of the code', 'test'));
+    guardIndexWrite($root, 'tests/Unit/PlainTest.php', guardIndexTestFile('A test of the code', 'test'));
 
     expect(implode(PHP_EOL, GuardIndex::drift($root)))
         ->toContain('tests/Unit/LonelyTest.php')
@@ -338,13 +340,46 @@ it('refuses a test that says nothing, and names a guard the table has no row for
     expect(fn (): array => GuardIndex::drift($root))->toThrow(RuntimeException::class, 'is either a');
 });
 
+it('refuses a declaration that is about a kind of file the file is not', function (): void {
+    $tree = guardIndexTree();
+    $root = $tree['root'];
+
+    // A reading that declares a guard row as well: the line is about a guard and the file is a
+    // reading. This is the half that was open — a file under `tests/Support/` with a list header of
+    // its own could carry a guard row and be read as a guard from the files rather than refused.
+    guardIndexWrite($root, 'tests/Support/Four.php', "<?php\n\ndeclare(strict_types=1);\n\n/**\n * A reading that claims a guard row too.\n *\n * @guards-index reading\n */\nfinal class Four {}\n\n/**\n * @guards-index guard a guard a reading claims\n *\n * a break a reading has no business declaring\n */\n");
+
+    expect(fn (): array => GuardIndex::guardRows($root))
+        ->toThrow(RuntimeException::class, 'readings and fixtures rather than guards');
+
+    unlink($root.'/tests/Support/Four.php');
+
+    // A test that says it is a test of the code and carries none: what a file claims about itself,
+    // against what it actually holds.
+    guardIndexWrite($root, 'tests/Unit/ClaimTest.php', guardIndexHeader('A test of the code', 'test'));
+
+    expect(fn (): array => GuardIndex::drift($root))
+        ->toThrow(RuntimeException::class, 'carries no test');
+
+    unlink($root.'/tests/Unit/ClaimTest.php');
+
+    // And the same claim the other way round: a reading that carries a test, which a reading is
+    // run by rather than written as.
+    guardIndexWrite($root, 'tests/Support/Four.php', guardIndexTestFile('A reading with a test in it', 'reading'));
+
+    expect(fn (): array => GuardIndex::declared($root))
+        ->toThrow(RuntimeException::class, 'carries a test');
+
+    unlink($root.'/tests/Support/Four.php');
+});
+
 it('is the same reading as a command, and the command writes the document it reported', function (): void {
     $repo = indexRepo();
 
     $clean = $repo->script('bin/index.php', '--check');
 
     expect($clean->exitCode)->toBe(0)
-        ->and($clean->output)->toContain('lists exactly what')
+        ->and($clean->output)->toContain('renders exactly what the tree declares')
         ->and($clean->error)->toBe('');
 
     // A file the document does not list. `--check` is the half a program that only wrote would
@@ -365,7 +400,7 @@ it('is the same reading as a command, and the command writes the document it rep
     $wrote = $repo->script('bin/index.php');
 
     expect($wrote->exitCode)->toBe(0)
-        ->and($wrote->output)->toContain('Rewrote the two lists')
+        ->and($wrote->output)->toContain('Rewrote the three tables')
         ->and($wrote->output)->toContain('tests/Support/Four.php')
         ->and($repo->read('docs/guards.md'))->toContain('a reading nobody listed');
 
@@ -403,13 +438,15 @@ it('is the same reading as a command, and the command writes the document it rep
     expect($repo->script('bin/index.php')->exitCode)->toBe(1)
         ->and($repo->script('bin/index.php')->error)->toContain('is not here');
 
-    $repo->write('docs/guards.md', "## The readings the guards are built from\n\n## Support that is not a guard\n");
+    $repo->write('docs/guards.md', "## Kept\n\n| Guard | What it catches | Where |\n|---|---|---|\n| the planted guard | a break the planted guard catches | [`../tests/Unit/OneTest.php`](../tests/Unit/OneTest.php) |\n\n## The readings the guards are built from\n\n## Support that is not a guard\n");
 
     expect($repo->script('bin/index.php')->error)->toContain('has no table under');
 
     $repo->write('docs/guards.md', "# Some other document\n");
 
-    expect($repo->script('bin/index.php')->error)->toContain('heading');
+    // A document with no guards table at all: the reading has nothing to compare, and the guards
+    // the tree declares cannot be rendered into a section that is not there.
+    expect($repo->script('bin/index.php')->error)->toContain('## Kept');
 
     // And a checkout that has never been installed: the reading is a class this program asks the
     // autoloader for, and a missing one is worth a sentence about installing rather than a fatal.
@@ -500,6 +537,7 @@ function guardIndexSources(): array
         'tests/Support/One.php' => guardIndexHeader('A reading the guards are built from', 'reading'),
         'tests/Support/Two.php' => "<?php\n\ndeclare(strict_types=1);\n\n/*\n|--------------------------------------------------------------------------\n| A second reading, written as a script\n|--------------------------------------------------------------------------\n|\n| @guards-index reading\n*/\n\n\$nothing = 1;\n",
         'tests/Support/Three.php' => guardIndexHeader('A fixture the guards are run against', 'support'),
+        'tests/Unit/OneTest.php' => guardIndexGuard('the planted guard', 'a break the planted guard catches'),
         'docs/guards.md' => guardIndexText(),
     ];
 }
@@ -514,6 +552,25 @@ function guardIndexHeader(string $summary, string $section): string
 }
 
 /**
+ * A test that declares a guard row the way a real one does: a block of its own naming the row, the
+ * first sentence of that block saying what the guard catches, and a test case — which is what being
+ * a test requires and what the reading now holds the declaration to.
+ */
+function guardIndexGuard(string $name, string $catch): string
+{
+    return "<?php\n\ndeclare(strict_types=1);\n\n/**\n * @guards-index guard ".$name."\n *\n * ".$catch."\n */\n\nit('a planted test', function (): void {});\n";
+}
+
+/**
+ * A test of the code: the same header as `guardIndexHeader()`, and the test case that makes the
+ * claim true.
+ */
+function guardIndexTestFile(string $summary, string $section): string
+{
+    return guardIndexHeader($summary, $section)."\nit('a planted test', function (): void {});\n";
+}
+
+/**
  * The document a planted tree starts with: the two headings the reader looks for, one table under
  * each, and the rows in step with the three files beside it.
  *
@@ -525,6 +582,12 @@ function guardIndexText(): string
 {
     return implode("\n", [
         '# Which guards does this package keep?',
+        '',
+        '## Kept',
+        '',
+        '| Guard | What it catches | Where |',
+        '|---|---|---|',
+        guardIndexKeptRow('the planted guard', 'a break the planted guard catches', 'tests/Unit/OneTest.php'),
         '',
         '## The readings the guards are built from',
         '',
@@ -549,6 +612,15 @@ function guardIndexText(): string
 function guardIndexRow(string $file, string $summary): string
 {
     return '| [`../tests/Support/'.$file.'`](../tests/Support/'.$file.') | '.$summary.' |';
+}
+
+/**
+ * A row of the guards table, spelled here rather than read from the reading: the name first, then
+ * what the guard catches, then the file it is declared in.
+ */
+function guardIndexKeptRow(string $name, string $catch, string $file): string
+{
+    return '| '.$name.' | '.$catch.' | [`../'.$file.'`](../'.$file.') |';
 }
 
 /** One file in a planted tree, with the directories above it. */
@@ -578,10 +650,17 @@ function indexRepo(): ReleaseRepo
 
     $repo->write('bin/index.php', (string) file_get_contents($package.'/bin/index.php'));
     $repo->write('lib/Docs.php', (string) file_get_contents($package.'/tests/Support/Docs.php'));
+    $repo->write('lib/MachinePaths.php', (string) file_get_contents($package.'/tests/Support/MachinePaths.php'));
     $repo->write('lib/GuardIndex.php', (string) file_get_contents($package.'/tests/Support/GuardIndex.php'));
-    $repo->write('vendor/autoload.php', "<?php\n\nrequire __DIR__.'/../lib/Docs.php';\nrequire __DIR__.'/../lib/GuardIndex.php';\n");
+    $repo->write('vendor/autoload.php', "<?php\n\nrequire __DIR__.'/../lib/Docs.php';\nrequire __DIR__.'/../lib/MachinePaths.php';\nrequire __DIR__.'/../lib/GuardIndex.php';\n");
 
     guardIndexPlant($repo->path);
+
+    // The document this fixture is checked against is the one its own tree produces, because the
+    // tree is not this package: it carries the package's own `bin/` scripts, which declare guards
+    // of their own. The three tables are rendered here so that the command under test starts from
+    // a document in step; the format itself is read by the hand-written fixtures above.
+    $repo->write('docs/guards.md', GuardIndex::rewritten($repo->path, guardIndexText()));
 
     return $repo;
 }

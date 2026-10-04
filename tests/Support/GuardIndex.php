@@ -27,18 +27,24 @@ use RuntimeException;
  * A new file in that directory therefore costs one line of the index, and that line is the decision
  * the index exists to record.
  *
- * THE OTHER SIDE OF THE SAME CLAIM
- * --------------------------------
- * That was the guard's *reading* side. The guard's *test* side was open the other way: the table
- * links a guard's test in its `Where` cell, and nothing required a test in `tests/Unit/` to be in
- * the table — so a guard could arrive with a test, a reading and a real defect behind it, and read
- * as though it had always been part of the list. The table cannot be rendered from a directory (a
- * guard's argument is hand-written), so the decision has to come from the file: every test under
- * `tests/Unit/` declares `@guards-index guard` or `@guards-index test` in its own header, and a
- * declared guard whose test the table links nowhere is a finding. A test that declares nothing is
- * refused rather than left out, because an ordinary test that stayed silent and a guard that forgot
- * to speak are the same file read from the outside — and the second is the one that would land
- * unrecorded.
+ * THE GUARDS THEMSELVES
+ * ---------------------
+ * That was the guard's *reading* side, and the two lists below it. The guards table was left by
+ * hand — what a guard refuses is an argument, so it was reasoned that the argument could not be
+ * rendered. It can be sourced, though, and the source is the file the guard lives in: a guard is
+ * declared in the file its row names, with one comment block carrying `@guards-index guard <name>`
+ * and the first sentence of that block saying what it catches. The file's own path is the `Where`
+ * cell, so a guard that moves moves its row with it. The block is read in whichever comment the
+ * file writes in — a PHP banner or docblock, a run of `#` lines, or an XML comment — because a
+ * guard lives wherever it lives rather than only in a `.php` file.
+ *
+ * So the table is rendered like the two lists, from the files a commit would carry. A guard
+ * arrives with no declaration and is a finding; a declaration names no file that is here and is a
+ * finding; a declared name that is not in the table is a finding. And a test under `tests/Unit/`
+ * still declares itself: `@guards-index guard <name>` names its own row, `@guards-index test` says
+ * the table is not about it, and a test that says nothing is refused rather than left out — an
+ * ordinary test that stayed silent and a guard that forgot to speak are the same file read from the
+ * outside, and the second is the one that would land unrecorded.
  *
  * THE TWO LISTS OF FILES
  * ----------------------
@@ -58,11 +64,11 @@ use RuntimeException;
  *
  * WHAT IT DOES NOT DO
  * -------------------
- * It does not read a link anywhere else, and it does not decide what a guard *is* past that
- * directory. What each guard refuses stays in the document, in prose, where a reader looks and
- * where a name that has drifted is visible; what is enforced is only that the document and the
- * directory agree. Nor is the header taken on trust: a table whose columns moved is a table this
- * would read wrongly rather than not at all, so its header is asserted before a row is read.
+ * It does not read a link anywhere else, and it does not decide what a guard *is* past the files
+ * that declare one. What each guard refuses is written once, in the guard's own file, and the
+ * document is a rendering of it; what is enforced is only that the document and the files agree.
+ * Nor is the header taken on trust: a table whose columns moved is a table this would read wrongly
+ * rather than not at all, so its header is asserted before a row is read.
  *
  * @guards-index reading
  */
@@ -110,7 +116,7 @@ final class GuardIndex
     /** The directory of tests the `## Kept` table is a claim about. */
     public const string TESTS = 'tests/Unit';
 
-    /** A test that is a guard: the table has to link it, or it cannot be found. */
+    /** A guard: `@guards-index guard <name>` declares the row the file's argument is about. */
     public const string GUARD = 'guard';
 
     /** A test of the code: what the table is not about, and what a guard's reading is not. */
@@ -122,6 +128,23 @@ final class GuardIndex
      * @var list<string>
      */
     public const array KINDS = [self::GUARD, self::TEST];
+
+    /**
+     * The declaration line, read for the word that follows it and, for a guard row, the name the
+     * row carries. The characters before the declaration are the comment decoration of whichever
+     * style the file writes in — a `|`-ruled banner, a `*` docblock, a `#` run, an XML comment — so
+     * one pattern reads the declaration out of all of them.
+     */
+    private const string DECLARATION_PATTERN = '/^[\s\/*|#<!-]*@guards-index\s+(\S+)(?:[ \t]+(.+?))?[ \t]*$/m';
+
+    /**
+     * The directories a filesystem walk of a planted tree leaves alone: a checkout's history and
+     * the installed dependencies are not where a guard is declared, and reading them would make
+     * the walk slower without making it more true.
+     *
+     * @var list<string>
+     */
+    private const array WALK_PAST = ['.git', 'vendor', 'node_modules', '__pycache__'];
 
     /**
      * The table's rows, in the order the document has them.
@@ -241,8 +264,32 @@ final class GuardIndex
         foreach (glob($root.'/'.self::DIRECTORY.'/*.php') ?: [] as $file) {
             $contents = (string) file_get_contents($file);
             $file = Docs::relative($root, $file);
-            $block = self::block($contents);
-            $declaration = $block === null ? null : self::declaration($contents, $block);
+            // The declaring block among all of them, and the block it was found in: a script opens
+            // with a shebang, and a reading that took the first block would read `#!` rather than
+            // the banner under it. A block that names a list wins over the declaration of another
+            // kind a helper might carry.
+            $block = null;
+            $declaration = null;
+            $other = null;
+
+            foreach (self::blocks($contents) as $candidate) {
+                $declared = self::declaration($contents, $candidate);
+
+                if ($declared === null) {
+                    continue;
+                }
+
+                $other ??= $declared;
+
+                if (array_key_exists($declared['section'], self::LISTS)) {
+                    $block = $candidate;
+                    $declaration = $declared;
+
+                    break;
+                }
+            }
+
+            $declaration ??= $other;
 
             if ($declaration === null) {
                 throw new RuntimeException(sprintf(
@@ -260,6 +307,17 @@ final class GuardIndex
                     $file,
                     $declaration['section'],
                     implode(' and ', array_keys(self::LISTS)),
+                ));
+            }
+
+            // What the file claims about itself, against what it contains: a reading or a fixture
+            // is run by the tests rather than written as one, so a test case in it is the claim
+            // this refuses.
+            if (self::testCase($contents)) {
+                throw new RuntimeException(sprintf(
+                    '%s declares itself a %s and carries a test: a reading and a fixture are run by the tests rather than written as one, so the declaration is about a kind of file this is not.',
+                    $file,
+                    $declaration['section'],
                 ));
             }
 
@@ -310,11 +368,19 @@ final class GuardIndex
 
             // The declaring block rather than the first block: a helper's docblock can sit above
             // the banner, and a reading that stopped at the first block would find the helper and
-            // refuse the test for declaring nothing.
+            // refuse the test for declaring nothing. A block that names one of the two kinds wins
+            // over one that does not, so a helper carrying an unrelated `@guards-index` cannot
+            // decide what a test is.
             foreach (self::blocks($contents) as $block) {
                 $found = self::declaration($contents, $block);
 
-                if ($found !== null) {
+                if ($found === null) {
+                    continue;
+                }
+
+                $declaration ??= $found;
+
+                if (in_array($found['section'], self::KINDS, true)) {
                     $declaration = $found;
 
                     break;
@@ -323,7 +389,7 @@ final class GuardIndex
 
             if ($declaration === null) {
                 throw new RuntimeException(sprintf(
-                    '%s carries no `%s` line, so it says nothing about whether it is a guard. Add `%s %s` for a test the table records, or `%s %s` for a test of the code.',
+                    '%s carries no `%s` line, so it says nothing about whether it is a guard. Add `%s %s` and a name for a test the table records, or `%s %s` for a test of the code.',
                     $file,
                     self::DECLARATION,
                     self::DECLARATION,
@@ -341,6 +407,28 @@ final class GuardIndex
                     self::TESTS,
                     self::GUARD,
                     self::TEST,
+                ));
+            }
+
+            if ($declaration['section'] === self::GUARD && $declaration['name'] === null) {
+                throw new RuntimeException(sprintf(
+                    '%s declares `%s %s` with no name, and a guard row is named: the name is what the table prints in its first cell.',
+                    $file,
+                    self::DECLARATION,
+                    self::GUARD,
+                ));
+            }
+
+            // And what the file claims about itself, against what it contains: a file that says it
+            // is a guard or a test of the code is a test, and a claim nothing in the file bears out
+            // is the one this refuses.
+            if (! self::testCase($contents)) {
+                throw new RuntimeException(sprintf(
+                    '%s declares `%s %s` and carries no test: a file under %s/ that says it is a guard or a test of the code is a test, so a claim the file does not bear out is refused rather than recorded.',
+                    $file,
+                    self::DECLARATION,
+                    $declaration['section'],
+                    self::TESTS,
                 ));
             }
 
@@ -434,33 +522,234 @@ final class GuardIndex
     }
 
     /**
-     * The guards a test declares that the table has no row for.
+     * The guard rows the files declare, in the order the files are walked.
      *
-     * This is what the two lists below cannot see: a rendering describes `tests/Support/`, and a
-     * guard test is a file in `tests/Unit/` that says so in its own header. Without this, a guard
-     * could arrive with a test, a reading and a real defect behind it and read as though it had
-     * always been part of the list — the one thing the table exists to prevent.
+     * A guard is declared where it lives: one comment block in the file its row names carries
+     * `@guards-index guard <name>`, and the block's own first sentence is what the guard catches.
+     * The file is the `Where` cell, so a guard that moves takes its row with it — which is the
+     * defect this replaces, a row that went on linking a path that had moved.
      *
-     * @return list<string>
+     * The walk is over the files a commit would carry, because a guard lives wherever it lives and
+     * not only under one directory; the comment style is whichever the file writes in. A declaration
+     * is held to the kind of file it is in, too: a reading and a fixture live under `tests/Support/`,
+     * a test under `tests/Unit/`, and a guard row wherever the guard is — which is never a reading or
+     * a fixture, so a `guard` line in that directory is refused rather than rendered as a row. A
+     * guard that is declared twice, declares no name, or has nothing to quote is refused as well,
+     * because a row that cannot be written is the one thing a rendering must not answer quietly.
+     *
+     * @return array<string, array{name: string, catches: string, file: string, line: int}>
+     *
+     * @throws RuntimeException when a declaration is about a kind of file it is not, when a guard is
+     *                          declared twice, declares no name, or has nothing to quote
      */
-    public static function unrecorded(string $root, string $markdown): array
+    public static function guardRows(string $root): array
     {
         $root = self::root($root);
-        $named = self::header($markdown) === [] ? [] : self::named($root, $markdown);
-        $findings = [];
+        $rows = [];
 
-        foreach (self::guards($root) as $file => $entry) {
-            if ($entry['kind'] !== self::GUARD) {
+        foreach (self::repository($root) as $file) {
+            $contents = @file_get_contents($root.'/'.$file);
+
+            // A markdown record writes headings with `#`, which are not comments about the file,
+            // and a binary would be read as text with its bytes spelled differently.
+            if ($contents === false || str_ends_with($file, '.md') || MachinePaths::binary($contents)) {
                 continue;
             }
 
-            if (! in_array($file, $named, true)) {
+            foreach (self::blocks($contents) as $block) {
+                $declaration = self::declaration($contents, $block);
+
+                if ($declaration === null) {
+                    continue;
+                }
+
+                // A declaration is held to where it is written: a reading and a fixture live under
+                // `tests/Support/`, a test under `tests/Unit/`, and a guard row wherever the guard
+                // is. A line about a kind of file this is not is refused rather than read as one.
+                if ($declaration['section'] === self::GUARD) {
+                    if (str_starts_with($file, self::DIRECTORY.'/')) {
+                        throw new RuntimeException(sprintf(
+                            '%s declares the guard `%s`, and %s/ holds readings and fixtures rather than guards. A guard row is declared in the program it is, or in the test under %s/ that is about it.',
+                            $file,
+                            $declaration['name'] ?? '',
+                            self::DIRECTORY,
+                            self::TESTS,
+                        ));
+                    }
+                } elseif ($declaration['section'] === self::TEST && ! str_starts_with($file, self::TESTS.'/')) {
+                    throw new RuntimeException(sprintf(
+                        '%s declares `%s %s`, and %s/ is where a test is declared: the line is about a kind of file this is not.',
+                        $file,
+                        self::DECLARATION,
+                        self::TEST,
+                        self::TESTS,
+                    ));
+                }
+
+                if ($declaration['section'] !== self::GUARD) {
+                    continue;
+                }
+
+                if ($declaration['name'] === null) {
+                    throw new RuntimeException(sprintf(
+                        '%s declares `%s %s` with nothing after it. A guard row is named: `%s %s <name>` is what the table prints in its first cell.',
+                        $file,
+                        self::DECLARATION,
+                        self::GUARD,
+                        self::DECLARATION,
+                        self::GUARD,
+                    ));
+                }
+
+                $catches = self::summary(self::prose($block['text']));
+
+                if ($catches === '') {
+                    throw new RuntimeException(sprintf(
+                        '%s declares the guard `%s` and has no first sentence for the table to quote. The words a guard catches with are the block\'s own opening line.',
+                        $file,
+                        $declaration['name'],
+                    ));
+                }
+
+                $name = $declaration['name'];
+
+                if (isset($rows[$name])) {
+                    throw new RuntimeException(sprintf(
+                        '%s and %s both declare the guard `%s`: a row is one file, and two declarations of one name are two places the same row is written.',
+                        $rows[$name]['file'],
+                        $file,
+                        $name,
+                    ));
+                }
+
+                $rows[$name] = [
+                    'name' => $name,
+                    'catches' => $catches,
+                    'file' => $file,
+                    'line' => $declaration['line'],
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * The guards table as the files produce it: each name, what it catches, and the link to the
+     * file the guard is declared in.
+     *
+     * @return array<string, array{catches: string, where: string}>
+     */
+    public static function guardRendered(string $root): array
+    {
+        $rows = [];
+
+        foreach (self::guardRows($root) as $name => $row) {
+            $rows[$name] = ['catches' => $row['catches'], 'where' => self::linkTo($row['file'])];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * The guards table as the document has it: each row's name, then what it says it catches and
+     * where it says the guard is.
+     *
+     * @return array<string, array{catches: string, where: string}>
+     */
+    public static function guardListed(string $markdown): array
+    {
+        $rows = [];
+
+        foreach (self::rows($markdown) as $row) {
+            $rows[$row['guard']] = ['catches' => $row['catches'], 'where' => $row['where']];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * What the guards table and the files that declare the guards disagree about.
+     *
+     * The test side is asked first, because a test under `tests/Unit/` that declares nothing is the
+     * other half of the same question — and `guards()` throws rather than answering. Then the rows
+     * are read in both directions: a guard with no row, a row with no guard, a row whose words or
+     * link have drifted, and rows that are no longer in the order the files declare them in.
+     *
+     * @return list<string>
+     */
+    public static function guardDrift(string $root, string $markdown): array
+    {
+        $root = self::root($root);
+
+        self::guards($root);
+
+        $expected = self::guardRendered($root);
+        $listed = self::guardListed($markdown);
+        $findings = [];
+
+        foreach ($expected as $name => $row) {
+            if (! array_key_exists($name, $listed)) {
                 $findings[] = sprintf(
-                    '%s: %s declares itself a guard and the table above has no row for it, so a guard can be added without a place in the index.',
+                    '%s: no row declares the guard `%s`, which %s declares. A guard is declared where it lives, so the table is a rendering of the files.',
                     self::DOCUMENT,
-                    $file,
+                    $name,
+                    $row['where'],
                 );
             }
+        }
+
+        foreach ($listed as $name => $row) {
+            if (! array_key_exists($name, $expected)) {
+                $findings[] = sprintf(
+                    '%s: a row names `%s`, and no file declares that guard. A row is a rendering of the file the guard lives in.',
+                    self::DOCUMENT,
+                    $name,
+                );
+            }
+        }
+
+        foreach ($expected as $name => $row) {
+            if (! isset($listed[$name])) {
+                continue;
+            }
+
+            if ($listed[$name]['catches'] !== $row['catches']) {
+                $findings[] = sprintf(
+                    '%s: the row for `%s` says "%s", and the file declares "%s".',
+                    self::DOCUMENT,
+                    $name,
+                    $listed[$name]['catches'],
+                    $row['catches'],
+                );
+            }
+
+            if ($listed[$name]['where'] !== $row['where']) {
+                $findings[] = sprintf(
+                    '%s: the row for `%s` links %s, and the guard is declared in %s.',
+                    self::DOCUMENT,
+                    $name,
+                    $listed[$name]['where'],
+                    $row['where'],
+                );
+            }
+        }
+
+        // The order is the files' order. The same rows in another order are a table somebody wrote
+        // by hand: the membership is right and the one source is not.
+        $expectedNames = array_keys($expected);
+        $listedNames = array_keys($listed);
+        $sortedExpected = $expectedNames;
+        $sortedListed = $listedNames;
+        sort($sortedExpected);
+        sort($sortedListed);
+
+        if ($sortedExpected === $sortedListed && $expectedNames !== $listedNames) {
+            $findings[] = sprintf(
+                '%s: the guards are not in the order the files declare them in — `%s` first.',
+                self::DOCUMENT,
+                (string) ($expectedNames[0] ?? ''),
+            );
         }
 
         return $findings;
@@ -468,10 +757,11 @@ final class GuardIndex
 
     /**
      * The one reading the suite asserts on: what the document lists, against what the directory
-     * says, and which guards the table has no row for — empty when all three agree.
+     * says, and what the guards table says, against the files that declare the guards — empty when
+     * all of them agree.
      *
      * Every finding names the file it is about, or the table, so that a document which has stopped
-     * being a rendering of the directory cannot be read as an answer of "nothing is wrong".
+     * being a rendering of the tree cannot be read as an answer of "nothing is wrong".
      *
      * @return list<string>
      */
@@ -481,12 +771,12 @@ final class GuardIndex
         $markdown = @file_get_contents($root.'/'.self::DOCUMENT);
 
         if ($markdown === false) {
-            return [sprintf('%s is not here, so there is nothing holding the two lists', self::DOCUMENT)];
+            return [sprintf('%s is not here, so there is nothing holding the tables', self::DOCUMENT)];
         }
 
         return [
             ...self::lists($root, $markdown),
-            ...self::unrecorded($root, $markdown),
+            ...self::guardDrift($root, $markdown),
         ];
     }
 
@@ -495,8 +785,7 @@ final class GuardIndex
      *
      * This is the half a program can repair: `bin/index.php` writes these rows from
      * `tests/Support/`, so a document that has stopped agreeing with the directory is a document it
-     * can write again. A guard test the table has no row for is reported beside this, and is not
-     * this half — the table is hand-written, so that row is a person's to write.
+     * can write again.
      *
      * @return list<string>
      */
@@ -506,14 +795,14 @@ final class GuardIndex
     }
 
     /**
-     * The document with its two tables replaced by what the directory produces.
+     * The document with its three tables replaced by what the tree produces.
      *
      * The prose around them is not this program's business — only the rows are, and the headings
      * they sit under are prose. A section whose table is not there at all is a refusal rather than
-     * an insertion: where a missing list would go is a decision about the document, and a program
+     * an insertion: where a missing table would go is a decision about the document, and a program
      * that guessed it would be writing a paragraph nobody wrote.
      *
-     * @throws RuntimeException when the document has no table under one of the two headings
+     * @throws RuntimeException when the document has no table under one of the three headings
      */
     public static function rewritten(string $root, string $markdown): string
     {
@@ -521,13 +810,71 @@ final class GuardIndex
         $eol = str_contains($markdown, "\r\n") ? "\r\n" : "\n";
         $lines = explode("\n", str_replace("\r\n", "\n", $markdown));
 
+        $lines = self::replaceTable($lines, self::TABLE, self::guardLines(self::guardRendered($root)));
+
         foreach (self::LISTS as $section => $list) {
-            $lines = self::replaceTable($lines, $list['heading'], $list['columns'], $rows[$section]);
+            $lines = self::replaceTable($lines, $list['heading'], self::tableLines($list['columns'], $rows[$section]));
         }
 
         $rewritten = implode("\n", $lines);
 
         return $eol === "\n" ? $rewritten : str_replace("\n", "\r\n", $rewritten);
+    }
+
+    /**
+     * The files a commit would carry, which is the set a guard can be declared in.
+     *
+     * `git ls-files` answers it for a checkout and is what the two path readings use too, so the
+     * three cannot come to disagree about which files are the repository's. A planted tree the
+     * suite writes has no history to ask, so it is walked instead.
+     *
+     * @return list<string>
+     */
+    private static function repository(string $root): array
+    {
+        if (is_dir($root.'/.git')) {
+            try {
+                return MachinePaths::files($root);
+            } catch (RuntimeException) {
+                // A checkout whose git cannot be asked is walked rather than left unread.
+            }
+        }
+
+        return self::walked($root);
+    }
+
+    /**
+     * The files of a tree read without git, for the roots a fixture writes.
+     *
+     * @return list<string>
+     */
+    private static function walked(string $root): array
+    {
+        $files = [];
+        $walker = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::LEAVES_ONLY,
+        );
+
+        foreach ($walker as $file) {
+            if (! $file->isFile()) {
+                continue;
+            }
+
+            $path = Docs::relative($root, $file->getPathname());
+
+            foreach (self::WALK_PAST as $past) {
+                if (str_starts_with($path, $past.'/') || str_contains($path, '/'.$past.'/')) {
+                    continue 2;
+                }
+            }
+
+            $files[] = $path;
+        }
+
+        sort($files);
+
+        return $files;
     }
 
     /**
@@ -596,14 +943,43 @@ final class GuardIndex
     }
 
     /**
-     * The table under one heading, swapped for the one the directory produces.
+     * The guards table's lines, from the rows the files declare.
      *
-     * @param  list<string>  $lines
-     * @param  list<string>  $columns
-     * @param  array<string, string>  $rows
+     * The name is the first cell rather than a link, because a guard's name is what it is called —
+     * a program, a test, a key — and the `Where` cell is where a reader is sent; the file is a link
+     * to the guard's own file either way.
+     *
+     * @param  array<string, array{catches: string, where: string}>  $rows
      * @return list<string>
      */
-    private static function replaceTable(array $lines, string $heading, array $columns, array $rows): array
+    private static function guardLines(array $rows): array
+    {
+        $lines = [
+            '| '.implode(' | ', self::COLUMNS).' |',
+            '|'.str_repeat('---|', count(self::COLUMNS)),
+        ];
+
+        foreach ($rows as $name => $row) {
+            $lines[] = '| '.$name.' | '.$row['catches'].' | '.$row['where'].' |';
+        }
+
+        return $lines;
+    }
+
+    /** A file as the document links it: the path as the link text, relative to `docs/`. */
+    private static function linkTo(string $file): string
+    {
+        return '[`../'.$file.'`](../'.$file.')';
+    }
+
+    /**
+     * The table under one heading, swapped for the rows a rendering produced.
+     *
+     * @param  list<string>  $lines
+     * @param  list<string>  $table
+     * @return list<string>
+     */
+    private static function replaceTable(array $lines, string $heading, array $table): array
     {
         $headingAt = array_search($heading, array_map(rtrim(...), $lines), true);
 
@@ -640,7 +1016,7 @@ final class GuardIndex
             ));
         }
 
-        array_splice($lines, $first, $last - $first + 1, self::tableLines($columns, $rows));
+        array_splice($lines, $first, $last - $first + 1, $table);
 
         return $lines;
     }
@@ -804,16 +1180,16 @@ final class GuardIndex
     }
 
     /**
-     * The first comment block in a file and where it starts, because both styles this package
-     * writes are the file's own header: the `/**` docblock above a class, and the `|`-ruled banner
-     * a script opens with. Reading them the same way is what keeps a second rule for the second
-     * style from being a second place for the two to disagree.
+     * Whether a file carries a Pest test.
      *
-     * @return array{text: string, at: int}|null
+     * The one thing a claim to be a guard or a test of the code can be held to from the outside: a
+     * test is a file with a test in it, and a reading or a fixture is a file that is run by one.
+     * The call is matched at the start of a line, so a sentence about a test in a docblock — `it(`
+     * written as prose — does not answer for the file.
      */
-    private static function block(string $contents): ?array
+    private static function testCase(string $contents): bool
     {
-        return self::blocks($contents)[0] ?? null;
+        return preg_match('/^\s*(it|test)\(/m', $contents) === 1;
     }
 
     /**
@@ -825,9 +1201,29 @@ final class GuardIndex
      * test's own fixture decide what the test declares. A file's header, and every banner beside
      * it, opens at the start of a line.
      *
+     * Three comment styles are read, because a guard is declared in the file it lives in and that
+     * file is not always PHP: a slash-star banner or docblock, a run of `#` lines (a shell script, a
+     * NEON file, an attribute file, a workflow), and an XML comment. One block is one declaration's
+     * worth of argument, which is why a guard needs a block of its own rather than a line in a
+     * header that says several things.
+     *
      * @return list<array{text: string, at: int}>
      */
     private static function blocks(string $contents): array
+    {
+        $blocks = [...self::banners($contents), ...self::hashes($contents), ...self::xml($contents)];
+
+        usort($blocks, static fn (array $left, array $right): int => $left['at'] <=> $right['at']);
+
+        return $blocks;
+    }
+
+    /**
+     * The slash-star blocks of a file, which is the style every PHP file and most scripts use.
+     *
+     * @return list<array{text: string, at: int}>
+     */
+    private static function banners(string $contents): array
     {
         $blocks = [];
 
@@ -849,6 +1245,67 @@ final class GuardIndex
     }
 
     /**
+     * The runs of `#` lines of a file: a shell script and a configuration file write a comment that
+     * way, and a run is one block because a blank line ends it.
+     *
+     * @return list<array{text: string, at: int}>
+     */
+    private static function hashes(string $contents): array
+    {
+        $blocks = [];
+        $start = null;
+        $end = null;
+        $at = 0;
+
+        foreach (preg_split('/(?<=\n)/', $contents) ?: [$contents] as $line) {
+            // A shebang is a `#` line, and it is the interpreter asking for a program rather than
+            // a comment about the file: reading it as a block would put `#!/usr/bin/env php` in
+            // front of the banner a script opens with.
+            if (preg_match('/^[ \t]*#(?!!)/', $line) === 1) {
+                $start ??= $at;
+                $end = $at + strlen($line);
+            } elseif ($start !== null) {
+                $blocks[] = ['text' => substr($contents, $start, $end - $start), 'at' => $start];
+                $start = null;
+            }
+
+            $at += strlen($line);
+        }
+
+        if ($start !== null) {
+            $blocks[] = ['text' => substr($contents, $start, (int) $end - $start), 'at' => $start];
+        }
+
+        return $blocks;
+    }
+
+    /**
+     * The `<!-- ... -->` blocks of a file, which is how an XML record writes a comment.
+     *
+     * @return list<array{text: string, at: int}>
+     */
+    private static function xml(string $contents): array
+    {
+        $blocks = [];
+
+        if (preg_match_all('/<!--/', $contents, $matches, PREG_OFFSET_CAPTURE) === 0) {
+            return $blocks;
+        }
+
+        foreach ($matches[0] as [, $at]) {
+            $end = strpos($contents, '-->', $at);
+
+            if ($end === false) {
+                continue;
+            }
+
+            $blocks[] = ['text' => substr($contents, $at, $end - $at), 'at' => $at];
+        }
+
+        return $blocks;
+    }
+
+    /**
      * The declaration a block carries, and the line it is on.
      *
      * @param  array{text: string, at: int}  $block
@@ -856,16 +1313,16 @@ final class GuardIndex
      */
     private static function declaration(string $contents, array $block): ?array
     {
-        $pattern = '/^[\s\/*|]*'.preg_quote(self::DECLARATION, '/').'\s+(\S+)\s*$/m';
-
-        if (preg_match($pattern, $block['text'], $match, PREG_OFFSET_CAPTURE) !== 1) {
+        if (preg_match(self::DECLARATION_PATTERN, $block['text'], $match, PREG_OFFSET_CAPTURE) !== 1) {
             return null;
         }
 
         $at = $block['at'] + $match[0][1];
+        $name = isset($match[2]) ? trim($match[2][0]) : '';
 
         return [
             'section' => $match[1][0],
+            'name' => $name === '' ? null : $name,
             'line' => substr_count($contents, "\n", 0, max($at, 1)) + 1,
         ];
     }
@@ -881,7 +1338,10 @@ final class GuardIndex
         $lines = [];
 
         foreach (explode("\n", str_replace("\r\n", "\n", $block)) as $line) {
-            $lines[] = (string) preg_replace('/^[\s\/*|]+/', '', $line);
+            // The decoration of every style a block is written in: the `|` and dashes of a ruled
+            // banner, the `*` of a docblock, the `#` of a shell or config comment, and the `<!--`
+            // and `-->` an XML comment opens and closes with.
+            $lines[] = (string) preg_replace('/^[\s\/*|#<!-]+/', '', $line);
         }
 
         return $lines;

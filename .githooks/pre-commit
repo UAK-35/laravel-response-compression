@@ -28,6 +28,11 @@
 # what answered instead of letting the difference pass quietly.
 # =============================================================================
 
+
+# @guards-index guard `.githooks/pre-commit`
+#
+# a commit carrying PHP that does not parse, style the project does not use, a source file the suite that covers it would fail on, a link between the records that no longer resolves, or a claim about a config key that the source has outgrown — by running `bin/checks.php --staged`
+
 set -u
 
 root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0

@@ -7,6 +7,13 @@
     still be called green. Turning them on is what makes the gate's `tests` check mean
     "nothing was reported", rather than "nothing failed".
 -->
+
+<!--
+    @guards-index guard `failOnWarning`/`failOnRisky`/`failOnDeprecation`
+
+    a test that warns, is risky, or leans on a deprecation and still reports green
+-->
+
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.0/phpunit.xsd"
     colors="true"
