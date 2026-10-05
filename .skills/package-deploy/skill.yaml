@@ -1,0 +1,27 @@
+# =============================================================================
+# package-deploy — weighing and cutting a version, on this side of the remote
+# =============================================================================
+# Every command named in `description` is read out of `instructions.md` by the
+# `descriptions` step of `python .agents/verify.py`, and a hyphenated word in a
+# description is read as a command name - which is why the prose here avoids them
+# and names only the six commands below. This skill is one half of the former
+# `package-release`: the whole release lane with the push taken out. Getting the
+# tag to the remote is `package-push`.
+name: "package-deploy"
+version: "1.0.0"
+description: "Weigh what the tree adds up to, cut a version, and check the releasing runbook: everything a version needs on this side of the remote. Commands - unreleased, weigh, weigh-dry-run, release-cut, prerelease, verify-releasing. Invoke when a version is being decided or cut, or when the claims in the releasing runbook are being checked again."
+instructions: "instructions.md"
+author: "UAK35"
+license: "MIT"
+tags: release, semver, tags, packagist, runbooks, package
+categories: release
+
+sync:
+  freebuff:
+    enabled: true
+    name_override: "package-deploy"
+  gemini:
+    enabled: true
+  windsurf:
+    enabled: true
+    filename: "package-deploy.windsurf.md"

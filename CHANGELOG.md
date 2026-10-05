@@ -800,6 +800,22 @@ read as a runner that still runs the gate.
   `bin/coverage.php` at 83.3%, driven end to end in a planted tree, with the same two header lines
   unreachable that every measured file in this repository carries.
 
+- **The release skill is two skills now, so a push and a cut cannot be mistaken for one another.**
+  `package-release` answered both questions — "what is the next version" and "how does its tag reach
+  the remote" — and the two have different failure modes and different permissions: one writes a
+  commit and a tag inside the checkout, the other touches the remote and can be refused by it. It is
+  split along that line. `package-deploy` keeps the whole release lane with the push taken out —
+  `unreleased`, `weigh`, `weigh-dry-run`, `release-cut`, `prerelease` and `verify-releasing` — and it
+  never pushes: even `prerelease` now cuts the tag without `--push`. `package-push` owns the remote —
+  `push`, and `verify-pushing` for the `PUSHING.md` evidence table. The one runbook check that used to
+  cover both files is two checks, each beside the half it is about, and the `--follow-tags` caveat (a
+  lightweight tag is not carried, and `v0.0.1` is this repository's one lightweight tag) now lives
+  where a push is read rather than in a release guide. `package-release` is deleted: its target, its
+  Windsurf pointer and its source directory are gone, its `GEMINI.md` import is replaced by the two
+  new ones, and `package-commit`'s "pushing is `package-release`'s job" now names `package-push`.
+  Nothing about `bin/release.php`, `composer release`, `.release-lane` or the release commit changed —
+  the program does the same thing; what was split is which skill hands a maintainer the command.
+
 ### Fixed
 
 - **The push runbook's evidence table was re-read against the tree, and every number in it is the

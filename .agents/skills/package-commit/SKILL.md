@@ -162,7 +162,7 @@ until it has **one** reason to have changed.
 - **Do not commit unless asked.** Committing is a user decision, not a step of finishing a task.
 - **Never discard, overwrite, stash or commit a change you did not make.** Another agent, an IDE, or
   the user may be editing the same tree.
-- **Never push from here.** Pushing is `package-release`'s job.
+- **Never push from here.** Pushing is `package-push`'s job.
 - **Keep a red commit out of the history.** A failed staged check is a reason to fix the change, not
   to reach for `--skip-checks`.
 - `python .agents/verify.py` green before presenting work as finished.

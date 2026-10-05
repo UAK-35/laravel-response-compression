@@ -1,0 +1,27 @@
+# =============================================================================
+# package-push — getting a cut version's tag to the remote
+# =============================================================================
+# Every command named in `description` is read out of `instructions.md` by the
+# `descriptions` step of `python .agents/verify.py`, and a hyphenated word in a
+# description is read as a command name - which is why the prose here avoids them
+# and names only the two commands below. This skill is one half of the former
+# `package-release`: the half that touches the remote. Weighing and cutting is
+# `package-deploy`, which never pushes.
+name: "package-push"
+version: "1.0.0"
+description: "Carry a version's tag to the remote, and check the pushing runbook against the tree it describes. Commands - push, verify-pushing. Invoke when a cut tag has to reach the remote, when a push was refused or carried nothing, or when a claim in the pushing runbook needs checking again."
+instructions: "instructions.md"
+author: "UAK35"
+license: "MIT"
+tags: push, tags, remote, runbooks, package
+categories: release
+
+sync:
+  freebuff:
+    enabled: true
+    name_override: "package-push"
+  gemini:
+    enabled: true
+  windsurf:
+    enabled: true
+    filename: "package-push.windsurf.md"
