@@ -18,6 +18,19 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **A guard shaped like a program is held too: one rail is taken out of `bin/release.php`, and the
+  rails' own test has to go red on the run that asserts it.** The harness held readings two ways — a
+  break planted in the tree, and a detector rewritten under its own tests — and declined the guards
+  whose shape is a program, because there was nothing to break and ask again. That was true only
+  while no fixture could be handed a rewritten program: `ReleaseRepo::mutated()` and
+  `RC_RELEASE_FIXTURE_SCRIPT` are that hand, so the branch rail's condition comes out of the program,
+  the rewritten releaser reaches `tests/Unit/Release/RailsTest.php` through that variable, and the
+  run has to go red carrying the rail's own sentence — with the same run under the program copied
+  verbatim as the control. A test cannot be handed a program as an argument, which is what the
+  variable is for. `tests/Unit/Release/RailsTest.php` declares a row of its own in `docs/guards.md`
+  for the same reason, so the guard the index records is one this harness accounts for, and the two
+  declines that remain now say why their fixtures cannot be handed one rather than that a program
+  cannot be held.
 - **The release fixture can be built from a script a test names, so a rewritten releaser can be put in
   front of the rail's own test.** `ReleaseRepo::make()` takes an optional script, `mutated()` is the
   named way to ask, and `RC_RELEASE_FIXTURE_SCRIPT` is how a child process hands one to a test that

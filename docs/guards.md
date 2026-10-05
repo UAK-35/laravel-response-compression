@@ -8,7 +8,7 @@ answer is not always "port it".
 
 ## Kept
 
-The table records 34 guards, and it is rendered from the files the guards live in: each row's name
+The table records 35 guards, and it is rendered from the files the guards live in: each row's name
 and its argument are a comment block in that file, and the file itself is the third column. What each
 one catches is in the second column, and where it lives is in the third.
 
@@ -44,8 +44,9 @@ one catches is in the second column, and where it lives is in the third.
 | the gate's own tests | the script everything else is measured by, which no test had ever run — its exit codes, its skips and its refusals, in a planted tree | [`../tests/Unit/Gate/ChecksTest.php`](../tests/Unit/Gate/ChecksTest.php) |
 | `tests/Unit/Gate/CoverageTest.php` | a floor run that keeps quiet about the machine it is on: the interpreter is named before the suite starts and again at the foot of a failure, so a floor that moved is attributable to the code or to the PHP — and a run that collected nothing says so rather than reporting every file at 0.0% | [`../tests/Unit/Gate/CoverageTest.php`](../tests/Unit/Gate/CoverageTest.php) |
 | the log-message test | two reasons the middleware reports a skip as carrying one code, or two that write the same sentence — read out of the type that holds each sentence once, so a line a branch invents and a line two branches share are both the file's to refuse, and nothing in PHP refuses the duplicate code a backed enum is loaded with | [`../tests/Unit/Middleware/LogMessagesTest.php`](../tests/Unit/Middleware/LogMessagesTest.php) |
+| the release rails | every rail of `bin/release.php` refusing the condition it is about, asked one at a time through the fixture hand that puts a rewritten releaser in front of this test — so a rail that stopped refusing fails the run that asserts on it rather than being noticed by a reader | [`../tests/Unit/Release/RailsTest.php`](../tests/Unit/Release/RailsTest.php) |
 | the machine-path test | a path that only resolves on the machine it was written on — a drive letter, a home directory, a network share, and the same drive as a POSIX shell mounts it (`/e/…`, `/mnt/e/…`, `/cygdrive/e/…`) — in any file a commit would carry | [`../tests/Unit/Support/MachinePathsTest.php`](../tests/Unit/Support/MachinePathsTest.php) |
-| the mutation harness | the guards above, going quiet: one break at a time is planted in a copy of this checkout, and the guard's own reading has to name it — so a reading that stopped asking the right question fails there instead of reporting nothing forever | [`../tests/Unit/Support/MutationHarnessTest.php`](../tests/Unit/Support/MutationHarnessTest.php) |
+| the mutation harness | the guards above, going quiet: one break at a time is planted in a copy of this checkout, a reading's detector is rewritten under its own tests, and a rail is taken out of the program whose test holds it — so a guard that stopped asking the right question, or a test that stopped asserting, fails there instead of reporting nothing forever | [`../tests/Unit/Support/MutationHarnessTest.php`](../tests/Unit/Support/MutationHarnessTest.php) |
 | the repository-escape test | a relative path that climbs above the repository root — written out, or computed as `dirname(__DIR__, n)` — in any file a commit would carry | [`../tests/Unit/Support/RepoEscapesTest.php`](../tests/Unit/Support/RepoEscapesTest.php) |
 | the tool-path test | a tool's path written down in a second place — in a composer script, or in one of the three programs that runs a tool — a `vendor/bin` shim, which is a second interpreter, a path that is not on disk, a name nothing asks for, an entry nothing runs, and the two facts an entry carries beside the path: a pin that is not the version `composer.json` requires or not the one installed, and an entry with no line saying what its tool is for; and the runner — `.github/workflows/main.yml`, the third place a tool can be invoked and the one that had no reader — held to the gate it has to run (`composer checks -- --require-all` and `composer test:unit`, with a shell comment in a step no substitute for the command) and to the manifest for a tool path written into it | [`../tests/Unit/Support/ToolPathsTest.php`](../tests/Unit/Support/ToolPathsTest.php) |
 
@@ -296,11 +297,22 @@ Each inversion
 carries the rewrite as a closure over the reading's own text, so a needle that stopped matching
 raises rather than planting nothing — the same rule the mutations above are held to.
 
-Declining is a claim rather than a silence, and what is still declined is named and reasoned — the
-guards that are programs rather than readings, and the harness's own test. Every guard the table
-above records is either mutated or declined, both lists are read back against this document, and a
-guard added without a decision fails there — the same rule this page imposes on itself, one layer
-out.
+The third direction is for a guard whose shape is a program rather than a reading. `bin/release.php`
+is a rail per condition it refuses, and what holds one is the run that asserts on it: that program is
+the one here whose fixture can be built from a script a caller names — `ReleaseRepo::mutated()` and
+`RC_RELEASE_FIXTURE_SCRIPT` — so one rail is taken out of the program, the rewritten releaser is
+handed to `tests/Unit/Release/RailsTest.php` through that variable, and the run has to go red naming
+the rail. A test cannot be handed a program as an argument, which is what the variable is for; and
+the same run with the program copied verbatim is the control, for the reason the overlay's is,
+because a red run has to be the rail that moved rather than the process that carried it.
+
+Declining is a claim rather than a silence, and what is still declined is named and reasoned: the two
+programs whose fixture is a tree their own test plants rather than one built from a script a caller
+names — `bin/checks.php`, which is run against a repository `ChecksTest` builds, and
+`bin/coverage.php`, which is the parent of the run it measures — and the harness's own test. Every
+guard the table above records is either held or declined, both lists are read back against this
+document, and a guard added without a decision fails there — the same rule this page imposes on
+itself, one layer out.
 
 ## The readings the guards are built from
 

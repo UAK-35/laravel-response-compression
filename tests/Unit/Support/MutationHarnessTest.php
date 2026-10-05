@@ -37,7 +37,7 @@ use Uak35\ResponseCompression\Tests\Support\MutationHarness;
 /**
  * @guards-index guard the mutation harness
  *
- * the guards above, going quiet: one break at a time is planted in a copy of this checkout, and the guard's own reading has to name it — so a reading that stopped asking the right question fails there instead of reporting nothing forever
+ * the guards above, going quiet: one break at a time is planted in a copy of this checkout, a reading's detector is rewritten under its own tests, and a rail is taken out of the program whose test holds it — so a guard that stopped asking the right question, or a test that stopped asserting, fails there instead of reporting nothing forever
  */
 beforeEach(function (): void {
     MutationHarness::restore();
@@ -100,6 +100,35 @@ foreach (MutationHarness::inversions() as $inversion) {
     });
 }
 
+foreach (MutationHarness::programs() as $program) {
+    it(sprintf('runs the test that holds %s green under the program copied verbatim', $program['guard']), function () use ($program): void {
+        // The control for the program direction, for the reason the overlay has one: the child
+        // process, the variable and the fixture are all in this run, with the program left as this
+        // checkout ships it — so a red run below is the rail taken out of it rather than the
+        // machinery that carried it there.
+        $control = MutationHarness::verbatim($program);
+
+        expect($control['exit'])->toBe(0, $control['output']);
+    });
+
+    it(sprintf('turns %s red when the program stops refusing', $program['guard']), function () use ($program): void {
+        $disarmed = MutationHarness::disarmed($program);
+
+        // Red, and for the right reason: the rail's own sentence is what the run has to reach, so a
+        // run that could not load the program at all is told apart from a rail that stopped
+        // refusing — a parse error is not an unarmed program, and `FAILED` is the run having
+        // reached an assertion rather than a fatal before one.
+        expect($disarmed['exit'])->not->toBe(0)
+            ->and($disarmed['output'])->not->toContain('PHP Parse error')
+            ->and($disarmed['output'])->not->toContain('Error in bootstrap script')
+            ->and($disarmed['output'])->toContain('FAILED')
+
+            // The rail itself: the sentence the test that holds it asserts on, which the run that
+            // asserts on it prints when the rail is the thing that moved.
+            ->and($disarmed['output'])->toContain($program['rail']);
+    });
+}
+
 it('accounts for every guard the index records, and names the ones it does not mutate', function (): void {
     // The set comes from `docs/guards.md` rather than from a scan of this directory, because that
     // document is where a guard is recorded — the guard-index test already refuses a guard that is
@@ -110,7 +139,14 @@ it('accounts for every guard the index records, and names the ones it does not m
     preg_match_all('#tests/Unit/[A-Za-z0-9/]+Test\.php#', $index, $matches);
 
     $indexed = array_values(array_unique($matches[0]));
-    $covered = array_column(MutationHarness::mutations(), 'test');
+
+    // A guard is held three ways — a break planted in the tree, a reading's detector rewritten, and
+    // a rail taken out of the program its tests run — and they are read as one set here, because
+    // the question this asks is whether the index and this harness agree about which guards exist.
+    $covered = [
+        ...array_column(MutationHarness::mutations(), 'test'),
+        ...array_column(MutationHarness::programs(), 'test'),
+    ];
     $declined = array_keys(MutationHarness::UNAUDITED);
     $gone = array_values(array_filter(
         [...$covered, ...$declined],
@@ -119,9 +155,9 @@ it('accounts for every guard the index records, and names the ones it does not m
 
     // Three claims, and the second and third are what keep the first from being satisfied by a
     // list nobody is on: every guard in the index is accounted for, nothing is accounted for that
-    // the index does not record — so a mutation for a guard that was removed fails rather than
-    // sitting there — and every file named is still there, so a rename cannot leave a line
-    // pointing at nothing.
+    // the index does not record — so a hold for a guard that was removed fails rather than sitting
+    // there — and every file named is still there, so a rename cannot leave a line pointing at
+    // nothing.
     expect($indexed)->not->toBeEmpty()
         ->and(array_values(array_diff($indexed, [...$covered, ...$declined])))->toBe([])
         ->and(array_values(array_diff([...$covered, ...$declined], $indexed)))->toBe([])

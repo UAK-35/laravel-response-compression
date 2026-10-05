@@ -481,8 +481,9 @@ Before presenting completed work:
 - [ ] a behaviour change carries a test that fails without it
 - [ ] `CHANGELOG.md` has a bullet under `## Unreleased`, in the right section
 - [ ] a contradiction with a `docs/` record is fixed in that record, in this commit
-- [ ] a new guard has its row in `docs/guards.md`, and the mutation harness either mutates or
-      declines it by name
+- [ ] a new guard has its row in `docs/guards.md`, and the mutation harness either holds it — a
+      break planted in the tree, a detector rewritten under its tests, or a rail taken out of the
+      program that holds it — or declines it by name
 - [ ] a new file in `tests/Support/` declares its `@guards-index` list, a new test in `tests/Unit/`
       declares `@guards-index guard` or `@guards-index test`, and `bin/index.php --check` is quiet
       (the two lists in `docs/guards.md` are what the directory produces, and every guard test is

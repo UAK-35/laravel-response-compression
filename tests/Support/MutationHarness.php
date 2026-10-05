@@ -43,10 +43,10 @@ use RuntimeException;
  * `ConfigDoc`'s two halves are one comparison, so this class is a caller rather than a copy for
  * each of them. Where a walk used to be composed in the test — the docs links, the config keys,
  * the config claims, the tool paths — the walk now lives in the support class the guard is about,
- * so there is one definition of it rather than a second one here. What `UNAUDITED` still declines
- * is the two guards that are programs rather than readings, and this harness's own test.
- * `MutationHarnessTest` checks both directions of that list, so a guard cannot be added without
- * either a mutation or a reason that is still true.
+ * so there is one definition of it rather than a second one here. `MutationHarnessTest` checks both
+ * directions of that list, so a guard cannot be added without either a hold or a reason that is
+ * still true — where a hold is one of the three below: a break planted in the tree, a reading's
+ * detector rewritten, or a rail taken out of a program.
  *
  * One reading a guard asserts on is deliberately not mutated, and the reason is a fact about the
  * tree rather than about the reading. `ToolPaths::pinDrift()` holds a pin to what `composer.json`
@@ -57,6 +57,21 @@ use RuntimeException;
  * one place, and it would ask the reading a question about a checkout that is not this one. So the
  * pin half is held by its own test, against this machine's real record, and it is said here rather
  * than left as a gap in the list below.
+ *
+ * THE THIRD DIRECTION — A GUARD THAT IS A PROGRAM
+ * -----------------------------------------------
+ * A rail in `bin/release.php` is neither of those: its answer is an exit code, and the thing that
+ * has to catch a rail which stopped refusing is the test that asserts on that rail. That program is
+ * the one here whose fixture can be built from a script a caller names — `ReleaseRepo::mutated()`
+ * and the variable it reads — so a rail is taken out of the program, the rewritten releaser is
+ * handed to the rail's own test through `RC_RELEASE_FIXTURE_SCRIPT`, and the run has to go red
+ * naming that rail. This is `programs()` below, and the control beside it runs the same child
+ * process with the program copied verbatim, for the same reason the overlay has one: the rewrite
+ * has to be the only difference between the two answers.
+ *
+ * The other two program-shaped guards are still declined, for a reason that is now about their
+ * fixtures rather than about their shape — a test cannot be handed a program, and neither of those
+ * two is planted from one.
  *
  * WHY THE TREE IS A COPY
  * ----------------------
@@ -89,8 +104,8 @@ final class MutationHarness
      * it, and the reasons cannot outlive the guards they are about.
      */
     public const array UNAUDITED = [
-        'tests/Unit/Gate/ChecksTest.php' => 'the guard is a program rather than a reading. `bin/checks.php` is run as a child process in a planted tree, which is what `ReleaseRepo` is for, and there is nothing in this checkout to break and ask again — the tree it is asked about already belongs to its own test',
-        'tests/Unit/Gate/CoverageTest.php' => 'the same: `bin/coverage.php` is a program, and the fixture it is driven in is the test\'s own',
+        'tests/Unit/Gate/ChecksTest.php' => 'the program is the gate, and the tree it is asked about already belongs to its own test: `bin/checks.php` is run as a child process against a repository `ChecksTest` plants, and no variable hands that run a rewrite of it — `ReleaseRepo` and the script it is pointed at are the one fixture here that is built from one, and what they hold is `bin/release.php`',
+        'tests/Unit/Gate/CoverageTest.php' => 'the same, one step further out: `bin/coverage.php` is the parent of the run it measures rather than a program a fixture plants, so the run it is about is the test\'s own',
         'tests/Unit/Support/MutationHarnessTest.php' => 'it drives these mutations rather than reading this checkout on its own account: the mutations are the subject, and a mutation of the harness would be a second harness rather than a check on this one',
     ];
 
@@ -786,6 +801,80 @@ final class MutationHarness
     }
 
     /**
+     * The programs that are guards in their own right: one rail taken out of one of them, and that
+     * program's own test required to go red.
+     *
+     * WHY A PROGRAM IS A THIRD DIRECTION
+     * ---------------------------------
+     * A mutation above breaks the *tree*, and an inversion rewrites a *reading*; both are about a
+     * guard whose answer is a call. A rail in `bin/release.php` answers with an exit code instead,
+     * and the thing that catches a rail which stopped refusing is the test that asserts on that
+     * rail. `bin/release.php` is the program here whose fixture can be built from a script a caller
+     * names — `ReleaseRepo::mutated()`, and `RC_RELEASE_FIXTURE_SCRIPT` for the process that builds
+     * its own — which is what makes it the one that can be held this way at all: a test cannot be
+     * handed a program as an argument, so the rewrite arrives through the environment of the child
+     * process the test runs in.
+     *
+     * `rail` is the rail's own sentence, the string the test that holds it asserts on, and the marker
+     * this direction is read for — the same rule the mutations above are held to, because a run that
+     * went red for any other reason is not evidence that the rail was being held.
+     *
+     * @return list<array{guard: string, test: string, program: string, rail: string, rewrite: Closure(string): string}>
+     */
+    public static function programs(): array
+    {
+        return [
+            [
+                'guard' => 'the branch rail',
+                'test' => 'tests/Unit/Release/RailsTest.php',
+                'program' => ReleaseRepo::SCRIPT,
+                'rail' => 'A release is cut from release, and HEAD is on main.',
+                'rewrite' => static fn (string $source): string => self::without($source, '$current !== $branch'),
+            ],
+        ];
+    }
+
+    /**
+     * One program with one rail taken out of it, and its own test run against what is left.
+     *
+     * @param  array{guard: string, test: string, program: string, rail: string, rewrite: Closure(string): string}  $program
+     * @return array{exit: int, output: string}
+     */
+    public static function disarmed(array $program): array
+    {
+        $source = self::program($program['program']);
+        $rewritten = ($program['rewrite'])($source);
+
+        // A rewrite that changed nothing would leave the rail standing and the run green, which is
+        // exactly the passing test this exists to make impossible. The rewrites raise on a needle
+        // that stopped matching as well, so this is the second half of one rule rather than it.
+        if ($rewritten === $source) {
+            throw new RuntimeException(sprintf(
+                'The rewrite of %s left it exactly as it was, so there is no rail for its test to catch.',
+                $program['program'],
+            ));
+        }
+
+        return self::handed($program['test'], $rewritten);
+    }
+
+    /**
+     * The control: the same child process and the same variable, with the program copied verbatim.
+     *
+     * Without it a red run could be the variable, the bootstrap or the child process rather than the
+     * rail taken out of the program. The claim of a hold is that the rewrite is the only difference
+     * between the two answers, and this is the run that says so — one per program, because the
+     * variable names one script per process.
+     *
+     * @param  array{guard: string, test: string, program: string, rail: string, rewrite: Closure(string): string}  $program
+     * @return array{exit: int, output: string}
+     */
+    public static function verbatim(array $program): array
+    {
+        return self::handed($program['test'], self::program($program['program']));
+    }
+
+    /**
      * One guard's tests, run in a child process under an overlay that holds a rewritten reading.
      *
      * The overlay is a directory of `Tests\\Support` files that Composer's PSR-4 mapping is pointed
@@ -795,9 +884,12 @@ final class MutationHarness
      *
      * @param  array<string, string>  $readings  class name => the file's contents, as it should load
      * @param  list<string>  $tests  the guard's test files, one or more
+     * @param  array<string, string>  $env  variables the child is started with beside the ones it
+     *                                      would inherit, which is how a rewritten *program* reaches
+     *                                      a test that cannot be passed one as an argument
      * @return array{exit: int, output: string}
      */
-    public static function under(array $readings, array $tests): array
+    public static function under(array $readings, array $tests, array $env = []): array
     {
         $root = sys_get_temp_dir().'/rc-inversion-'.bin2hex(random_bytes(6));
 
@@ -828,15 +920,26 @@ final class MutationHarness
 
         $command = [PHP_BINARY, $pest, '--no-coverage', '--colors=never', '--bootstrap', $bootstrap, ...$files];
 
+        // The variable beside the environment the child would have had, rather than instead of it:
+        // what `proc_open()` is given is the whole environment on Windows, and a run that lost `PATH`
+        // and `SystemRoot` would be red for a reason about the machine rather than about the program.
+        $environment = null;
+
+        if ($env !== []) {
+            $inherited = getenv();
+            $environment = array_replace(is_array($inherited) ? $inherited : [], $env);
+        }
+
         $process = proc_open(
             $command,
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]],
             $pipes,
             self::package(),
+            $environment,
         );
 
         if (! is_resource($process)) {
-            throw new RuntimeException('Could not run '.implode(' ', $tests).' under the inversion overlay');
+            throw new RuntimeException('Could not run '.implode(' ', $tests).' under the rewriting harness');
         }
 
         fclose($pipes[0]);
@@ -892,6 +995,62 @@ final class MutationHarness
         }
 
         return self::under($readings, array_values(array_unique($tests)));
+    }
+
+    /**
+     * A program's own test, in a child process in which every fixture is built from that program.
+     *
+     * The program is written to a directory of its own rather than into this checkout: the fixture
+     * reads the file the variable names, and the suite's own copy is the one every other test here
+     * is measuring. No overlay is planted — the rewrite is a program rather than a class, so it
+     * arrives the other way — and the empty overlay the run is started with is the same mechanism
+     * the control above is green under.
+     *
+     * @return array{exit: int, output: string}
+     */
+    private static function handed(string $test, string $program): array
+    {
+        $directory = sys_get_temp_dir().'/rc-program-'.bin2hex(random_bytes(6));
+        $script = $directory.'/release.php';
+
+        self::makeDirectory($directory);
+        self::write($script, $program);
+
+        register_shutdown_function(static function () use ($directory): void {
+            ReleaseRepo::remove($directory);
+        });
+
+        return self::under([], [$test], [ReleaseRepo::SCRIPT_ENV => $script]);
+    }
+
+    /** One program, as this checkout ships it. */
+    private static function program(string $program): string
+    {
+        return (string) file_get_contents(self::package().'/'.$program);
+    }
+
+    /**
+     * One program with one condition taken out of it.
+     *
+     * The condition is replaced by the one that cannot hold rather than deleted, so the file is
+     * still a program: what stopped is the rail, not the parsing. A needle that matched no line or
+     * more than one raises rather than planting nothing, because a rewrite that changed nothing
+     * would leave the rail standing and be read as a rail that held.
+     */
+    private static function without(string $source, string $condition): string
+    {
+        $needle = 'if ('.$condition.') {';
+        $found = substr_count($source, $needle);
+
+        if ($found !== 1) {
+            throw new RuntimeException(sprintf(
+                'The condition `%s` appears %d time(s) in the program, so there is no one rail to take out of it.',
+                $needle,
+                $found,
+            ));
+        }
+
+        return str_replace($needle, 'if (false) {', $source);
     }
 
     /** One reading, as this checkout ships it. */

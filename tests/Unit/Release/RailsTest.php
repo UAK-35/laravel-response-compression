@@ -18,9 +18,13 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 | (where the rail has an escape) that the escape releases. The condition is a fact about a real
 | repository, which is why the fixture is one.
 |
-| @guards-index test
 */
 
+/**
+ * @guards-index guard the release rails
+ *
+ * every rail of `bin/release.php` refusing the condition it is about, asked one at a time through the fixture hand that puts a rewritten releaser in front of this test — so a rail that stopped refusing fails the run that asserts on it rather than being noticed by a reader
+ */
 it('refuses to release where there is no repository', function (): void {
     $run = ReleaseRepo::plain()->release('--weigh', '--yes');
 
