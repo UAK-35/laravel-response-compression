@@ -18,6 +18,15 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **The release fixture can be built from a script a test names, so a rewritten releaser can be put in
+  front of the rail's own test.** `ReleaseRepo::make()` takes an optional script, `mutated()` is the
+  named way to ask, and `RC_RELEASE_FIXTURE_SCRIPT` is how a child process hands one to a test that
+  builds its own fixture. The script arrives as a source rather than a path because a mutation is a
+  rewrite, it is part of the template key because the fixture is committed and tagged the moment it
+  is planted, and a variable naming a file that is not there throws rather than falling back — a
+  silent fallback would run the unmutated program and report the rail as still held. Nothing in this
+  tree calls it yet: it is the fixture half of the harness's other direction, the one that holds a
+  guard shaped like a program rather than a reading.
 - **A layer step refuses the token left standing where an interpreter goes.** `verify.py` already
   refused an interpreter's *name* written in front of a command, which runs whatever that name is
   first on `PATH`. The token that stands for this machine's PHP is the same failure one

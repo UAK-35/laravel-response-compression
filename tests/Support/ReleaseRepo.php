@@ -64,6 +64,21 @@ use RuntimeException;
  */
 final class ReleaseRepo
 {
+    /** The one file a mutation harness replaces: the program whose rails are the subject. */
+    public const string SCRIPT = 'bin/release.php';
+
+    /**
+     * The environment variable that points every fixture this process plants at another release
+     * script.
+     *
+     * The harness's other direction — a mutated program run against the test that holds the rail —
+     * needs the *suite's own* test to build its fixture, and a test cannot be handed a script. So
+     * the rewrite arrives through the environment instead: a child process is started with this
+     * set, and every fixture it plants is built from that file. Without it the only way to put a
+     * mutated releaser in front of a test would be to write the test twice.
+     */
+    public const string SCRIPT_ENV = 'RC_RELEASE_FIXTURE_SCRIPT';
+
     private const string NAME = 'Release Fixture';
 
     private const string EMAIL = 'fixture@example.test';
@@ -97,9 +112,27 @@ final class ReleaseRepo
      * A repository with one commit, one annotated tag and an Unreleased section, and no remote —
      * a test that needs the remote asks for it, because `withRemote()` pushes from HEAD.
      */
-    public static function make(string $firstTag = 'v0.0.1', string $notes = self::NOTES): self
+    public static function make(string $firstTag = 'v0.0.1', string $notes = self::NOTES, ?string $script = null): self
     {
-        return self::copy(self::template($firstTag, $notes));
+        return self::copy(self::template($firstTag, $notes, $script));
+    }
+
+    /**
+     * A fixture whose `bin/release.php` is not this package's.
+     *
+     * One rail of the program has been rewritten so that it no longer refuses, and everything else
+     * about the fixture — the tag, the notes, the remote, the stub gate — is the same tree the
+     * rail's own test is written against. That is the whole point: the mutated program and the real
+     * one are handed the same conditions, so a difference in what they answer is attributable to
+     * the rail rather than to the fixture.
+     *
+     * A source rather than a path, because a mutation is a rewrite: the caller has already turned
+     * this package's script into a broken one, and a file on disk would be a second thing to clean
+     * up.
+     */
+    public static function mutated(string $script): self
+    {
+        return self::make(script: $script);
     }
 
     /**
@@ -414,9 +447,14 @@ final class ReleaseRepo
      * The planted tree for one tag and body, built on first use and copied from then on. Returned
      * rather than exposed: a test gets a copy, never this.
      */
-    private static function template(string $firstTag, string $notes): self
+    private static function template(string $firstTag, string $notes, ?string $script = null): self
     {
-        $key = $firstTag."\0".$notes;
+        $script ??= self::fixtureScript();
+
+        // The script is part of the key rather than a detail of the build, because it is the one
+        // thing a template cannot be patched for afterwards: the fixture is committed and tagged
+        // the moment it is planted, so a rewritten program has to be in the tree before that.
+        $key = $firstTag."\0".$notes."\0".($script === null ? '' : md5($script));
 
         if (isset(self::$templates[$key])) {
             return self::$templates[$key];
@@ -443,7 +481,7 @@ final class ReleaseRepo
             throw new RuntimeException('Could not write '.$config);
         }
 
-        $repo->scaffold();
+        $repo->scaffold($script);
         $repo->write('CHANGELOG.md', self::changelog($notes));
 
         if ($firstTag !== self::PLAIN) {
@@ -522,6 +560,29 @@ final class ReleaseRepo
             "\temail = ".self::EMAIL,
             '',
         ]);
+    }
+
+    /**
+     * The release script a fixture should be built from when the environment names one.
+     *
+     * Read as a file rather than as text: this is an override a child process is started with, and
+     * a variable that names something that is not there is a mistake rather than an empty answer —
+     * falling back to this package's script would run the *unmutated* program and report the rail
+     * as still held.
+     */
+    private static function fixtureScript(): ?string
+    {
+        $named = getenv(self::SCRIPT_ENV);
+
+        if (! is_string($named) || $named === '') {
+            return null;
+        }
+
+        if (! is_file($named)) {
+            throw new RuntimeException(self::SCRIPT_ENV.' names '.$named.', which is not a file.');
+        }
+
+        return (string) file_get_contents($named);
     }
 
     /**
@@ -678,7 +739,7 @@ PHP;
      * The package skeleton in the planted tree: the keys a release script does not touch, a `src/`
      * and a `config/` for the surface signal to read, and the real release script.
      */
-    private function scaffold(): void
+    private function scaffold(?string $script = null): void
     {
         foreach (['', '/src', '/config', '/bin'] as $directory) {
             if (! mkdir($this->path.$directory, 0o777, true) && ! is_dir($this->path.$directory)) {
@@ -690,7 +751,7 @@ PHP;
         $this->write('src/Thing.php', $this->thing());
         $this->write('config/response-compression.php', $this->config());
         $this->write('CHANGELOG.md', self::changelog(self::NOTES));
-        $this->write('bin/release.php', (string) file_get_contents(self::package().'/bin/release.php'));
+        $this->write(self::SCRIPT, $script ?? (string) file_get_contents(self::package().'/'.self::SCRIPT));
         $this->write('bin/checks.php', $this->checksStub(0));
     }
 
