@@ -818,6 +818,21 @@ read as a runner that still runs the gate.
 
 ### Fixed
 
+- **The notes signal weighs a `BREAKING` claim where a note makes one, and not where a note names
+  the marker.** `changelogSignal()` read the `## Unreleased` section with
+  `str_contains($unreleased, 'BREAKING')`, so a section qualified as breaking if the word appeared
+  anywhere in it — including in a note about this very signal, because documenting the marker means
+  writing it down. Past `1.0.0` that made every such section declare its own release a major: the
+  weighing that exists to refuse a bump nobody asked for was itself asking for it. The reading is now
+  `breakingClaim()`, which finds the word where a changelog makes one — at the start of a line's
+  prose, behind the bullet, quote or emphasis the note opens with — and drops a fenced block whole,
+  because a fence is an example being exhibited, with the code spans wherever they sit on their line.
+  It deliberately cannot read the sentence: a claim written mid-sentence weighs nothing, and the
+  remedy is the marker's own — give it a line of its own. Both directions are pinned by
+  `it('weighs a BREAKING claim, and not a note that only names the marker')` — three notes that
+  mention the marker weigh `1.0.1`, three that claim one refuse the declared `--minor` as a major —
+  and putting `str_contains()` back fails that fixture by name. `RELEASING.md`'s signal row now says
+  what a claim is, because that table is where a reader learns what the script reads.
 - **The push runbook's evidence table was re-read against the tree, and every number in it is the
   one the repository answers now.** `PUSHING.md` recorded the lane at `9e00b11` and said the two refs
   named the same commit, and a push has since moved it nine commits: the reflog's newest entry

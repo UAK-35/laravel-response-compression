@@ -95,7 +95,7 @@ own record, written by the release before it: the inventory below.
 
 | Signal | Read from | Loud when |
 |---|---|---|
-| `CHANGELOG` | the `###` headings under `## Unreleased` | `### Removed`, or `BREAKING` anywhere, is a breaking change; `### Added` / `### Changed` / `### Deprecated` are minor; anything else is a patch |
+| `CHANGELOG` | the `###` headings under `## Unreleased` | `### Removed`, or `BREAKING` written as a claim of one — a line of its own, outside a code span or a fence — is a breaking change; `### Added` / `### Changed` / `### Deprecated` are minor; anything else is a patch |
 | `commits` | the subjects since the last tag, as Conventional Commits | `type!:` or a `BREAKING CHANGE:` body is breaking; `feat` is minor; `fix` and unprefixed subjects are patch |
 | `surface` | the public symbols added, removed or narrowed between the last tag and HEAD | a removed or narrowed public class or member is breaking; a file that moved with its symbol intact costs nothing |
 | `inventory` | `files.tsv` and `methods.tsv` as the last release wrote them — read only when their stamp names the tag being released from | a removed file or public method, or a method that gained a required argument, is breaking; an added file or method is a minor; a file that moved with its class name intact costs nothing |

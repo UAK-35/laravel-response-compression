@@ -1352,7 +1352,7 @@ function changelogSignal(string $unreleased): ?array
         $severity = louder($severity, severityOfHeading($heading));
     }
 
-    if (str_contains($unreleased, 'BREAKING')) {
+    if (breakingClaim($unreleased)) {
         $severity = louder($severity, 'breaking');
     }
 
@@ -1374,6 +1374,35 @@ function severityOfHeading(string $heading): string
         str_starts_with($normalised, 'deprecated') => 'minor',
         default => 'patch',
     };
+}
+
+/**
+ * The `BREAKING` marker a changelog writes in place of a `### Removed` heading, told apart from a
+ * mention of the marker.
+ *
+ * The word is a claim where a changelog makes one — at the start of a line's prose, after the
+ * bullet, the emphasis or the quote the note opens with — and not where it is only being named.
+ * `str_contains($notes, 'BREAKING')` read it wherever it appeared, and the shape that finds it is a
+ * note about this very signal: documenting the marker means writing the word, quoting it
+ * mid-sentence, and a section that does that declared its own release breaking — which past 1.0.0
+ * is the major the weighing exists to refuse.
+ *
+ * A code span and a fenced block are therefore read as the word being shown rather than said, and
+ * are removed with it. What this cannot do is read the sentence: a claim written mid-sentence
+ * weighs nothing, and the remedy is the marker's own — give it a line of its own.
+ */
+function breakingClaim(string $notes): bool
+{
+    // A fenced block is an example being exhibited, so the fence goes whole, opening line to
+    // closing one; an unclosed fence is the same intent half-written.
+    $prose = preg_replace('/^[ \t]*```.*?^[ \t]*```[ \t]*$/ms', '', $notes) ?? $notes;
+
+    // Then the code spans, wherever the span sits on its line.
+    $prose = preg_replace('/`[^`\n]*`/', '', $prose) ?? $prose;
+
+    // A claim opens a line's prose; the decoration a note writes in front of it — a bullet, a
+    // quote, an emphasis, a warning sign — is skipped, not required.
+    return preg_match('/^[ \t]*(?:[-*+>][ \t]*)*\W{0,4}BREAKING\b/m', $prose) === 1;
 }
 
 /**
@@ -2002,7 +2031,8 @@ function undeclaredRemovals(array $signals): array
     }
 
     // The notes are the signal this one is about, and they declare a removal the way the policy is
-    // written: a `### Removed` heading, or `BREAKING` written anywhere in them.
+    // written: a `### Removed` heading, or a `BREAKING` marker written as a claim of it, which is
+    // what `breakingClaim()` reads — a note that only names the marker declares nothing.
     $notes = $signals['CHANGELOG'];
 
     if ($notes !== null && $notes['severity'] === 'breaking') {
