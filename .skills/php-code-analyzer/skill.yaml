@@ -1,0 +1,33 @@
+# =============================================================================
+# php-code-analyzer — reading this package's PHP
+# =============================================================================
+# Every command named in `description` is read out of `instructions.md` by the
+# `descriptions` step of `python .agents/verify.py`, so a description can only
+# advertise commands the skill really defines. A hyphenated word in a description
+# is read as a command name, which is why the prose here avoids them and names
+# only the six commands below.
+#
+# The generator reads a small subset of YAML: `tags` and `categories` are one
+# comma separated line rather than a list, and there is no `files:` key - a skill
+# that ships a script needs that support added to `.skills/_sync.py` rather than
+# left out silently. This skill ships none: it runs the tools the package already
+# pins, and `recommend-tools` names the two readings that have no tool rather than
+# pretending the manifest has one.
+name: "php-code-analyzer"
+version: "1.0.0"
+description: "Analyze this package's PHP with the tools it already pins: syntax errors, the logical bugs a type checker can see, cyclomatic complexity, PHP 8.4 modernization, duplicate code, and the tool recommendations that follow from what nothing here computes. Commands - analyze, syntax-sweep, analyze-types, analyze-modernize, recommend-tools, analyze-apply. Invoke when a path is being read rather than gated, when an analysis or a complexity or a duplicate question is asked, or when one finding needs fixing through the package's own tools rather than by hand."
+instructions: "instructions.md"
+author: "UAK35"
+license: "MIT"
+tags: php, static-analysis, complexity, php84, quality, package
+categories: quality
+
+sync:
+  freebuff:
+    enabled: true
+    name_override: "php-code-analyzer"
+  gemini:
+    enabled: true
+  windsurf:
+    enabled: true
+    filename: "php-code-analyzer.windsurf.md"

@@ -1,0 +1,24 @@
+{
+  "name": "php-code-analyzer",
+  "version": "1.0.0",
+  "description": "Analyze this package's PHP with the tools it already pins: syntax errors, the logical bugs a type checker can see, cyclomatic complexity, PHP 8.4 modernization, duplicate code, and the tool recommendations that follow from what nothing here computes. Commands - analyze, syntax-sweep, analyze-types, analyze-modernize, recommend-tools, analyze-apply. Invoke when a path is being read rather than gated, when an analysis or a complexity or a duplicate question is asked, or when one finding needs fixing through the package's own tools rather than by hand.",
+  "author": "UAK35",
+  "license": "MIT",
+  "date": "2026-10-05",
+  "updated_at": 1791219950408,
+  "tags": [
+    "php",
+    "static-analysis",
+    "complexity",
+    "php84",
+    "quality",
+    "package"
+  ],
+  "categories": [
+    "quality"
+  ],
+  "organization": "UAK35",
+  "platform": "codebuff",
+  "id": 1731963382,
+  "source_hash": "774a7be91cf0390d"
+}

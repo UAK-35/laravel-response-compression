@@ -38,6 +38,7 @@ sentence that mentions a skill is not an entry.
 | `package-commit` | `.skills/package-commit/` | the guarded named-set commit — `commit`, `commit-dry-run`, `list`, `staged`, `verify-setup` |
 | `package-dev` | `.skills/package-dev/` | this package's daily loop — `gate`, `gate-local`, `staged`, `checks-list`, `test`, `test-unit`, `test-types`, `test-lint`, `tidy`, `single-test <path>`, `agentic-check`, `agentic-fix` |
 | `package-release` | `.skills/package-release/` | weighing, cutting and pushing a version — `weigh`, `weigh-dry-run`, `release-cut`, `prerelease`, `push`, `unreleased`, `verify-runbooks` |
+| `php-code-analyzer` | `.skills/php-code-analyzer/` | reading a path rather than gating it — `analyze`, `syntax-sweep`, `analyze-types`, `analyze-modernize`, `recommend-tools`, `analyze-apply <id>` |
 
 | Custom agent | Defined in | What it does |
 |---|---|---|

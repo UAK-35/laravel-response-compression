@@ -29,4 +29,5 @@ points there.
 @.agents/skills/package-commit/SKILL.md
 @.agents/skills/package-dev/SKILL.md
 @.agents/skills/package-release/SKILL.md
+@.agents/skills/php-code-analyzer/SKILL.md
 <!-- SKILLS-IMPORT:END -->

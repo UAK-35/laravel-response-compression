@@ -564,6 +564,25 @@ read as a runner that still runs the gate.
   and their readings in `docs/guards.md`, the tool paths and pins in `bin/tool-paths.php`, and what
   is loadable in `.agents/README.md`. The README links it beside the registry.
 
+- **This package can analyze its own PHP, which it could gate but never read.** Three skills knew how
+  to *gate* the tree — `package-dev` runs the eleven checks, `package-commit` commits a named set,
+  `package-release` weighs a version — and none answered the narrower question a reader has with a
+  file in front of them: what is wrong with *this path*. `.skills/php-code-analyzer/` is that skill,
+  and it is built out of the tools already pinned rather than a new analyzer: `syntax-sweep` lints
+  every file with PHP's own linter under the interpreter this checkout names, `analyze-types` runs
+  PHPStan at the `max` level `phpstan.neon.dist` sets, `analyze-modernize` runs Rector's dry run over
+  the sets `rector.php` configures, and `analyze` runs all six readings and numbers the findings, so
+  `analyze-apply` can take one of them. The two readings the package has no tool for — cyclomatic
+  complexity and duplicate blocks — are named as readings, in the report and in `recommend-tools`,
+  rather than dressed up as a check; a second analyzer would be the copy this package writes guards
+  about. The skill is generated like the rest (its target, the `GEMINI.md` import and the Windsurf
+  pointer), indexed in `.agents/README.md`, and listed in `docs/scripts.md` and
+  `docs/tool-registry.md`. Adding it also closed a break the scripts list was already carrying: two
+  of its command cells wrote `php` in front of a program, which the interpreter rule refuses wherever
+  it is written, so they render the interpreter from `.agents/machine.local.json` now — a failure the
+  layer's `toolchain` step names and nothing had asked it about, because a docs-only commit runs
+  neither that step nor the hook's layer subset.
+
 ### Changed
 
 - **The guards table is a rendering now, from the files the guards live in, and the guard-index

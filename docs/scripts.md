@@ -57,6 +57,7 @@ from it. Nothing under `.agents/skills/` is edited by hand.
 | [`../.skills/package-commit/skill.yaml`](../.skills/package-commit/skill.yaml) and [`instructions.md`](../.skills/package-commit/instructions.md) | the authored source of the `package-commit` skill — the guarded named-set commit | edit here; `_sync.py` writes the target |
 | [`../.skills/package-dev/skill.yaml`](../.skills/package-dev/skill.yaml) and [`instructions.md`](../.skills/package-dev/instructions.md) | the authored source of the `package-dev` skill — this package's daily loop | the same |
 | [`../.skills/package-release/skill.yaml`](../.skills/package-release/skill.yaml) and [`instructions.md`](../.skills/package-release/instructions.md) | the authored source of the `package-release` skill — weighing, cutting and pushing a version | the same |
+| [`../.skills/php-code-analyzer/skill.yaml`](../.skills/php-code-analyzer/skill.yaml) and [`instructions.md`](../.skills/php-code-analyzer/instructions.md) | the authored source of the `php-code-analyzer` skill — reading a path: syntax, types, complexity, modernization, duplicates, tools | the same |
 | [`../.skills/README.md`](../.skills/README.md) | how a `skill.yaml` is written, what the generator reads, and what a description may name | read |
 
 ## The programs in `bin/`
@@ -68,12 +69,12 @@ the platform makes it necessary.
 |---|---|---|
 | [`../bin/bootstrap.php`](../bin/bootstrap.php) | the one command a fresh clone is set up with: name this machine's PHP, install the dependencies, then verify the tree | `php bin/bootstrap.php` — the first command a person runs, before there is a `vendor/` or a machine file |
 | [`../bin/checks.php`](../bin/checks.php) | the gate: eleven checks in one process, one summary and one exit code | `composer checks`; `--staged` (the hook's narrow half), `--require-all` (CI) |
-| [`../bin/commit.php`](../bin/commit.php) | the guarded named-set commit: refuses a commit carrying a path it was not told about, writes the changelog bullet, runs the gate's narrow half, commits exactly the named set | `php bin/commit.php -m <subject> -- <paths…>`; `--changelog <text>`, `--no-changelog`, `--type`, `--dry-run`, `--list`, `--skip-checks` |
+| [`../bin/commit.php`](../bin/commit.php) | the guarded named-set commit: refuses a commit carrying a path it was not told about, writes the changelog bullet, runs the gate's narrow half, commits exactly the named set | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/commit.php -m <subject> -- <paths…>`; `--changelog <text>`, `--no-changelog`, `--type`, `--dry-run`, `--list`, `--skip-checks` |
 | [`../bin/coverage.php`](../bin/coverage.php) | the coverage floor: every `src/` file at 100.0% and a ratchet per program in `bin/` | `composer test:unit` |
 | [`../bin/index.php`](../bin/index.php) | renders the tables of [the guards page](guards.md) from the declarations in the files themselves | `composer index`; `--check` reports what has drifted and writes nothing |
 | [`../bin/push.php`](../bin/push.php) | pushes a branch and reads the run it started to a verdict — a push that started no run is refused rather than read as a pass | `composer push`; [the pushing runbook](../PUSHING.md) |
 | [`../bin/release.php`](../bin/release.php) | cuts a version from the git tags: weighs the change, promotes the changelog, commits and tags | `composer release`; [the releasing runbook](../RELEASING.md) |
-| [`../bin/tool.php`](../bin/tool.php) | runs one tool by the name the manifest gives it, under `PHP_BINARY` | `php bin/tool.php <name> [args…]`; the `lint`, `refactor` and `test:*` composer names |
+| [`../bin/tool.php`](../bin/tool.php) | runs one tool by the name the manifest gives it, under `PHP_BINARY` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/tool.php <name> [args…]`; the `lint`, `refactor` and `test:*` composer names |
 | [`../bin/tool-paths.php`](../bin/tool-paths.php) | the manifest itself: every tool this package runs, as a record of `path`, `pin` and `why` | required by `bin/tool.php`, `bin/checks.php` and `bin/coverage.php` — data rather than a program |
 
 ## The gate, the hook and the runner
