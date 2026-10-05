@@ -223,7 +223,10 @@ which is what the suite asserts, so a file that moved without its row moving fai
 
 The tools those guards are built from — the hook, the programs in `bin/`, the checks in
 `.agents/`, and the two runbooks — are indexed in [the tool registry](docs/tool-registry.md):
-where each one lives, what it does, and which file calls it.
+where each one lives, what it does, and which file calls it. [The scripts list](docs/scripts.md)
+is the same set as a flat inventory: one row per script an agent or a maintainer starts, with the
+command that starts it. The registry says what a tool is in the chain; the list says that it exists
+and how to run it.
 
 Releasing and pushing have files of their own: `RELEASING.md` for what a version *is*, and
 `PUSHING.md` for getting it to the remote. Both are runbooks for whoever cuts the release, so

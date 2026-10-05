@@ -555,6 +555,15 @@ read as a runner that still runs the gate.
   because a second copy of either is the drift those two files exist to refuse. The column that
   earns the page is the last one: a tool is only a tool if something calls it.
 
+- **The tools an agent runs have a list as well as a registry.** `docs/scripts.md` is the flat
+  inventory of that same layer: the checks in `.agents/`, the generator in `.skills/`, the nine
+  programs in `bin/`, the hook and the workflow, each with the command that starts it. The registry
+  answers *what a tool is in the chain and who calls it*, and a reader who only wanted to know
+  whether a tool exists — and what to type to run it — had to read a four-column argument to find
+  out. Three lists it deliberately does not repeat, because each already has an owner: the guards
+  and their readings in `docs/guards.md`, the tool paths and pins in `bin/tool-paths.php`, and what
+  is loadable in `.agents/README.md`. The README links it beside the registry.
+
 ### Changed
 
 - **The guards table is a rendering now, from the files the guards live in, and the guard-index
