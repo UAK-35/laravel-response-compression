@@ -37,9 +37,14 @@ use SplFileInfo;
  *     second because the README carries a copy of the config the claims are checked against, and
  *     the third because `RELEASING.md` and `PUSHING.md` are where a release command is written
  *     out for someone to copy.
- *   - a file under `tests/`: itself when it is a test, so a changed test is run rather than trusted,
- *     and the whole suite otherwise, because a shared fixture is a thing every test is built on and
- *     there is no narrower true answer to which of them it can have broken.
+ *   - a file under `tests/`: its own row when the map gives it one, itself when it is a test, so a
+ *     changed test is run rather than trusted, and the whole suite otherwise, because a shared
+ *     fixture is a thing every test is built on and there is no narrower true answer to which of
+ *     them it can have broken. The mutation harness is the one fixture with a row of its own, and
+ *     the reason it has one is that the holds are *built* out of it: the directory of holds and the
+ *     spine that keeps them to that directory are the whole of what a change to it can have broken,
+ *     where the fallback ran the whole of `tests/Unit` — several minutes of tests that never load the
+ *     harness at all.
  *
  * A path that matches none of those — a composer script, a workflow, a lock file — is not mapped
  * here. It is a finding for the gate's own checks or for nothing, and inventing a test to run for
@@ -79,6 +84,10 @@ final class TestMap
      * fourth encoder that its own three tests do not drive. A path here is a file or a directory —
      * a directory is handed to Pest as it is, and `bin/release.php` is the case for that, because
      * its tests are the whole of `tests/Unit/Release/` rather than any one file in it.
+     *
+     * A row is not only for a file under `src/` or `bin/`: the one outside them is the mutation
+     * harness, which is not a fixture the suite is built on — it is the class the holds are made of,
+     * so the two paths that answer for it are the holds it builds and the spine above them.
      *
      * @var array<string, list<string>>
      */
@@ -120,6 +129,10 @@ final class TestMap
         'src/Support/Enc.php' => [
             'tests/Unit/Support/EncTest.php',
             'tests/Unit/Encoders',
+        ],
+        'tests/Support/MutationHarness.php' => [
+            'tests/Unit/Support/MutationHarness',
+            'tests/Unit/Support/MutationHarnessTest.php',
         ],
     ];
 

@@ -607,6 +607,19 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **A change to the mutation harness runs the holds it builds rather than the whole suite.**
+  `tests/Support/TestMap.php` decides which tests a commit runs, and every row it had was a file
+  under `src/` or `bin/`: a file under `tests/` was mapped by a rule instead, itself when it is a
+  `*Test.php` under `tests/Unit/` and the whole of `tests/Unit` otherwise, because a fixture the
+  suite is built on is shared by every test. The harness is the case where that is false — it
+  is the class the holds are made *of*, so the whole of what a change to it can break is the
+  fifteen files under `tests/Unit/Support/MutationHarness/` and the spine above them, where the
+  fallback ran all 421 tests, minutes of the suite that never load the harness at all. It is the
+  one row outside `src/` and `bin/`, and the map's own guard now allows it: the reading that
+  compared the rows against those two directories in both directions asks the missing direction
+  of the directories and asks every row for a file that is there, which is the failure a rename
+  leaves behind on either side of that line, and it asserts the row through `covering()` beside
+  the fallback it keeps for `tests/Support/ReleaseRepo.php`.
 - The release suite's rails are asked in files of their own — one family each, from the branch and the lane to the notes, the number they call for and the surface they change — so `paratest` hands a worker a rail rather than a suite, and the branch rail the mutation harness takes out of `bin/release.php` is held by a file of five tests rather than one of twenty-four.
 - **The mutation harness's holds are one file per guard, so `paratest` spreads the slowest thing in
   the suite instead of queueing sixteen workers behind one file.** The holds were one file, and that

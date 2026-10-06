@@ -18,7 +18,7 @@ use Uak35\ResponseCompression\Tests\Support\TestMap;
 | `tests/Support/TestMap.php` is the answer now, and what can go wrong with one is a different
 | question from what can go wrong with a list beside the gate. A list goes stale — a source file
 | that was renamed keeps its old row, and a source file that arrived has none — so this reads the
-| map as a claim about two directories rather than trusting it: every `.php` file under `src/` and
+| map as a claim about the tree rather than trusting it: every `.php` file under `src/` and
 | `bin/` has to have a row, every row has to name a file that is there, and every row has to name
 | something for the tests to be pointed at.
 |
@@ -31,17 +31,29 @@ use Uak35\ResponseCompression\Tests\Support\TestMap;
 | @guards-index test
 */
 
-it('names every file under src/ and bin/, and nothing it does not have', function (): void {
+it('names every file under src/ and bin/, and every row a file that is here', function (): void {
     $root = packageRoot();
 
     // The directory is the claim. A file that is not in the map is a file a commit can change
     // without anything covering it, and the guard's whole job is to refuse that rather than to
-    // notice it after the fact — which is why the missing case is named before the extra one.
+    // notice it after the fact — which is why the missing case is named before the other one.
     $missing = array_values(array_diff(TestMap::files($root), array_keys(TestMap::covers())));
-    $extra = array_values(array_diff(array_keys(TestMap::covers()), TestMap::files($root)));
 
-    expect($missing)->toBe([], 'Every .php file under `src/` and `bin/` needs a row in TestMap::COVERS; these have none: '.implode(', ', $missing))
-        ->and($extra)->toBe([], 'These rows name a source file the package does not have: '.implode(', ', $extra));
+    expect($missing)->toBe([], 'Every .php file under `src/` and `bin/` needs a row in TestMap::COVERS; these have none: '.implode(', ', $missing));
+
+    // The other direction is a row naming a path that is not here, which is what a source file that
+    // was renamed leaves behind. It is asked of every row rather than of the two directories,
+    // because one row names a file outside them: the harness the holds are made of is not under
+    // `src/` or `bin/`, and a row for it is a row like any other.
+    $gone = [];
+
+    foreach (array_keys(TestMap::covers()) as $source) {
+        if (! file_exists($root.'/'.$source)) {
+            $gone[] = $source;
+        }
+    }
+
+    expect($gone)->toBe([], 'These rows name a file the package does not have: '.implode(', ', $gone));
 });
 
 it('names only tests that are on disk', function (): void {
@@ -80,9 +92,15 @@ it('reads the files a commit carries into the tests that cover them', function (
         // A second path that the first one already covers is not a second run.
         ->and(TestMap::covering(['bin/release.php', 'tests/Unit/Release/RailsTest.php']))->toBe(['tests/Unit/Release'])
 
-        // A changed test is run as itself; a fixture beside it is not a test, and the suite is the
-        // only narrower true answer to what a change to it can have broken.
+        // A changed test is run as itself; a fixture beside it that has a row is run by that row —
+        // the harness is the class the holds are made of, so the holds it builds and the spine that
+        // keeps them to the directory are the whole of what a change to it can have broken — and a
+        // fixture with no row of its own is the suite, which is the only narrower true answer left.
         ->and(TestMap::covering(['tests/Unit/Gate/ToolTest.php']))->toBe(['tests/Unit/Gate/ToolTest.php'])
+        ->and(TestMap::covering(['tests/Support/MutationHarness.php']))->toBe([
+            'tests/Unit/Support/MutationHarness',
+            'tests/Unit/Support/MutationHarnessTest.php',
+        ])
         ->and(TestMap::covering(['tests/Support/ReleaseRepo.php']))->toBe(['tests/Unit'])
 
         // The documents are the gate's two old cases — kept in the same reading rather than beside
