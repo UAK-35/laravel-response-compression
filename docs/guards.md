@@ -61,6 +61,12 @@ checks at the files a commit holds: syntax over the staged PHP, Pint over the st
 the tests those files are covered by. Which tests those are is `tests/Support/TestMap.php`: the
 docs-link, config-claim and release-lane tests for a document or the config, and the suite that
 covers a changed source file for the rest — so a commit that breaks a release rail runs the rails.
+A mapped set runs as one process per path, all started together rather than one after another:
+`--parallel` is paratest, which takes a single path and refuses several, and the narrowest
+mappings are the ones one process at a time costs the most — the harness's hold directory is
+fifteen process-spawning files, minutes on its own where the whole suite is one parallel run.
+A mapped path that is a directory carries `--parallel` itself, so it still splits across
+workers.
 Those are what a commit can break on its own; the rest of the gate is a tree-shaped
 question, because PHPStan and Rector read every file that references the ones you changed. It
 reuses `bin/checks.php` rather than being a script of its own for the same reason CI runs the

@@ -279,9 +279,35 @@ $testsSkip = $stagedMode && $stagedTests === []
 // the same assertions either way. `--parallel` is paratest, and paratest takes ONE path: handed
 // the two or more a staged set usually produces it refuses the run outright rather than ignoring
 // the rest, which is what the pre-commit hook found the first time this mode was tried with two
-// files in it. So a staged set is parallel only when the reading reduced it to a single path —
-// one file, or a directory such as `tests/Unit` — and sequential otherwise.
+// files in it. So the flag belongs to a command that names exactly one path, and that is every
+// command below: the single one a staged set of one reduces to, and each of the one-per-path
+// commands a set of several becomes. A set of none stays `[]` and never runs — the empty case is
+// a pass, decided a few lines up.
 $pestParallel = ! $stagedMode || count($stagedTests) === 1 ? ['--parallel'] : [];
+
+// What the pest check runs, as one command each. `paratest` takes ONE path and refuses several, so
+// a staged set of two or more used to be handed to a single sequential run — which made the
+// *narrowest* mappings the slowest ones: the harness's hold directory is fifteen files whose tests
+// are process spawns, and one after another they are minutes where the whole suite is one parallel
+// run. So every path gets its own process and they are all started together, which is the shape the
+// files had before anyway: a worker per file.
+//
+// `--parallel` goes to the paths that can use it. A directory with several files is what paratest
+// splits across workers; a single file is one worker whatever it is told, and asking for a pool
+// there would start one to run one file. A set naming more than one directory therefore starts a
+// pool per directory, which is the one thing this does not bound: those runs take longer than they
+// would alone, and they are still the answer to a commit whose mapped set is every one of them.
+$pestCommands = count($stagedTests) > 1
+    ? array_map(
+        static fn (string $path): array => [
+            PHP_BINARY,
+            $tools['pest']['path'],
+            ...(is_dir($root.'/'.$path) ? ['--parallel'] : []),
+            $path,
+        ],
+        $stagedTests,
+    )
+    : [[PHP_BINARY, $tools['pest']['path'], ...$pestParallel, ...$stagedTests]];
 
 $level = phpstanLevel($root);
 
@@ -456,15 +482,53 @@ $checks = [
             $testsSkip !== null => $testsSkip,
             default => null,
         },
-        'run' => static fn (): array => runCommand([PHP_BINARY, $tools['pest']['path'], ...$pestParallel, ...$stagedTests], $root),
+        'run' => static fn (): array => count($pestCommands) === 1
+            ? runCommand($pestCommands[0], $root)
+            : runCommands($pestCommands, $root),
         'note' => static function (array $result): string {
             // Pest ends with its duration, which says nothing about whether it
-            // passed; the count it printed a line earlier does.
-            if (preg_match('/^\s*Tests:\s*(.+)$/m', stripAnsi($result['output']), $matches) === 1) {
-                return trim($matches[1]).' (coverage floor is measured by composer test:unit)';
+            // passed; the count it printed a line earlier does. A staged set of
+            // more than one path is more than one run, and each ends with its own
+            // count: the note is what the set answered as a whole, because a
+            // reader shown the first path's numbers would read them as all of it.
+            preg_match_all('/^\s*Tests:\s*(.+)$/m', stripAnsi($result['output']), $matches);
+            $lines = array_map(trim(...), $matches[1]);
+
+            if ($lines === []) {
+                return lastLine($result['output']);
             }
 
-            return lastLine($result['output']);
+            if (count($lines) === 1) {
+                return $lines[0].' (coverage floor is measured by composer test:unit)';
+            }
+
+            $passed = 0;
+            $failed = 0;
+            $assertions = 0;
+
+            foreach ($lines as $line) {
+                preg_match('/(\d+) passed/', $line, $count);
+                preg_match('/(\d+) failed/', $line, $broke);
+                preg_match('/(\d+) assertion/', $line, $checked);
+
+                // A count in a shape this reading does not know is quoted rather
+                // than summed: a total nobody computed is worse than a long line.
+                if (! isset($count[1])) {
+                    return implode(' / ', $lines).' ('.count($lines).' runs)';
+                }
+
+                $passed += (int) $count[1];
+                $failed += (int) ($broke[1] ?? 0);
+                $assertions += (int) ($checked[1] ?? 0);
+            }
+
+            return sprintf(
+                '%d passed%s (%d assertions) in %d runs',
+                $passed,
+                $failed === 0 ? '' : ", {$failed} failed",
+                $assertions,
+                count($lines),
+            );
         },
     ],
 ];
@@ -700,6 +764,75 @@ function runCommand(array $command, string $cwd): array
     fclose($pipes[1]);
 
     return ['exit' => proc_close($process), 'output' => $output];
+}
+
+/**
+ * Run several commands at once, and answer with them as one result.
+ *
+ * The staged gate needs this because `paratest` takes one path: a commit whose mapped set is two or
+ * more paths used to be judged by a single sequential run, and the *narrowest* mappings are the ones
+ * that costs most — the harness's hold directory is fifteen files of process spawns, and run one
+ * after another they are minutes where the whole suite is one parallel run.
+ *
+ * Every command is started before any is read, because starting them as each one finished would be
+ * the sequential run again. Draining the pipes one at a time cannot deadlock: a child that fills its
+ * pipe blocks until its own pipe is read, and each pipe is read to EOF in turn, so no child waits on
+ * a read that is waiting on it.
+ *
+ * Each command's output is kept under a heading naming it, the output is every command's in the
+ * order given, and the exit code is the first non-zero one — the check that runs this reports one
+ * verdict for the set, and the set failed if any of its runs did.
+ *
+ * @param  list<list<string>>  $commands
+ * @return array{exit: int, output: string}
+ */
+function runCommands(array $commands, string $cwd): array
+{
+    $running = [];
+
+    foreach ($commands as $command) {
+        $process = @proc_open(
+            $command,
+            [1 => ['pipe', 'w'], 2 => ['redirect', 1]],
+            $pipes,
+            $cwd,
+        );
+
+        $running[] = [
+            'process' => is_resource($process) ? $process : null,
+            'pipes' => $pipes,
+            'command' => $command,
+        ];
+    }
+
+    $exit = 0;
+    $output = '';
+
+    foreach ($running as $entry) {
+        $label = implode(' ', $entry['command']);
+
+        if ($entry['process'] === null) {
+            $output .= 'could not start: '.$label.PHP_EOL;
+            $exit = $exit === 0 ? 127 : $exit;
+
+            continue;
+        }
+
+        $output .= PHP_EOL.'▶ '.$label.PHP_EOL;
+
+        $answer = (string) stream_get_contents($entry['pipes'][1]);
+        fclose($entry['pipes'][1]);
+
+        $code = proc_close($entry['process']);
+
+        $output .= $answer;
+
+        if ($exit === 0 && $code !== 0) {
+            $exit = $code;
+        }
+    }
+
+    return ['exit' => $exit, 'output' => $output];
 }
 
 /**

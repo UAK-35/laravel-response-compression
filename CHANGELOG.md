@@ -607,6 +607,21 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **A staged set runs as one process per mapped path instead of one sequential run, so the
+  narrowest mapping is no longer the slowest thing the gate does.** `--parallel` is paratest,
+  which takes exactly one path and refuses several outright, so a commit whose mapped set named
+  two or more was handed to a single sequential Pest process — which made the tests a commit
+  runs *because* they are narrow the expensive ones: the harness's hold directory is fifteen
+  process-spawning files and one after another they are roughly eight minutes, against about two
+  minutes for the whole suite in parallel. `bin/checks.php` now builds one command per path and
+  starts every one of them before reading any, so the pool is filled the way a file-per-worker
+  run fills it, and `--parallel` goes to the paths that are directories, a single file being one
+  worker whatever it is told. Each run ends with its own `Tests:` line, so the summary sums
+  passed, failed and assertions across them and says "in N runs" rather than letting one path's
+  numbers stand for the set; a line in a shape the reading does not know is quoted instead of
+  summed. What is not bounded is a set naming more than one directory, which starts a pool per
+  directory — stated in the code and in the hook paragraph of `docs/guards.md`, which now
+  describes the shape of a mapped set.
 - **A change to the mutation harness runs the holds it builds rather than the whole suite.**
   `tests/Support/TestMap.php` decides which tests a commit runs, and every row it had was a file
   under `src/` or `bin/`: a file under `tests/` was mapped by a rule instead, itself when it is a
