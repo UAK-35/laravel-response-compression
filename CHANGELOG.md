@@ -607,6 +607,21 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **The mutation harness's holds are one file per guard, so `paratest` spreads the slowest thing in
+  the suite instead of queueing sixteen workers behind one file.** The holds were one file, and that
+  file was 540s of the suite's 1801s of test time on one worker — while the other fifteen ran out of
+  work in under a tenth of that — because `paratest` divides work a file at a time and nothing finer.
+  Each guard now has a file of its own under `tests/Unit/Support/MutationHarness/`, named after the
+  guard's own test, and the harness takes the guard as an argument: a slice that comes back empty
+  raises rather than running no tests and reporting them green, which a renamed test file would
+  otherwise do silently. What is about the set rather than about a guard stays in
+  `MutationHarnessTest.php` — the planted tree, the accounting against `docs/guards.md`, the declines,
+  and `claimed()` held to `subjects()`: the guard each hold file asks for, read out of the file
+  itself, against every guard the three directions hold, once each — so a guard that arrives with no
+  file is a finding and a file asking for a guard nobody holds is refused. The two controls, the
+  slowest runs of the whole thing, sit in `Controls/` so each gets a worker of its own. `pest
+  tests/Unit --parallel` is 421 tests in 218s where the same run was 604s, and the longest file is now
+  the overlay's control rather than a file carrying a whole direction.
 - **The guards table is a rendering now, from the files the guards live in, and the guard-index
   check is harder to satisfy.** `docs/guards.md` had three tables and only two were written: the
   guards themselves were kept by hand, on the reasoning that what a guard refuses is an argument.

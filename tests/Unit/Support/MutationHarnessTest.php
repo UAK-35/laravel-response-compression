@@ -28,9 +28,12 @@ use Uak35\ResponseCompression\Tests\Support\MutationHarness;
 | rather than for being non-empty, because a reading that went blind answers with nothing both
 | times and an assertion on "something" would be answered by either.
 |
-| The harness accounts for every guard in `docs/guards.md`: each row's test is either mutated
-| here or declined with a reason, and both lists are read back against the index, so adding a
-| guard is a decision rather than a silence.
+| This file is the spine of that: it plants the tree the breaks go into, and it holds the two
+| questions that are about the set of guards rather than about any one of them — that every guard
+| in `docs/guards.md` is either held or declined with a reason, and that every guard the harness
+| holds is carried in a file of its own. Here rather than beside the holds, because the holds are
+| spread one file per guard so `paratest` can run them on different workers, and this is the one
+| place the whole set is read at once.
 |
 */
 
@@ -59,75 +62,16 @@ it('plants this checkout in a temporary tree, with an index of it', function ():
         ->and(is_dir($root.'/vendor'))->toBeFalse();
 });
 
-foreach (MutationHarness::mutations() as $mutation) {
-    it(sprintf('turns %s red when this checkout is broken under it', $mutation['guard']), function () use ($mutation): void {
-        $root = MutationHarness::tree();
-        $read = $mutation['read'];
-
-        expect(implode(PHP_EOL, $read($root)))->toBe('');
-
-        $marker = ($mutation['plant'])($root);
-
-        expect($marker)->not->toBe('')
-            ->and(implode(PHP_EOL, $read($root)))->toContain($marker);
-    });
-}
-
-it('runs every guard\'s tests green under an overlay that copies every reading verbatim', function (): void {
-    // The control for the inversions below, asserted once rather than beside each of them: the
-    // same overlay mechanism, the same bootstrap and the same child process, with every reading
-    // copied in verbatim. If a red run below could be any of those rather than the rewrite, it
-    // would be red here too — so this is what makes the rewrite the only difference.
-    $control = MutationHarness::unblinded(MutationHarness::inversions());
-
-    expect($control['exit'])->toBe(0, $control['output']);
+it('carries every guard it holds in a file of its own, one guard each', function (): void {
+    // The holds are driven one file per guard, so `paratest` — which spreads work by file and by
+    // nothing finer — spreads the guards rather than running one file's worth of them while every
+    // other worker waits. What makes that safe rather than a hand-kept list of files is this: each
+    // file asks the harness for the guard it carries, the harness reads that name out of the file,
+    // and the two sets have to be the same one. A guard that arrived with no file is a finding
+    // here, and a file that asked for a guard nobody holds raises inside `claimed()` rather than
+    // running no tests — a run of nothing reports the same green as a run of everything.
+    expect(MutationHarness::claimed())->toBe(MutationHarness::subjects());
 });
-
-foreach (MutationHarness::inversions() as $inversion) {
-    it(sprintf('turns %s red when its detector is rewritten under it', $inversion['guard']), function () use ($inversion): void {
-        $blinded = MutationHarness::blinded($inversion);
-
-        // Red, and for the right reason: a detector that cannot fire has to fail the guard's own
-        // assertions, not its syntax. A run that could not load the file at all would be red too,
-        // so the two are told apart — a parse error is not a broken detector.
-        expect($blinded['exit'])->not->toBe(0)
-            ->and($blinded['output'])->not->toContain('PHP Parse error')
-            ->and($blinded['output'])->not->toContain('Error in bootstrap script')
-
-            // And the guard's own words are in the output, so the run reached the assertion rather
-            // than stopping at a fatal before it.
-            ->and($blinded['output'])->toContain('FAILED');
-    });
-}
-
-foreach (MutationHarness::programs() as $program) {
-    it(sprintf('runs the test that holds %s green under the program copied verbatim', $program['guard']), function () use ($program): void {
-        // The control for the program direction, for the reason the overlay has one: the child
-        // process, the variable and the fixture are all in this run, with the program left as this
-        // checkout ships it — so a red run below is the rail taken out of it rather than the
-        // machinery that carried it there.
-        $control = MutationHarness::verbatim($program);
-
-        expect($control['exit'])->toBe(0, $control['output']);
-    });
-
-    it(sprintf('turns %s red when the program stops refusing', $program['guard']), function () use ($program): void {
-        $disarmed = MutationHarness::disarmed($program);
-
-        // Red, and for the right reason: the rail's own sentence is what the run has to reach, so a
-        // run that could not load the program at all is told apart from a rail that stopped
-        // refusing — a parse error is not an unarmed program, and `FAILED` is the run having
-        // reached an assertion rather than a fatal before one.
-        expect($disarmed['exit'])->not->toBe(0)
-            ->and($disarmed['output'])->not->toContain('PHP Parse error')
-            ->and($disarmed['output'])->not->toContain('Error in bootstrap script')
-            ->and($disarmed['output'])->toContain('FAILED')
-
-            // The rail itself: the sentence the test that holds it asserts on, which the run that
-            // asserts on it prints when the rail is the thing that moved.
-            ->and($disarmed['output'])->toContain($program['rail']);
-    });
-}
 
 it('accounts for every guard the index records, and names the ones it does not mutate', function (): void {
     // The set comes from `docs/guards.md` rather than from a scan of this directory, because that

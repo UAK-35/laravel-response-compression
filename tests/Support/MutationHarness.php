@@ -73,6 +73,19 @@ use RuntimeException;
  * fixtures rather than about their shape — a test cannot be handed a program, and neither of those
  * two is planted from one.
  *
+ * ONE FILE PER GUARD, AND WHY
+ * ---------------------------
+ * A hold is driven by a file, and there is one file per guard: each is named after the guard's own
+ * test and asks this class for that guard in the argument it passes. `paratest` spreads work by
+ * file and by nothing finer, so one file holding every guard is one file the whole suite waits on —
+ * these reads are the slowest thing in the suite, and a single file put every worker behind the same
+ * one of them. The directory is what makes the split safe rather than a second list of names kept in
+ * step by hand: `claimed()` reads the guard each file asks for out of the file itself, and the
+ * spine this guard's row is declared in holds that set to `subjects()` — every guard the three
+ * directions hold, once each. A guard that arrives with no file is a finding, a file that asks for a
+ * guard nobody holds raises rather than running nothing, and the two controls live in `Controls/`
+ * beside the holds because they are about the machinery rather than about a guard.
+ *
  * WHY THE TREE IS A COPY
  * ----------------------
  * The guards read this checkout's own files, so a mutated tree is the only way to ask them a
@@ -94,6 +107,15 @@ final class MutationHarness
 {
     /** The file a mutation adds when the break has to be in a file of its own. */
     public const string SAMPLE = 'src/MutationSample.php';
+
+    /**
+     * The directory the holds are carried in: one file per guard, named after the guard's own test.
+     *
+     * The top level of it is the list of guards, and the guard a file is for is the argument it asks
+     * this class with — so the set of holds that exist is read out of the directory rather than kept
+     * beside it. `Controls/` holds the runs that are about the machinery rather than about a guard.
+     */
+    public const string HOLDS = 'tests/Unit/Support/MutationHarness';
 
     /**
      * The guards the index records that this harness does not mutate, with the reason for each.
@@ -231,11 +253,15 @@ final class MutationHarness
      * answers with nothing for a broken tree exactly as it does for a whole one, and only the
      * marker says which of the two happened.
      *
+     * @param  string|null  $test  one guard's own test, which is what a hold file asks for: the
+     *                             mutations about that guard and nothing else. Nothing when the whole
+     *                             list is wanted, which is what the accounting in the harness's own
+     *                             test asks for.
      * @return list<array{guard: string, test: string, plant: Closure(string): string, read: Closure(string): list<string>}>
      */
-    public static function mutations(): array
+    public static function mutations(?string $test = null): array
     {
-        return [
+        $mutations = [
             [
                 'guard' => 'the machine-path reading',
                 'test' => 'tests/Unit/Support/MachinePathsTest.php',
@@ -619,6 +645,8 @@ final class MutationHarness
                 'read' => ReleaseLane::drift(...),
             ],
         ];
+
+        return self::held($mutations, $test, 'mutation');
     }
 
     /**
@@ -651,11 +679,13 @@ final class MutationHarness
      * checkout — so the rewrite in the overlay is the only difference between the green run and the
      * red one, which is what `unblinded()` exists to show.
      *
+     * @param  string|null  $test  one guard's own test, which is what a hold file asks for: the
+     *                             inversions about that guard and nothing else.
      * @return list<array{guard: string, test: string, reading: string, blind: Closure(string): string}>
      */
-    public static function inversions(): array
+    public static function inversions(?string $test = null): array
     {
-        return [
+        $inversions = [
             [
                 'guard' => 'the machine-path reading',
                 'test' => 'tests/Unit/Support/MachinePathsTest.php',
@@ -798,6 +828,8 @@ final class MutationHarness
                 ),
             ],
         ];
+
+        return self::held($inversions, $test, 'inversion');
     }
 
     /**
@@ -819,11 +851,14 @@ final class MutationHarness
      * this direction is read for — the same rule the mutations above are held to, because a run that
      * went red for any other reason is not evidence that the rail was being held.
      *
+     * @param  string|null  $test  one program's own test, which is what its hold file asks for: the
+     *                             control and the red run then sit in two files rather than one that
+     *                             waits on itself.
      * @return list<array{guard: string, test: string, program: string, rail: string, rewrite: Closure(string): string}>
      */
-    public static function programs(): array
+    public static function programs(?string $test = null): array
     {
-        return [
+        $programs = [
             [
                 'guard' => 'the branch rail',
                 'test' => 'tests/Unit/Release/RailsTest.php',
@@ -832,6 +867,95 @@ final class MutationHarness
                 'rewrite' => static fn (string $source): string => self::without($source, '$current !== $branch'),
             ],
         ];
+
+        return self::held($programs, $test, 'program');
+    }
+
+    /**
+     * Every guard the harness holds, by the test that holds it — the three directions read as one
+     * set, once each and in one order.
+     *
+     * The set is derived from the holds rather than listed: the question it answers is whether the
+     * directory carries what the lists hold, and a list of its own could agree with one of them and
+     * not the other.
+     *
+     * @return list<string>
+     */
+    public static function subjects(): array
+    {
+        $tests = [
+            ...array_column(self::mutations(), 'test'),
+            ...array_column(self::inversions(), 'test'),
+            ...array_column(self::programs(), 'test'),
+        ];
+
+        $tests = array_values(array_unique($tests));
+        sort($tests);
+
+        return $tests;
+    }
+
+    /**
+     * The guard each file in the hold directory asks this class for, read out of the file itself.
+     *
+     * The argument a hold file passes is the file's own claim about which guard it carries, and the
+     * reading takes it at its word: the directory is the list, so a guard the lists hold and no file
+     * asks for is a finding rather than a silence, and a file that asked for no guard at all — or two
+     * files that asked for the same one — is refused rather than run. The two are held to each other
+     * in the harness's own test, which is what makes adding a guard a decision: it arrives with a
+     * file, or the suite says so.
+     *
+     * @return list<string>
+     *
+     * @throws RuntimeException when a file in the directory asks for no guard, or when two files
+     *                          ask for the same one
+     */
+    public static function claimed(): array
+    {
+        $claimed = [];
+        // The root in the form a path is printed relative to: `Docs::relative()` normalises the
+        // path it is handed and not the root, and this machine's `dirname()` writes backslashes.
+        $root = str_replace('\\', '/', self::package());
+        $files = glob(self::package().'/'.self::HOLDS.'/*.php') ?: [];
+
+        sort($files);
+
+        foreach ($files as $file) {
+            $source = (string) file_get_contents($file);
+
+            preg_match_all(
+                '/MutationHarness::(?:mutations|inversions|programs)\(\s*\'([^\']+)\'/',
+                $source,
+                $matches,
+            );
+
+            $guards = array_values(array_unique($matches[1]));
+
+            if ($guards === []) {
+                throw new RuntimeException(sprintf(
+                    '%s asks the harness for no guard, so there is nothing holding the guard it was written for.',
+                    Docs::relative($root, $file),
+                ));
+            }
+
+            foreach ($guards as $guard) {
+                if (isset($claimed[$guard])) {
+                    throw new RuntimeException(sprintf(
+                        '%s and %s both ask for %s: a guard is held in one file, so the holds can be spread over workers and a reader can find them.',
+                        Docs::relative($root, $claimed[$guard]),
+                        Docs::relative($root, $file),
+                        $guard,
+                    ));
+                }
+
+                $claimed[$guard] = $file;
+            }
+        }
+
+        $guards = array_keys($claimed);
+        sort($guards);
+
+        return $guards;
     }
 
     /**
@@ -1145,6 +1269,38 @@ final class MutationHarness
         if (! is_dir($path) && ! mkdir($path, 0o777, true) && ! is_dir($path)) {
             throw new RuntimeException('Could not create '.$path);
         }
+    }
+
+    /**
+     * One direction's holds, as the one file that asked for this guard needs them.
+     *
+     * A slice that came back empty raises rather than answering with a shorter list: a file whose
+     * guard had been renamed would run no test at all, and a run of no tests reports the same green
+     * as a run of every one of them — which is the silence this harness exists to refuse, one layer
+     * up from the ones it plants.
+     *
+     * @template THold of array{test: string}
+     *
+     * @param  list<THold>  $holds
+     * @return list<THold>
+     */
+    private static function held(array $holds, ?string $test, string $direction): array
+    {
+        if ($test === null) {
+            return $holds;
+        }
+
+        $held = array_values(array_filter($holds, static fn (array $hold): bool => $hold['test'] === $test));
+
+        if ($held === []) {
+            throw new RuntimeException(sprintf(
+                'No %s holds %s, so a file asking for that guard would run nothing and report it green.',
+                $direction,
+                $test,
+            ));
+        }
+
+        return $held;
     }
 
     /**

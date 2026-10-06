@@ -331,7 +331,11 @@ Two rules follow, and both are enforced rather than asked for:
   time and requires the guard's own reading to *name* the break: a reading that stopped asking the
   right question answers with nothing both times, and an assertion on "something" would be answered
   by either state. A guard added to the index has to be mutated there or declined by name and
-  reason, so the harness fails on a new guard rather than ignoring it.
+  reason, so the harness fails on a new guard rather than ignoring it. The holds it drives are one
+  file per guard under `tests/Unit/Support/MutationHarness/`, so `paratest` — which spreads work a
+  file at a time — runs them on different workers; a hold for a new guard is a file there that asks
+  the harness for that guard, and the harness's own test refuses a guard no file asks for and a file
+  that asks for a guard nobody holds.
 
 ---
 

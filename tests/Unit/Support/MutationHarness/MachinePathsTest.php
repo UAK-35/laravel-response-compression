@@ -1,0 +1,63 @@
+<?php
+
+declare(strict_types=1);
+
+use Uak35\ResponseCompression\Tests\Support\MutationHarness;
+
+/*
+|--------------------------------------------------------------------------
+| The machine-path reading, broken under itself
+|--------------------------------------------------------------------------
+|
+| The breaks this file plants are the two spellings the guard is about: a drive-lettered path
+| written into a file the tree carries, and the same drive in the mount spelling a POSIX shell
+| resolves it with — the half the drive pattern could not see until the guard grew it, and
+| therefore the half a reading that lost it would go on answering nothing about.
+|
+| The mutation is read twice on the same tree — once as this checkout ships it, where the reading
+| has to answer with nothing, and once with the break in it, where it has to come back carrying
+| the break's own marker rather than merely something. That is what tells a reading which went
+| blind apart from one that answered nothing because nothing was wrong. The inversion is the other
+| direction: the drive pattern is rewritten to one no drive can match, and the guard's own tests
+| have to go red under it — because a test that stays green while its reading cannot fire is the
+| vacuous test this harness exists to refuse.
+|
+| Both directions read the guard's own call — `MachinePaths::scan()` — rather than a second
+| implementation of it kept here.
+|
+| @guards-index test
+|
+*/
+
+beforeEach(function (): void {
+    // Every break is undone before the next one, so no mutation is ever read through the one
+    // before it: two breaks in one tree is the thing this harness exists not to do.
+    MutationHarness::restore();
+});
+
+foreach (MutationHarness::mutations('tests/Unit/Support/MachinePathsTest.php') as $mutation) {
+    it(sprintf('turns %s red when this checkout is broken under it', $mutation['guard']), function () use ($mutation): void {
+        $root = MutationHarness::tree();
+        $read = $mutation['read'];
+
+        expect(implode(PHP_EOL, $read($root)))->toBe('');
+
+        $marker = ($mutation['plant'])($root);
+
+        expect($marker)->not->toBe('')
+            ->and(implode(PHP_EOL, $read($root)))->toContain($marker);
+    });
+}
+
+foreach (MutationHarness::inversions('tests/Unit/Support/MachinePathsTest.php') as $inversion) {
+    it(sprintf('turns %s red when its detector is rewritten under it', $inversion['guard']), function () use ($inversion): void {
+        $blinded = MutationHarness::blinded($inversion);
+
+        // Red, and for the right reason: a parse error is not a broken detector, and `FAILED` is
+        // the run having reached an assertion rather than a fatal before one.
+        expect($blinded['exit'])->not->toBe(0)
+            ->and($blinded['output'])->not->toContain('PHP Parse error')
+            ->and($blinded['output'])->not->toContain('Error in bootstrap script')
+            ->and($blinded['output'])->toContain('FAILED');
+    });
+}

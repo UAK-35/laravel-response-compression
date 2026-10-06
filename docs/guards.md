@@ -267,6 +267,18 @@ and `ToolPaths::copies()`, `ToolPaths::asked()`, `ToolPaths::unsharedNames()` an
 `ToolPaths::required()` for the paths, names and pins — and each is now the call its guard asserts
 on and the call the harness reads back.
 
+Each hold is driven by a file of its own, one per guard, in `tests/Unit/Support/MutationHarness/` —
+and that is a measurement rather than a tidy-up. `paratest` spreads work a file at a time and by
+nothing finer, so one file holding every guard was one file the suite waited on: it was five hundred
+and forty seconds of test time on one worker, while the other fifteen ran out of work beside it in
+under a tenth of that — which is what most of the suite's wall clock was. The directory is what keeps the split from becoming a second list of
+names to keep in step — a hold file asks the harness for the guard it carries, and the harness reads
+that name back out of the file itself, so a guard that arrived with no file fails the harness's own
+test and a file asking for a guard nobody holds is refused rather than run. The two controls sit in
+`Controls/` beside the holds rather than inside one of them, because they are about the machinery
+rather than about a guard — and because they are the slowest runs of the three directions, so each
+of them gets a worker of its own rather than the file that carries the hold waiting on it.
+
 One reading a guard asserts on is not mutated, and the reason is the tree rather than the reading:
 `ToolPaths::pinDrift()` holds a pin to what `composer.json` requires and to what Composer recorded
 installing, and the second half is `vendor/composer/installed.json`, which this repository ignores
