@@ -607,6 +607,7 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- The release suite's rails are asked in files of their own — one family each, from the branch and the lane to the notes, the number they call for and the surface they change — so `paratest` hands a worker a rail rather than a suite, and the branch rail the mutation harness takes out of `bin/release.php` is held by a file of five tests rather than one of twenty-four.
 - **The mutation harness's holds are one file per guard, so `paratest` spreads the slowest thing in
   the suite instead of queueing sixteen workers behind one file.** The holds were one file, and that
   file was 540s of the suite's 1801s of test time on one worker — while the other fifteen ran out of
