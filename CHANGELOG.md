@@ -18,6 +18,18 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **The modified list a Windows checkout shows is recorded here as line-ending bookkeeping rather 
+  than as work waiting to be committed.** `* text=auto` in `.gitattributes` meets 
+  `core.autocrlf=true` on the machine this package is written on, so a tree write that touches none 
+  of a file's content still leaves `git status` listing it: the blob git would stage is the one 
+  `HEAD` already holds and the diff is empty, so a commit naming such a path would carry no lines at 
+  all. The paths fall into eight groups - the gate's own account of itself and the pointer files it 
+  reaches, the guarded commit path and its skill, this package's own rules and the machine-name 
+  record, the diagnostic records, the PHP floor and the drifted settings file, the machine-path and 
+  doc-link readings, the release inventory and the releaser, and four files carried over from 
+  upstream - and every one of those groups' work, with the changelog entry its own commit wrote, is 
+  already in the commits this branch carries. No behaviour moves, and this entry is the whole of what 
+  its commit contains.
 - **A guard shaped like a program is held too: one rail is taken out of `bin/release.php`, and the
   rails' own test has to go red on the run that asserts it.** The harness held readings two ways — a
   break planted in the tree, and a detector rewritten under its own tests — and declined the guards
