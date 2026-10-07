@@ -18,6 +18,24 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **The environment table is held to `.agents/machine.local.json`, so a row naming a token nothing
+  supplies is a finding rather than a described environment.** `AGENTS.md` §2 writes its rows as
+  tokens — `__PHP_EXE__`, `__PWSH_EXE__`, `__PACKAGE_DIR__` — on purpose, because no committed file
+  may name a machine, and the values live in the one gitignored file a checkout has; nothing compared
+  the two, and the way that fails is quiet in both directions: a session reads the table, resolves a
+  token nothing answers for, and finds out halfway through a command. `tests/Support/Handoff.php`
+  reads the names the table writes, the token list and the key behind each one *out of*
+  `.agents/render_local.py` — the file that owns that shape, so there is no second copy of it to keep
+  in step — and the values out of the machine file, and it reports a name the renderer has never heard
+  of, a token the machine file holds no value for which the renderer does not derive itself, a
+  recorded path that is not there, and a machine file naming another checkout while reading as a
+  complete answer. `verify.py` excuses `__TOKEN__` on the Python side of this layer and this reading
+  excuses it for the same reason: the placeholder is written like a token and is not one. The handoff
+  folder is read as the document it says it is — its own §2 is held the same way where that folder is
+  here, and answered as `null` where it is not, so deleting it takes nothing with it.
+  `tests/Unit/Support/HandoffTest.php` declares the row, the mutation harness plants an added row
+  naming a token the renderer does not have and requires the reading to carry it back, and both lists
+  in `docs/guards.md` were rendered from the files.
 - **The modified list a Windows checkout shows is recorded here as line-ending bookkeeping rather 
   than as work waiting to be committed.** `* text=auto` in `.gitattributes` meets 
   `core.autocrlf=true` on the machine this package is written on, so a tree write that touches none 

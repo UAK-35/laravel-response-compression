@@ -148,6 +148,10 @@ Load, in order:
 2. `.agents/README.md` (skills, custom agents, commands — the index of everything loadable)
 3. `.trae/TRAE.md` (the anchor a TRAE session starts from)
 4. `GEMINI.md` (team-shared notes; its generated `SKILLS-IMPORT` block lists every skill)
+5. `handoff/HANDOFF.md` — a predecessor thread's handoff, when that folder is here: the state it was
+   written in, what it verified, what it left open, and what the suite's colour means today. Read it
+   before changing anything; `sh handoff/state.sh` prints that state as it is now. Delete this line
+   together with the folder.
 
 Before finishing any work, run the check — read-only, exit 1 when something is inconsistent:
 

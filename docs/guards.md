@@ -8,7 +8,7 @@ answer is not always "port it".
 
 ## Kept
 
-The table records 35 guards, and it is rendered from the files the guards live in: each row's name
+The table records 36 guards, and it is rendered from the files the guards live in: each row's name
 and its argument are a comment block in that file, and the file itself is the third column. What each
 one catches is in the second column, and where it lives is in the third.
 
@@ -45,6 +45,7 @@ one catches is in the second column, and where it lives is in the third.
 | `tests/Unit/Gate/CoverageTest.php` | a floor run that keeps quiet about the machine it is on: the interpreter is named before the suite starts and again at the foot of a failure, so a floor that moved is attributable to the code or to the PHP — and a run that collected nothing says so rather than reporting every file at 0.0% | [`../tests/Unit/Gate/CoverageTest.php`](../tests/Unit/Gate/CoverageTest.php) |
 | the log-message test | two reasons the middleware reports a skip as carrying one code, or two that write the same sentence — read out of the type that holds each sentence once, so a line a branch invents and a line two branches share are both the file's to refuse, and nothing in PHP refuses the duplicate code a backed enum is loaded with | [`../tests/Unit/Middleware/LogMessagesTest.php`](../tests/Unit/Middleware/LogMessagesTest.php) |
 | the release rails | the rails of `bin/release.php` that decide where a release may be cut from — no repository, uncommitted work, the wrong branch, the lane the repository declares — each refusing the condition it is about through the fixture hand that puts a rewritten releaser in front of this test, which is the file the mutation harness takes the branch rail out of; the rails about what a release publishes and the number it takes are asked the same way in the files beside it | [`../tests/Unit/Release/RailsTest.php`](../tests/Unit/Release/RailsTest.php) |
+| the environment table | the environment `AGENTS.md` §2 states — and the same section of the handoff beside it — held to `.agents/machine.local.json`: a name the renderer has never heard of, a token the machine file holds no value for, a recorded path that is not there, and a machine file naming another checkout while reading as a complete answer | [`../tests/Unit/Support/HandoffTest.php`](../tests/Unit/Support/HandoffTest.php) |
 | the machine-path test | a path that only resolves on the machine it was written on — a drive letter, a home directory, a network share, and the same drive as a POSIX shell mounts it (`/e/…`, `/mnt/e/…`, `/cygdrive/e/…`) — in any file a commit would carry | [`../tests/Unit/Support/MachinePathsTest.php`](../tests/Unit/Support/MachinePathsTest.php) |
 | the mutation harness | the guards above, going quiet: one break at a time is planted in a copy of this checkout, a reading's detector is rewritten under its own tests, and a rail is taken out of the program whose test holds it — so a guard that stopped asking the right question, or a test that stopped asserting, fails there instead of reporting nothing forever | [`../tests/Unit/Support/MutationHarnessTest.php`](../tests/Unit/Support/MutationHarnessTest.php) |
 | the repository-escape test | a relative path that climbs above the repository root — written out, or computed as `dirname(__DIR__, n)` — in any file a commit would carry | [`../tests/Unit/Support/RepoEscapesTest.php`](../tests/Unit/Support/RepoEscapesTest.php) |
@@ -347,7 +348,7 @@ nothing, declares a list this page does not have, or has no sentence to quote is
 than left out, because "not in the list" and "in it and correct" are the two answers a rendering
 has to be able to tell apart.
 
-The two lists name 17 readings and 4 files that are not guards, 21 files in `tests/Support/` in
+The two lists name 18 readings and 4 files that are not guards, 22 files in `tests/Support/` in
 all.
 
 | Reading | What it reads |
@@ -359,6 +360,7 @@ all.
 | [`../tests/Support/CoverageEnvironment.php`](../tests/Support/CoverageEnvironment.php) | the PHP a coverage run is measured under, and the driver that can count a line |
 | [`../tests/Support/Docs.php`](../tests/Support/Docs.php) | the markdown this package ships, read for the links in it |
 | [`../tests/Support/GuardIndex.php`](../tests/Support/GuardIndex.php) | `docs/guards.md` read as a claim about a directory |
+| [`../tests/Support/Handoff.php`](../tests/Support/Handoff.php) | the environment as this checkout's own documents state it, held to the one file on a machine that answers it |
 | [`../tests/Support/IndexNumbers.php`](../tests/Support/IndexNumbers.php) | the numbers `docs/guards.md` states, read out of it and checked against the code that produces them |
 | [`../tests/Support/LogMessages.php`](../tests/Support/LogMessages.php) | the diagnostics the compression middleware writes, each declared once with a code it logs under |
 | [`../tests/Support/MachinePaths.php`](../tests/Support/MachinePaths.php) | paths that only resolve on the machine they were written on, found in the files a commit would carry |

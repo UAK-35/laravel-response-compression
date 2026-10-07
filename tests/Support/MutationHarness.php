@@ -644,6 +644,27 @@ final class MutationHarness
                 },
                 'read' => ReleaseLane::drift(...),
             ],
+            [
+                'guard' => 'the environment table',
+                'test' => 'tests/Unit/Support/HandoffTest.php',
+                'plant' => static function (string $root): string {
+                    // A row added to the environment table naming a token the renderer has never
+                    // heard of: what a table looks like when it is written ahead of the file that was
+                    // to supply it. It is the half of the reading that has to fire on every machine —
+                    // a name nothing resolves rather than a value a machine happens to be missing —
+                    // and the half a reading which had stopped resolving names could not see.
+                    $token = '__PYTHON_EXE__';
+
+                    self::replace($root, Handoff::RULES, static fn (string $text): string => str_replace(
+                        '| Linux shell (mandatory) | `bash` |',
+                        '| Linux shell (mandatory) | `bash` |'.PHP_EOL.'| Python | `'.$token.'` |',
+                        $text,
+                    ));
+
+                    return $token;
+                },
+                'read' => Handoff::stale(...),
+            ],
         ];
 
         return self::held($mutations, $test, 'mutation');
