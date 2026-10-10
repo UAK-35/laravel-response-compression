@@ -41,6 +41,7 @@ release — which is why it sits in the repository rather than in the package.
   line to its last, and cmd.exe wants the ending a Windows filesystem hands it, so `.gitattributes`
   sets `*.cmd text eol=crlf` instead of leaving that to each contributor's `core.autocrlf` — the same
   reason `*.tsv` is already pinned to LF, and the blob is stored LF like every other file here.
+- **The file a workspace tool writes at this checkout's root is ignored, so `git status` is not where it announces itself.** `/opencode.jsonc` appears the first time a checkout is opened as an OpenCode workspace, and what it holds is a setting for one machine, so it belongs to no version of this package. Untracked and *not* ignored is the one combination that matters: it shows in `git status`, so a broad `git add` would publish a file whose whole content is one editor's preference. The rule is named beside the artefacts a run already leaves behind, which is why `/.freebuff/` sits there for the same reason, and it is written down rather than remembered because the next machine writes its own.
 - **The environment table is held to `.agents/machine.local.json`, so a row naming a token nothing
   supplies is a finding rather than a described environment.** `AGENTS.md` §2 writes its rows as
   tokens — `__PHP_EXE__`, `__PWSH_EXE__`, `__PACKAGE_DIR__` — on purpose, because no committed file
