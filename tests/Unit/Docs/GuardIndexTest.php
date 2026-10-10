@@ -206,6 +206,47 @@ it('reads a file\'s list and its words out of the file, in both header styles', 
     expect(GuardIndex::drift($tree['root']))->toBe([]);
 });
 
+it('reads a checkout whose line endings are CRLF, which is what Windows writes', function (): void {
+    $tree = guardIndexTree();
+    $root = $tree['root'];
+
+    // Every file here is read as the bytes on disk, and a Windows checkout writes CRLF over the LF
+    // a blob holds: `* text=auto` in `.gitattributes` with a `core.autocrlf` of `true`, so a tree
+    // `git status` calls clean is one where a `$`-anchored pattern stops matching in front of the
+    // `\r`. That is what made `docs/guards.md` unreadable on this machine — five test files red on
+    // a checkout with nothing wrong in it — so the declaring files are written the way this one
+    // writes them, and the document is left LF because `docs/guards.md` is LF here while 29 tracked
+    // files around it are not: the reading has to hold a worktree whose files disagree with each
+    // other about line endings, which is the checkout it is run in.
+    $crlf = static fn (string $text): string => str_replace("\n", "\r\n", str_replace("\r\n", "\n", $text));
+
+    foreach (guardIndexSources() as $file => $contents) {
+        if ($file !== 'docs/guards.md') {
+            guardIndexWrite($root, $file, $crlf($contents));
+        }
+    }
+
+    $declared = GuardIndex::declared($root);
+    $guards = GuardIndex::guards($root);
+
+    // Substance first, and both header styles with it: the class-docblock declaration and the
+    // ruled banner a script opens with are read the same on a CRLF tree as on an LF one, the words
+    // beside a row are still quoted out of the file's own first sentence, and a test that declares
+    // a guard is still read from the test side. Without the `\r` in the line-end class every one of
+    // these throws that the file declares nothing, which is the failure this asserts against.
+    expect($declared['tests/Support/One.php']['section'])->toBe('reading')
+        ->and($declared['tests/Support/One.php']['summary'])->toBe('a reading the guards are built from')
+        ->and($declared['tests/Support/Two.php']['section'])->toBe('reading')
+        ->and($declared['tests/Support/Two.php']['summary'])->toBe('a second reading, written as a script')
+        ->and($declared['tests/Support/Three.php']['section'])->toBe('support')
+        ->and($guards['tests/Unit/OneTest.php']['kind'])->toBe('guard');
+
+    // And the whole reading on that tree: a document in step with a CRLF checkout answers with
+    // nothing. A pattern that stopped at the `\r` would have thrown before it compared a row, so
+    // this is the assertion that says the index reads the checkout rather than refusing it.
+    expect(GuardIndex::drift($root))->toBe([]);
+});
+
 it('names the file when a row and the directory stop agreeing', function (): void {
     $tree = guardIndexTree();
     $root = $tree['root'];

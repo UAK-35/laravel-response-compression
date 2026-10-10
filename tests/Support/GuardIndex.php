@@ -134,8 +134,16 @@ final class GuardIndex
      * row carries. The characters before the declaration are the comment decoration of whichever
      * style the file writes in — a `|`-ruled banner, a `*` docblock, a `#` run, an XML comment — so
      * one pattern reads the declaration out of all of them.
+     *
+     * The line's end is `[ \t\r]*$` rather than `[ \t]*$`, and that one `\r` is the difference
+     * between an index that reads a Windows checkout and one that refuses it. Every file here is
+     * read as the bytes on disk, while `* text=auto` in `.gitattributes` and a `core.autocrlf` of
+     * `true` put CRLF in a working tree — so a checkout that is byte-identical to `HEAD`, and that
+     * `git status` calls clean, is one where `$` does not match in front of the `\r`. The whole of
+     * `docs/guards.md` went unreadable on this machine that way, with five test files failing on a
+     * file that says exactly what it is supposed to say.
      */
-    private const string DECLARATION_PATTERN = '/^[\s\/*|#<!-]*@guards-index\s+(\S+)(?:[ \t]+(.+?))?[ \t]*$/m';
+    private const string DECLARATION_PATTERN = '/^[\s\/*|#<!-]*@guards-index\s+(\S+)(?:[ \t]+(.+?))?[ \t\r]*$/m';
 
     /**
      * The directories a filesystem walk of a planted tree leaves alone: a checkout's history and

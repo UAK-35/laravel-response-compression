@@ -63,6 +63,31 @@ it('states in the index only the numbers the code produces', function (): void {
         ->and($counts['files'])->toBe($counts['readings'] + $counts['support']);
 });
 
+it('reads the gate when the checkout holds it with CRLF endings', function (): void {
+    $root = indexNumbersRoot();
+
+    // The gate is read as the bytes on disk, like every file these readings open, and a Windows
+    // checkout writes CRLF over the LF a blob holds — `* text=auto` in `.gitattributes` meeting a
+    // `core.autocrlf` of `true`, which is a tree `git status` calls clean. `bin/checks.php` is LF
+    // on this machine today, so this reading is safe by luck rather than by construction: one
+    // `git checkout` of that tree is all it would take to put the gate's own keys out of reach.
+    // The reading refuses when it finds no keys, so the failure is loud — but the number the page
+    // states would then have nothing to be compared with, on a checkout with nothing wrong in it.
+    $lf = IndexNumbers::checks($root);
+
+    expect($lf)->toContain('syntax')
+        ->and($lf)->toContain('tests')
+        ->and(count($lf))->toBeGreaterThan(2);
+
+    $gate = (string) file_get_contents($root.'/bin/checks.php');
+
+    indexNumbersWrite($root, 'bin/checks.php', str_replace("\n", "\r\n", str_replace("\r\n", "\n", $gate)));
+
+    // The same gate, the same reading, one line ending apart — and the same answer, which is what
+    // makes the number the page states a fact about the gate rather than about this machine.
+    expect(IndexNumbers::checks($root))->toBe($lf);
+});
+
 it('names the number when the gate gains a check and the page keeps the old one', function (): void {
     $root = indexNumbersRoot();
 

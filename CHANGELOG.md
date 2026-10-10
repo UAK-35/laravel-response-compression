@@ -974,6 +974,31 @@ read as a runner that still runs the gate.
 
 - **The machine-path guard reads a drive path with a space in it as the path that was written, instead of stopping at the space.** The drive rule ended a finding at the first whitespace, so a path under a directory whose name carries a space came back truncated at the space — an address that names nobody, out of the guard whose whole job is to say which machine a path names, and a finding a reader could not search for in the file it was reported from. The rule is now written as a segment and a run of separators (`SEGMENT`, `SPACED`) rather than as a run of characters: a directory whose name carries one space — a program's install root is the shape that made this visible — stays one segment, while a run of two or more spaces still ends the path, because a run is the prose a path is written in and not part of one. That second boundary is deliberate and named in the constant, because a rule that read the whole run as a segment would join the two paths of a sentence into one finding — a report about a path nobody wrote, where the shape being reported is two. Four specimens were added to `tests/Unit/Support/MachinePathsTest.php`: a spaced directory, the same path back-slashed, two paths in one sentence staying two, and the tolerated Windows directory with a sentence after it. The mutation harness holds the fix rather than trusting it: a third machine-path break plants the same leak with a space in one of its directories, and the reading has to name that path whole — a reading that stopped at the space answers with a prefix of the marker, which the hold reads as the guard having gone quiet.
 
+- **The guard index can read a Windows checkout, so `docs/guards.md` is no longer unreadable on one.**
+  `GuardIndex::DECLARATION_PATTERN` ended `[ \t]*$`, while every file it reads is read as the bytes on
+  disk — and `* text=auto` in `.gitattributes` meeting a `core.autocrlf` of `true` puts CRLF in a
+  working tree, where `$` does not match in front of the `\r`. So on this machine the index refused
+  `tests/Support/CoverageEnvironment.php` for carrying no declaration, which it carries on line 41 of
+  its own header, and five test files went red with `bin/index.php --check` exiting 1 — on a tree
+  `git status` calls clean, because the blob at `HEAD` is LF and the working copy is not. The line's
+  end is `[ \t\r]*$` now, `tests/Support/IndexNumbers.php` reads its own pattern the same way for the
+  same reason, and both say why beside the pattern: this is the one place where what a reading has to
+  read is a line ending rather than a fact about the package.
+
+- **The CRLF fix has a cover of its own, and the cover does not need a CRLF checkout to fire.** The
+  two line-end classes were right by construction and were exercised by nothing: what made them
+  necessary was *this* worktree, so on an LF checkout — CI, or any clone a `core.autocrlf` never
+  touched — setting either pattern back to `[ \t]*$` would have left the whole suite green. Two
+  tests plant the condition rather than inherit it. `tests/Unit/Docs/GuardIndexTest.php` writes a
+  tree whose declaring files carry CRLF endings and reads them back through `GuardIndex::declared()`,
+  `guards()` and `drift()`, both header styles among them; `tests/Unit/Docs/IndexNumbersTest.php`
+  rewrites its copied gate with CRLF endings and requires its `$checks` keys to read the same as
+  before the rewrite. Measured rather than assumed: with the `\r` put back out of both patterns both
+  tests fail — one naming a file that carries no declaration, one a gate whose `$checks` array reads
+  as no checks at all — and with the patterns as they ship they pass, with the two files byte-identical
+  afterwards. The document in the guard-index fixture stays LF while the files around it do not,
+  because that is the shape of this machine's own checkout and the reading has to hold it.
+
 - **`--init` keeps the machine file it did not write in full.** The file carries this machine's own
   record beside the three sections `--init` is asked for — the interpreter's version and extensions,
   what this checkout is at, what an install receives — and `--init` built its three answers into a

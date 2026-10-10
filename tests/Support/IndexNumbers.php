@@ -104,13 +104,18 @@ final class IndexNumbers
      * `$checks` array has. The keys are the top-level ones, at the array's own indentation, which
      * is what keeps the nested `title`, `skip` and `run` of each check from being read as a check.
      *
+     * The line's end is `[ \t\r]*$` rather than `$` for the reason `GuardIndex` gives about its own
+     * pattern: this reads the bytes on disk, and a Windows checkout holds the same file with CRLF in
+     * it, where `$` does not match in front of the `\r`. `bin/checks.php` is LF here today, so this
+     * reading is safe by luck, and that luck is one `git checkout` wide.
+     *
      * @return list<string>
      */
     public static function checks(string $root): array
     {
         $source = self::read($root, self::CHECKS);
 
-        preg_match_all("/^ {4}'([a-z][a-z0-9-]*)' => \\[$/m", $source, $matches);
+        preg_match_all("/^ {4}'([a-z][a-z0-9-]*)' => \\[[ \t\r]*$/m", $source, $matches);
 
         $checks = array_values(array_unique($matches[1]));
 
