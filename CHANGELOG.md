@@ -660,6 +660,33 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **The rules are `AGENTS.md`'s and nothing else's, and the two files that still read as though they
+  held one no longer do.** `.agents/README.md` is the index: its pointer sat under a `## Hard rule`
+  heading, which reads as though the index carried a rule of the repository's, and it is `## Where
+  the rules are` now — the rules are `AGENTS.md`'s alone, and this file carries only the rules about
+  *this directory*, which is what a tool loads, that every loadable thing has a row in the index, and
+  that a pointer never restates what it points at. `.trae/TRAE.md` was the fourth pointer the note
+  below does not name, still carrying the old, narrower rule under `## Hard rule — no parent-folder
+  config` in a file whose own first paragraph promised it restates no project rule; its section is
+  `## Where the hard rule is` now and it names §0 rather than repeating one clause of it. The
+  `canonical` step had not caught that one, and cannot: it compares a pointer's *headings* against
+  `AGENTS.md`'s sections, so a heading that repeats an older wording matches none of them, and a
+  restatement that has drifted is invisible to a check looking for an exact one.
+- **The hard rule is this repository's scope, not only its parent's configuration.** `AGENTS.md` §0
+  read as a rule about loading agentic configuration from a parent folder, which is one way a checkout
+  leaves its own root rather than the rule itself: reading a sibling checkout, searching another drive
+  and writing into the package next door were all outside it and all silent. §0 now states the scope —
+  read, search, write and commit inside this repository's root, and nowhere else — with the
+  parent-configuration clause as one of four, and it argues the failure from this repository's own
+  record rather than from principle: a machine file for the package next door spilled into `.agents/`
+  and made the machine-path reading red, along with its two holds and the control that requires every
+  guard green on an unmutated tree, while the package the file belonged to showed nothing at all; the
+  repair was the same crossing in the other direction. `CLAUDE.md` and `GEMINI.md` were restating the
+  old, narrower rule in headings of their own — `## Hard rule — no parent-folder config` — and
+  `.agents/README.md` was restating it in a `## Hard rule` section of its own while its first
+  paragraph claimed every other agentic file here is a pointer to `AGENTS.md`; all three now point at
+  §0 instead, which is what a pointer file is for and what the reading that compares a pointer with
+  the canonical file can see.
 - **A staged set runs as one process per mapped path instead of one sequential run, so the
   narrowest mapping is no longer the slowest thing the gate does.** `--parallel` is paratest,
   which takes exactly one path and refuses several outright, so a commit whose mapped set named

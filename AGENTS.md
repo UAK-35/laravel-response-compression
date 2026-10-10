@@ -14,16 +14,39 @@ nothing, so a rule is edited in exactly one place and cannot come to mean two th
 
 ---
 
-## 0. Hard rule — no parent-folder agentic config
+## 0. Hard rule — the work is this repository, and nothing outside it
 
-**Never load agentic configuration (rules, skills, or custom agents) from a parent folder.** Only
-this repository root is authoritative for this package.
+**Read, search, write and commit inside this repository's root, and nowhere else.** Every program in
+`bin/` derives the paths it uses from its own location, and the readings named below are what a path
+that leaves this root looks like once somebody has written it down.
 
-This checkout is developed inside a larger workspace whose root also carries `AGENTS.md`, `.agents/`,
-`.claude/`, `.trae/`, `.kiro/` and more. Those describe a Laravel application and **do not apply
-here** — not its layout, not its database rules, not its deploy or push runbooks. The parent's
-configuration is not read, not extended, and not pointed at:
-`python .agents/verify.py` fails on any agentic file that names a path outside this repository.
+- **No directory above the root, and no parent configuration.** This checkout is developed inside a
+  larger workspace whose root carries its own `AGENTS.md`, `.agents/`, `.claude/`, `.trae/`, `.kiro/`
+  and more. Those describe a Laravel application and **do not apply here** — not its layout, not its
+  database rules, not its deploy or push runbooks. The parent's configuration is not read, not
+  extended, and not pointed at, and a path that leaves this root is out of bounds even to read.
+- **No sibling checkout and no other package.** Another working tree on this disk is somebody else's:
+  it has its own uncommitted work, its own guards and its own git index, none of which this
+  repository can see or vouch for. Do not grep it, read it, copy from it or write into it.
+- **No home directory, no other drive, no network share.** A path that only resolves on the machine
+  that wrote it belongs in `.gitignore` rather than in a commit.
+- **A fact that lives outside the root is brought in deliberately.** Ask for it, or have the file,
+  the path or the contents quoted to you — discovery by walking is the failure this rule prevents.
+
+Why this is a rule rather than a preference: **an edit that crosses the root is silent.** The tree
+that receives it looks unchanged to its own guards — the file is one somebody else's rules never
+enumerate — the tree that made it looks clean, and neither suite reports it. This repository has both
+directions of that on record. A machine file for the package next door spilled into `.agents/` here:
+the machine-path reading went red, and with it its two holds and the control that requires every
+guard green on an unmutated tree, while the package the file belonged to showed nothing at all.
+Moving it back was the same edit in the other direction — a write out of this root — and the only
+difference worth naming is that it was asked for and decided rather than improvised.
+
+The half of this that is written down is guarded: `tests/Unit/Support/MachinePathsTest.php` reports a
+path that names a machine in any file a commit would carry, `tests/Unit/Support/RepoEscapesTest.php`
+reports a relative path that climbs above the root, and `python .agents/verify.py` fails on any
+agentic file that names a path outside this repository. What none of the three can see is a command
+run against a path nobody wrote down — the half only the agent holding the terminal can keep.
 
 ---
 

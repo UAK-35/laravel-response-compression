@@ -13,12 +13,10 @@
 Claude Code reads skills **directly** from `.agents/skills/<name>/SKILL.md`. There is no
 `.claude/skills/` copy and there must never be one.
 
-## Hard rule — no parent-folder config
+## Scope
 
-This checkout is developed inside a larger workspace whose root carries its own `AGENTS.md`,
-`.agents/`, `.claude/` and `.trae/`. **None of it applies here.** Never load rules, skills or agents
-from a parent folder: only this repository root is authoritative for this package, and
-`python .agents/verify.py` fails on any file that points outside it.
+`AGENTS.md` §0 is the rule: the work is this repository's root and nothing outside it — no parent
+configuration, no sibling checkout, no other drive. It is not restated here.
 
 ## Before finishing
 

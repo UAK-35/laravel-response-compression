@@ -9,12 +9,10 @@
 3. `.trae/TRAE.md` — the session anchor.
 4. this file — the notes below, and the generated skill imports at the foot.
 
-## Hard rule — no parent-folder config
+## Scope
 
-Never load agentic configuration (rules, skills, or custom agents) from a parent folder. Only this
-repository root is authoritative for this package. The workspace this checkout sits inside has its
-own `AGENTS.md`, `.agents/` and `.gemini/`, and `python .agents/verify.py` fails on any file that
-points there.
+`AGENTS.md` §0 is the rule: read, search, write and commit inside this repository's root, and nowhere
+else. It is not restated here.
 
 ## Shared notes
 

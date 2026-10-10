@@ -15,11 +15,13 @@ This file is the TRAE-specific anchor; it restates no project rule.
 | Commands | `.agents/commands/<name>.md` |
 | Registered commands and tool pins | `.agents/toolchain.json` |
 
-## Hard rule — no parent-folder config
+## Where the hard rule is
 
-Never load agentic configuration from a parent folder. Only this repository root is authoritative.
-The workspace this checkout sits inside carries its own `AGENTS.md`, `.agents/` and `.trae/`, and
-none of it applies here; `python .agents/verify.py` fails on a file that points at it.
+`AGENTS.md` §0 is the rule and this file does not restate it: **read, search, write and commit
+inside this repository's root, and nowhere else.** The workspace this checkout sits inside carries
+its own `AGENTS.md`, `.agents/` and `.trae/` describing a Laravel application; none of it applies
+here, which is one clause of §0 rather than the whole of it. `python .agents/verify.py` fails on an
+agentic file that names a path outside this root.
 
 ## Session startup sequence
 

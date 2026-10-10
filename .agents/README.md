@@ -4,12 +4,19 @@ This directory is the **only** place AI tools load **skills**, **custom agents**
 from. The rules themselves live one level up, in `AGENTS.md`, and every other agentic file in this
 repository is a pointer to it.
 
-## Hard rule
+## Where the rules are
 
-**Never load agentic configuration from a parent folder.** This checkout is developed inside a
-larger workspace whose root carries its own `AGENTS.md`, `.agents/`, `.claude/` and `.trae/`, all of
-them describing a Laravel application. None of it applies here, and `python .agents/verify.py` fails
-on any file in this repository that points outside it.
+**`AGENTS.md` is the only place this repository's rules live** — §0 included: read, search, write and
+commit inside this repository's root, and nowhere else. Nothing of the repository's is restated here.
+This checkout sits inside a larger workspace whose root carries its own configuration describing a
+Laravel application, and pointing at the canonical file is what keeps that statement from drifting
+into a second, narrower copy of it.
+
+What this file does carry is the rules about **this directory**: what a tool loads from here, that
+every loadable thing has a row in the index below, and that a pointer never restates what it points
+at. Those are decisions about `.agents/` rather than about the package, and an index is where they
+belong. A rule of the package's would be wrong here: it would be a second copy of the one in
+`AGENTS.md`, in a file a reader opens to find what *loads* rather than what *is allowed*.
 
 ## What lives here
 
