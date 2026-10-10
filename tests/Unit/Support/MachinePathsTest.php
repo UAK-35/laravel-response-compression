@@ -77,14 +77,14 @@ it('still needs every file it exempts', function (): void {
 it('reports the paths that name a machine', function (string $text, array $expected): void {
     expect(array_column(MachinePaths::in($text), 'path'))->toBe($expected);
 })->with([
-    'a drive letter' => ['cd C:/Users/umar/project', ['C:/Users/umar/project']],
-    'a back-slashed drive letter' => ['cd C:\Users\umar\project', ['C:\Users\umar\project']],
-    'a Linux home directory' => ['cp /home/umar/.gitconfig .', ['/home/umar/.gitconfig']],
-    'a macOS home directory' => ['cp /Users/umar/.gitconfig .', ['/Users/umar/.gitconfig']],
+    'a drive letter' => ['cd C:/Users/alex/project', ['C:/Users/alex/project']],
+    'a back-slashed drive letter' => ['cd C:\Users\alex\project', ['C:\Users\alex\project']],
+    'a Linux home directory' => ['cp /home/alex/.gitconfig .', ['/home/alex/.gitconfig']],
+    'a macOS home directory' => ['cp /Users/alex/.gitconfig .', ['/Users/alex/.gitconfig']],
     'a network share' => ['cat \\\\fileserver\share\notes', ['\\\\fileserver\share\notes']],
-    'the MSYS spelling of a drive letter' => ['cd /e/_WORKS/lpr/work/LPR', ['/e/_WORKS/lpr/work/LPR']],
+    'the MSYS spelling of a drive letter' => ['cd /e/workspace/project', ['/e/workspace/project']],
     'a mounted drive with a space in a segment' => ['cp /c/Program Files/OpenSSH/ssh.exe .', ['/c/Program Files/OpenSSH/ssh.exe']],
-    'the WSL spelling of the same location' => ['export DataDir=/mnt/e/_WORKS/lpr/work', ['/mnt/e/_WORKS/lpr/work']],
+    'the WSL spelling of the same location' => ['export DataDir=/mnt/e/workspace/project', ['/mnt/e/workspace/project']],
     'the Cygwin spelling of it' => ['cp /cygdrive/d/tools/sqlite3 /usr/local/bin', ['/cygdrive/d/tools/sqlite3']],
 ]);
 
@@ -94,7 +94,7 @@ it('leaves the paths that name nobody alone', function (string $text): void {
     // A scheme is not a drive letter: the `s` of `https` is preceded by a letter, which is the
     // whole reason the drive pattern has a lookbehind.
     'an https URL' => ['see https://example.test/docs'],
-    'a URL whose path starts with a home directory' => ['see https://example.test/home/umar'],
+    'a URL whose path starts with a home directory' => ['see https://example.test/home/alex'],
     'the Windows directory' => ['core.sshCommand = C:/Windows/System32/OpenSSH/ssh.exe'],
     'a back-slashed Windows directory' => ['core.sshCommand = C:\Windows\System32\OpenSSH\ssh.exe'],
     'a CI runner' => ['cd /home/runner/work/pkg/pkg'],
@@ -117,7 +117,7 @@ it('leaves the paths that name nobody alone', function (string $text): void {
 it('says which line each path is on', function (): void {
     // The report a failure prints is `file:line`, so a path found in the wrong place would send
     // the reader to the wrong line of a file they are already looking at.
-    expect(MachinePaths::in("cd /home/umar/pkg\n"))->toBe([['line' => 1, 'path' => '/home/umar/pkg']])
-        ->and(MachinePaths::in("first\nsecond /home/umar/pkg\n"))->toBe([['line' => 2, 'path' => '/home/umar/pkg']])
-        ->and(MachinePaths::in("first\r\nsecond C:\\Users\\umar\r\n"))->toBe([['line' => 2, 'path' => 'C:\Users\umar']]);
+    expect(MachinePaths::in("cd /home/alex/pkg\n"))->toBe([['line' => 1, 'path' => '/home/alex/pkg']])
+        ->and(MachinePaths::in("first\nsecond /home/alex/pkg\n"))->toBe([['line' => 2, 'path' => '/home/alex/pkg']])
+        ->and(MachinePaths::in("first\r\nsecond C:\\Users\\alex\r\n"))->toBe([['line' => 2, 'path' => 'C:\Users\alex']]);
 });

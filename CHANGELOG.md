@@ -672,6 +672,14 @@ read as a runner that still runs the gate.
   `canonical` step had not caught that one, and cannot: it compares a pointer's *headings* against
   `AGENTS.md`'s sections, so a heading that repeats an older wording matches none of them, and a
   restatement that has drifted is invisible to a check looking for an exact one.
+- **The machine-path guard's own specimens no longer named the machine they were written on.**
+  `tests/Unit/Support/MachinePathsTest.php` proved the detector fires with a path into this
+  repository's own workspace — both the MSYS spelling and the WSL one — and with the account name
+  this checkout runs under, in a drive path, a back-slashed one and both home-directory spellings; so
+  the one file whose whole job is to refuse a path that resolves for exactly one person was itself
+  carrying two. The specimens are synthetic now — `alex` for the account, and a workspace directory
+  that is nobody's — which is the same reading against the same shapes (26 passed, 30 assertions)
+  with nothing left in a file a commit would carry that resolves only where it was written. `composer.json` keeps the author's name, because that is authorship rather than a path.
 - **The hard rule is this repository's scope, not only its parent's configuration.** `AGENTS.md` §0
   read as a rule about loading agentic configuration from a parent folder, which is one way a checkout
   leaves its own root rather than the rule itself: reading a sibling checkout, searching another drive
