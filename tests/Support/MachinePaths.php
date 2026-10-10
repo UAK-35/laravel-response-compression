@@ -84,16 +84,38 @@ use RuntimeException;
 final class MachinePaths
 {
     /**
-     * The paths this guard is not allowed to report, because the files behind them exist to
-     * spell the shapes out: a detector can only be shown to fire on a path by having one in
-     * it. Each one is a hole in the guard, so the test asserts that every file here still
-     * contains something the guard would otherwise fire at — remove the samples and the
-     * exemption fails with them.
+     * The two files this guard may not report, because the shapes are spelled out in them: a
+     * detector can only be shown to fire at a path by having one in it. Each one is a hole in the
+     * guard, so the test asserts that every file here still contains something the guard would
+     * otherwise fire at — remove the samples and the exemption fails with them.
+     *
+     * @var array<string, string>
      */
     public const array EXEMPT = [
         'tests/Support/MachinePaths.php' => 'the patterns and the worked examples that define the shapes',
         'tests/Unit/Support/MachinePathsTest.php' => 'the samples that prove the detector fires at all',
     ];
+
+    /**
+     * One segment of a path: what ends it is a character no segment of a path carries — a
+     * separator, a space, or one of the marks a sentence puts beside a path.
+     *
+     * Written once because the drive rule needs it twice, and a character added to one copy but
+     * not the other is exactly the drift this file exists to refuse.
+     */
+    private const string SEGMENT = "[^\s/\\\\\"'`()<>|*?,;%]+";
+
+    /**
+     * A segment that may carry a space — a directory whose name has one is still one directory, so
+     * `Program Files` is a single segment rather than an end to the path.
+     *
+     * One space, and never the last segment. A run of two or more spaces is the prose a path is
+     * written in rather than part of it: `a.txt and C:/...` is two paths in a sentence, and a rule
+     * that read the run as one segment would report the sentence instead of the paths — which is
+     * the whole job backwards. The cost is a directory whose name carries two spaces, a shape this
+     * tree does not have and a boundary this rule does not need.
+     */
+    private const string SPACED = self::SEGMENT.'(?: '.self::SEGMENT.')?';
 
     /**
      * A drive letter and the path after it, as Windows writes it either way round.
@@ -105,10 +127,14 @@ final class MachinePaths
      * and a colon would otherwise be read from, and `%` is in the path no further: a literal
      * path is not written with a variable in the middle of it.
      *
-     * The path after the letter runs to the first character a path cannot contain, so both
-     * separators are carried and a finding reads as the path that was written.
+     * The path after the letter runs to the first character a path cannot carry, so both
+     * separators are carried and a finding reads as the path that was written. The one exception is
+     * a space between name characters: a directory whose name carries one — a program's install
+     * root, say — is still one segment rather than the end of the path, which is why the rule is
+     * written as a segment and a run of separators rather than as a run of characters. A segment
+     * that carries a space is never the last one, and no segment carries two.
      */
-    private const string DRIVE = "~(?<![A-Za-z0-9%])([A-Za-z]:[\\\\/][^\\s\"'`()<>|*?,;%]*)~";
+    private const string DRIVE = '~(?<![A-Za-z0-9%])([A-Za-z]:[\\\\/]{1,2}(?:'.self::SPACED.'[\\\\/]{1,2})*'.self::SEGMENT.')~';
 
     /**
      * The same drive, spelled the way a POSIX shell reaches it.

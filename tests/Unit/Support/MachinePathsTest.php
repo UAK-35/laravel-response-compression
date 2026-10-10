@@ -86,6 +86,15 @@ it('reports the paths that name a machine', function (string $text, array $expec
     'a mounted drive with a space in a segment' => ['cp /c/Program Files/OpenSSH/ssh.exe .', ['/c/Program Files/OpenSSH/ssh.exe']],
     'the WSL spelling of the same location' => ['export DataDir=/mnt/e/workspace/project', ['/mnt/e/workspace/project']],
     'the Cygwin spelling of it' => ['cp /cygdrive/d/tools/sqlite3 /usr/local/bin', ['/cygdrive/d/tools/sqlite3']],
+    // A directory whose name carries a space is one directory. Before this the reading stopped at
+    // the space and reported `C:/Users/alex/My` — a path nobody wrote — so the finding named
+    // something other than the thing it found.
+    'a space inside a directory name' => ['cd C:/Users/alex/My Documents/notes.txt', ['C:/Users/alex/My Documents/notes.txt']],
+    'the same, back-slashed' => ['cd C:\Users\alex\My Documents\notes.txt', ['C:\Users\alex\My Documents\notes.txt']],
+    // Two spaces in a run are the prose a path is written in rather than part of it, so a
+    // sentence holding two paths stays two findings — the bound is one space per segment, and
+    // this is the specimen that holds it.
+    'two paths in a sentence stay two' => ['cp C:/Users/alex/a.txt and C:/Users/alex/b.txt .', ['C:/Users/alex/a.txt', 'C:/Users/alex/b.txt']],
 ]);
 
 it('leaves the paths that name nobody alone', function (string $text): void {
@@ -110,6 +119,9 @@ it('leaves the paths that name nobody alone', function (string $text): void {
     'a URL whose path looks like a mount' => ['see https://example.test/e/docs/page'],
     'a tilde, which is how a home directory is written portably' => ['cp ~/.gitconfig .'],
     'a path that is absolute and belongs to nobody' => ['/usr/local/bin/php'],
+    // A path is read to its own end and no further: the space after the last segment is where the
+    // reading stops, so the sentence a path is written in is never taken for part of it.
+    'the Windows directory with a sentence after it' => ['supervisorctl lives at C:/Windows/System32/OpenSSH/ssh.exe and that is all'],
     'a namespace in PHP source' => ['namespace Uak35\ResponseCompression\Tests;'],
     'an escaped namespace in JSON' => ['"Uak35\\\\ResponseCompression\\\\": "src/"'],
 ]);

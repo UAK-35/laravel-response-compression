@@ -297,6 +297,28 @@ final class MutationHarness
                 ),
             ],
             [
+                'guard' => 'the machine-path reading, on a path with a space in it',
+                'test' => 'tests/Unit/Support/MachinePathsTest.php',
+                'plant' => static function (string $root): string {
+                    // The leak once more, with a space in one of its directories: the shape the
+                    // drive rule read as the end of the path until it was written as a segment and
+                    // a run of separators. The marker is the whole path, so a reading that still
+                    // stops at the space answers with a prefix of it rather than with it — which
+                    // is the truncated finding this holds against. A third break rather than a
+                    // rewrite of the first, because a reading that lost the space rule is still
+                    // red on the two above it.
+                    $leak = self::spacedLeak();
+
+                    self::add($root, self::SAMPLE, sprintf(self::SAMPLE_SOURCE, '// '.$leak));
+
+                    return self::sample($leak);
+                },
+                'read' => static fn (string $root): array => array_map(
+                    static fn (array $hit): string => sprintf('%s:%d  %s', $hit['file'], $hit['line'], $hit['path']),
+                    MachinePaths::scan($root)['found'],
+                ),
+            ],
+            [
                 'guard' => 'the repository-escape reading',
                 'test' => 'tests/Unit/Support/RepoEscapesTest.php',
                 'plant' => static function (string $root): string {
@@ -1231,6 +1253,21 @@ final class MutationHarness
     private static function mountLeak(): string
     {
         return implode('', ['/e', '/a-reader', '/workspace']);
+    }
+
+    /**
+     * The same leak with a space in one of its directories, assembled the same way and for the
+     * same reason.
+     *
+     * The directory name is two pieces joined by the space, so no line of this file holds a whole
+     * path — this file is not one of the two the guard may report — and the space itself is what
+     * the mutation is about: the drive rule read a path to its first whitespace, so the marker is
+     * the path with its space in it and a reading that still stops there answers with a prefix of
+     * the marker rather than with it.
+     */
+    private static function spacedLeak(): string
+    {
+        return implode('', ['C:', '/a ', 'reader/', '.gitconfig']);
     }
 
     /** A finding as the two path readings print it: the file, its line, and the path. */
