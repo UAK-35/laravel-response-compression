@@ -24,6 +24,12 @@ missing under, and a settings file is not written from a template that would pro
 token - a rendered file holding `__PHP_EXE__` is worse than no rendered file, because it looks
 finished.
 
+Nor does it delete a value it was not given. The machine file carries this machine's own record
+beside the three sections `--init` is asked for - versions, tool paths, what this checkout is at,
+what an install receives - and `--init` updates the keys it owns and keeps every other line as it
+stands. It used to write its three answers over the file and take the record with them, which is a
+setup command quietly discarding the facts somebody collected about the machine it is setting up.
+
 WHAT `--check` REPORTS
 ----------------------
 A rendered file that is not what its template would produce now, and why, in one sentence. Most of
@@ -67,6 +73,48 @@ TOKENS: dict[str, tuple[tuple[str, str], str]] = {
 }
 
 DEFAULT_PWSH = "pwsh.exe"
+
+# The sections this file may carry, and what each one is for.
+#
+# The first three are the ones `--init` is asked for: they are the tokens of TOKENS above, and every
+# settings file and every command in the layer is rendered from them. The rest are this machine's
+# own record, written beside them by whoever set the machine up - the versions, the tool paths, what
+# this checkout is at, what an install receives - and read by whoever arrives next.
+#
+# They are declared rather than merely tolerated because `--init` used to lose them: it built the
+# three sections from its own answers and wrote that dict over the file, so re-naming a machine
+# threw away every fact the file had recorded. A file holding eleven sections that a program's
+# writer did not know about is a file the writer shortens the next time it runs, and the facts go
+# quietly. So the shape is written here, a new file is opened with it, and a re-run updates the keys
+# it owns and keeps everything else as it stands.
+#
+# A section nobody declared is kept for the same reason the declared ones are: the rule is "write
+# the answers I was given and keep the rest", and a rule with an exception for the names the program
+# happens to know is a rule that deletes the next person's work.
+SECTIONS: dict[str, str] = {
+    "php": "the interpreter the gate, the suite and bin/ run under",
+    "pwsh": "PowerShell 7, the shell every Windows command runs through",
+    "package": "this checkout - the repository root",
+    "python": "the interpreter the agentic checks and the generators beside them run under",
+    "composer": "the package manager, when it is the `composer.phar` beside `composer.json`",
+    "git": "the origin, the signing key, and the line endings this checkout is written with",
+    "search": "the ripgrep this package's own rule names as the search utility",
+    "skills": "the index the skills are listed in, and the targets generated beside it",
+    "checks": "the gate's commands, and the checks it runs",
+    "tools": "the version each tool in `bin/tool-paths.php` is pinned at",
+    "style": "the style configuration, its preset and the command that runs it",
+    "staticAnalysis": "the analyser's configuration, its level, its paths and the PHP floor",
+    "tarball": "what an installed package receives, and what is left out of it",
+    "envVars": "the environment variables the package and this checkout's tooling read",
+}
+
+# The three sections `--init` writes, and the keys of each it owns. Everything else in the file is
+# kept as it stands, which is what makes it safe to re-point a machine without losing its record.
+OWNED: dict[str, tuple[str, ...]] = {
+    "php": ("exe", "dir"),
+    "pwsh": ("exe",),
+    "package": ("dir",),
+}
 
 
 # ---------------------------------------------------------------------------
@@ -323,7 +371,10 @@ def ask(label: str, default: str, interactive: bool) -> str:
 
 def initialise(args: argparse.Namespace) -> int:
     if MACHINE.is_file() and not args.force:
-        print(f"{MACHINE.relative_to(ROOT).as_posix()} already exists - pass --force to replace it")
+        print(
+            f"{MACHINE.relative_to(ROOT).as_posix()} already exists - pass --force to name this "
+            "machine again, which rewrites the three sections this program owns and keeps the rest"
+        )
         return 1
 
     interactive = sys.stdin is not None and sys.stdin.isatty() and not args.yes
@@ -331,15 +382,64 @@ def initialise(args: argparse.Namespace) -> int:
     pwsh = args.pwsh or ask("PowerShell 7", DEFAULT_PWSH, interactive)
     package = args.package or ask("Package root", ROOT.as_posix(), interactive)
 
-    data = {
+    # The three answers, and whatever else the file already holds. A key `--init` owns is written
+    # from the answer it was given; every other key - a section of this machine's own record, or one
+    # somebody added - is kept exactly as it stands. The file is written in one order: the owned
+    # sections as they are declared, then the rest as the file had them.
+    existing = _read(MACHINE)
+    owned = {
         "php": {"exe": php, "dir": str(Path(php).parent).replace("\\", "/")},
         "pwsh": {"exe": pwsh},
         "package": {"dir": package},
     }
 
+    data: dict = {}
+    kept: list[str] = []
+
+    # An owned section is merged key by key rather than replaced, which is the difference between
+    # re-pointing a machine and re-inventing it: `php.exe` is written from the answer, while the
+    # version, the extensions and the coverage driver recorded beside it are this machine's, and are
+    # facts nothing asked this program for.
+    for section, keys in OWNED.items():
+        held = existing.get(section)
+        section_data: dict = dict(held) if isinstance(held, dict) else {}
+
+        for key in keys:
+            section_data[key] = owned[section][key]
+
+        data[section] = section_data
+
+    for section in SECTIONS:
+        held = existing.get(section)
+
+        if section in OWNED:
+            continue
+
+        if isinstance(held, dict):
+            data[section] = held
+            kept.append(section)
+        elif held is None:
+            # A section the shape declares and this file does not carry yet: opened empty, so the
+            # file it writes is the shape it documents rather than the three answers alone.
+            data[section] = {}
+
+    # And anything the shape does not declare, which is somebody else's section rather than this
+    # program's: kept verbatim and reported, because a file this program did not write in full is
+    # not one it gets to shorten.
+    undeclared = [key for key in existing if key not in SECTIONS]
+
+    for section in undeclared:
+        data[section] = existing[section]
+
     MACHINE.parent.mkdir(parents=True, exist_ok=True)
     MACHINE.write_text(json.dumps(data, indent=4) + "\n", encoding="utf-8", newline="\n")
     print(f"wrote {MACHINE.relative_to(ROOT).as_posix()}")
+
+    if kept:
+        print(f"kept {len(kept)} section(s) this machine had already recorded: {', '.join(kept)}")
+
+    if undeclared:
+        print(f"kept {len(undeclared)} section(s) this program does not declare: {', '.join(undeclared)}")
 
     return render(values_from(data))
 
@@ -355,7 +455,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--php", help="the PHP binary, for --init without a terminal")
     parser.add_argument("--pwsh", help="the PowerShell 7 binary, for --init without a terminal")
     parser.add_argument("--package", help="this checkout's root, for --init without a terminal")
-    parser.add_argument("--force", action="store_true", help="replace machine.local.json if it exists")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="name this machine again: the keys --init owns are rewritten, and the rest of the file is kept",
+    )
     parser.add_argument("--yes", action="store_true", help="accept the defaults instead of asking")
     args = parser.parse_args(argv)
 

@@ -260,7 +260,14 @@ it('leaves alone a clone that has already named this machine, unless --force', f
     // A second run is not a refusal - the rest of it is still worth doing - but the naming step is
     // skipped, because replacing a decision somebody made about this machine is not something a
     // setup command should do on its own.
-    $checkout->write('.agents/machine.local.json', '{"php":{"exe":"somewhere else"}}'."\n");
+    // The file also carries the sections `--init` is not asked for — this machine's own record,
+    // collected by hand — and the second half of this test is about those: a run that wrote its
+    // three answers over the file would take them with it, which is a setup command discarding the
+    // facts somebody collected about the machine it is setting up.
+    $checkout->write(
+        '.agents/machine.local.json',
+        '{"php":{"exe":"somewhere else"},"python":{"version":"3.14.7"}}'."\n",
+    );
 
     $again = $checkout->script('bin/bootstrap.php', '--skip-install', '--skip-verify');
 
@@ -271,7 +278,12 @@ it('leaves alone a clone that has already named this machine, unless --force', f
     // `--force` is that decision, and it is the only way the file is written again.
     $forced = $checkout->script('bin/bootstrap.php', '--skip-install', '--skip-verify', '--force');
 
-    expect($forced->exitCode)->toBe(0);
+    expect($forced->exitCode)->toBe(0)
+        // What `--force` re-names is the machine: the three keys `--init` owns are rewritten, and
+        // every other line of the file is kept as it stands. Both halves are asserted, because a
+        // file that kept the record and lost the answers would be as wrong as the other way round.
+        ->and($checkout->read('.agents/machine.local.json'))->toContain('3.14.7')
+        ->and($checkout->read('.agents/machine.local.json'))->not->toContain('somewhere else');
 
     bootstrapNamed($checkout);
 });

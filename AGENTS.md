@@ -192,7 +192,9 @@ gitignored. Everything committed refers to a path through a `__TOKEN__` instead:
 | `__PACKAGE_DIR__` | absolute path to this package — the repository root |
 
 ```bash
-python .agents/render_local.py --init    # asks for the paths, writes machine.local.json, renders every settings file
+python .agents/render_local.py --init    # asks for the paths, writes machine.local.json, renders every settings
+                                         # file from it - and keeps the rest of that file as it stands, so a
+                                         # machine's own record of itself survives being named again
 python .agents/render_local.py           # render every settings file from it
 python .agents/render_local.py --check   # report unresolved tokens, write nothing
 python .agents/render_local.py --value __PHP_EXE__   # answer a token for prose or a shell

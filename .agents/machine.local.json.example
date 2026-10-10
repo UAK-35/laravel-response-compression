@@ -8,5 +8,70 @@
     },
     "package": {
         "dir": "<absolute path to this checkout - the repository root>"
+    },
+    "python": {
+        "exe": "<absolute path to the python 3 the agentic checks run under>",
+        "version": "<the version it reports>",
+        "onPath": "<true when `python` resolves to it>"
+    },
+    "composer": {
+        "phar": "<the path to composer.phar beside composer.json, when there is one>",
+        "version": "<the version it reports>",
+        "onPath": "<true when `composer` resolves on PATH>",
+        "gitignored": "<true when a commit would not carry it>"
+    },
+    "git": {
+        "origin": "<the URL this checkout pushes to>",
+        "commitGpgSign": "<true when every commit here is signed>",
+        "userSigningKey": "<the key commits are signed with>",
+        "hooksPath": "<the directory the hook runs from>",
+        "coreAutocrlf": "<true when this machine rewrites line endings on checkout>",
+        "coreEol": "<the line ending git writes, when it is pinned>",
+        "attributes": "<what .gitattributes says about line endings>",
+        "lineEndings": {
+            "blobs": "<the ending every blob in the repository holds>",
+            "worktree": "<the ending this machine's files are written with>"
+        }
+    },
+    "search": {
+        "rgExe": "<absolute path to ripgrep, which the rules name as the search utility>",
+        "rgVersion": "<the version it reports>",
+        "rgOnPath": "<true when `rg` resolves to it>"
+    },
+    "skills": {
+        "index": ".agents/README.md",
+        "dirs": ["<each generated skill target under .agents/skills/>"]
+    },
+    "checks": {
+        "list": "<the command that prints them>",
+        "count": "<how many the gate runs>",
+        "names": ["<each check, in the order bin/checks.php declares them>"],
+        "gate": "<the command CI and a release use>",
+        "staged": "<the command the pre-commit hook runs>",
+        "coverageFloor": "<the command that holds the floors>"
+    },
+    "tools": {
+        "<each tool bin/tool-paths.php pins>": "<the version it is pinned at>"
+    },
+    "style": {
+        "config": "<the style configuration>",
+        "preset": "<the preset it applies>",
+        "command": "<the command that checks it>",
+        "notPath": ["<paths the style check leaves alone>"]
+    },
+    "staticAnalysis": {
+        "config": "<the analyser's configuration>",
+        "level": "<the level it analyses at>",
+        "paths": ["<what it analyses>"],
+        "phpVersion": "<the PHP floor it is held to>"
+    },
+    "tarball": {
+        "entries": "<how many paths an installed package receives>",
+        "carries": ["<what ships>"],
+        "leavesOut": ["<what is left out, the export-ignore list>"]
+    },
+    "envVars": {
+        "packageReads": ["<each variable the published config reads>"],
+        "toolingReads": ["<each variable this checkout's own tooling reads>"]
     }
 }

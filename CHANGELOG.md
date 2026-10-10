@@ -914,6 +914,21 @@ read as a runner that still runs the gate.
 
 ### Fixed
 
+- **`--init` keeps the machine file it did not write in full.** The file carries this machine's own
+  record beside the three sections `--init` is asked for — the interpreter's version and extensions,
+  what this checkout is at, what an install receives — and `--init` built its three answers into a
+  fresh mapping and wrote that over the file, so re-naming a machine took the record with it: handed
+  a fourteen-section file, the old behaviour wrote three sections back and truncated `php` to the two
+  keys it owns. `.agents/render_local.py` now declares the sections the file may carry and what each
+  one is for, updates only the keys it owns, and keeps every other line — including a section it does
+  not declare, because a rule with an exception for the names a program happens to know is a rule
+  that deletes the next person's work. A new file is opened with the declared shape, the run says
+  which sections it kept, `.agents/machine.local.json.example` is the whole shape rather than the
+  three answers, and `--force` re-names the machine instead of replacing the file.
+  `tests/Unit/Bootstrap/BootstrapTest.php` now writes a section beside the answers and requires it to
+  survive a `--force` run — an assertion the old behaviour fails, which is what was measured rather
+  than assumed.
+
 - **The notes signal weighs a `BREAKING` claim where a note makes one, and not where a note names
   the marker.** `changelogSignal()` read the `## Unreleased` section with
   `str_contains($unreleased, 'BREAKING')`, so a section qualified as breaking if the word appeared
