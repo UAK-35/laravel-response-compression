@@ -77,6 +77,12 @@ the platform makes it necessary.
 | [`../bin/release.php`](../bin/release.php) | cuts a version from the git tags: weighs the change, promotes the changelog, commits and tags | `composer release`; [the releasing runbook](../RELEASING.md) |
 | [`../bin/tool.php`](../bin/tool.php) | runs one tool by the name the manifest gives it, under `PHP_BINARY` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/tool.php <name> [args…]`; the `lint`, `refactor` and `test:*` composer names |
 | [`../bin/tool-paths.php`](../bin/tool-paths.php) | the manifest itself: every tool this package runs, as a record of `path`, `pin` and `why` | required by `bin/tool.php`, `bin/checks.php` and `bin/coverage.php` — data rather than a program |
+| [`../bin/composer-ca.ps1`](../bin/composer-ca.ps1) | runs Composer on Windows through a CA bundle rebuilt from Git's own plus every intercepting root in the Windows trust store, for a machine where a local TLS scanner makes PHP's curl fail where Git succeeds | `pwsh -File bin/composer-ca.ps1 <composer args>` — `install`, `update`, `test`, `release -- --weigh`; `COMPOSER_CAFILE` is set for the run, and `COMPOSER_CA_COMPOSER` overrides the Composer it runs |
+| [`../bin/composer-link.cmd`](../bin/composer-link.cmd) | links a package that lives on this machine into a Laravel application and requires it at its dev version, so the application runs the working copy on disk — the CMD port of a published `composer-link` shell function, guard for guard | `bin\composer-link.cmd <path-to-package-directory> [composer require args]`, run **from the application**; `COMPOSER_LINK_PHP`, `COMPOSER_LINK_COMPOSER` and `COMPOSER_LINK_JQ` override what it detects |
+
+The last two rows are not reached by a composer name: they are Windows conveniences a maintainer starts
+by hand, `.gitattributes` `export-ignore`s both, and each asks this checkout for the interpreter and
+the Composer it runs before falling back to `PATH`.
 
 ## The gate, the hook and the runner
 

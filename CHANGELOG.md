@@ -18,6 +18,29 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **Two Windows conveniences moved into `bin/`, where their own headers said they lived, and were
+  adapted to this package rather than to the checkout beside it.** `bin/composer-ca.ps1` runs Composer
+  through a CA bundle rebuilt from Git's own plus every intercepting root it finds in the Windows trust
+  store — the workaround for a local TLS scanner that makes PHP's curl fail where Git's Schannel
+  succeeds — and `bin/composer-link.cmd` links a package on this machine into a Laravel application and
+  requires it at its dev version, the CMD port of a published `composer-link` shell function with the
+  same six guards. Both arrived at the repository root carrying a sibling package's assumptions, and
+  this repository's own guards reported them for it: an absolute Git bundle path three times, an
+  example package directory, and a parent-directory climb written at the root — which is a climb
+  when it is written there and is not one a directory down. The bundle is now found by asking Git — `http.sslcainfo` where a
+  machine sets it, and otherwise the prefix `git --exec-path` answers, which is where every layout Git
+  ships keeps the same file — so no install directory is written down, the examples name this package,
+  and each script asks this checkout for the interpreter and the Composer it needs before falling back
+  to `PATH`: `.agents/render_local.py --value __PHP_EXE__`, then the `composer.phar` beside
+  `composer.json`, which is how Composer runs on a machine that has neither on `PATH`. The
+  `--ignore-platform-req` block is gone as well, because this package requires `ext-zlib`,
+  `ext-brotli` and `ext-zstd` on every platform and the gate's `platform` check is what reports a
+  missing one. `.gitattributes` `export-ignore`s both — they are started by hand, on Windows, by
+  whoever works on this repository — and `docs/scripts.md` and `docs/tool-registry.md` carry a row for
+  each. The batch file's line ending is pinned as it arrives: it jumps between labels from its first
+  line to its last, and cmd.exe wants the ending a Windows filesystem hands it, so `.gitattributes`
+  sets `*.cmd text eol=crlf` instead of leaving that to each contributor's `core.autocrlf` — the same
+  reason `*.tsv` is already pinned to LF, and the blob is stored LF like every other file here.
 - **The environment table is held to `.agents/machine.local.json`, so a row naming a token nothing
   supplies is a finding rather than a described environment.** `AGENTS.md` §2 writes its rows as
   tokens — `__PHP_EXE__`, `__PWSH_EXE__`, `__PACKAGE_DIR__` — on purpose, because no committed file

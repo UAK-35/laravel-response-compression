@@ -42,6 +42,14 @@
 /bin/commit.php     export-ignore
 /bin/release.php    export-ignore
 
+# Two Windows conveniences rather than programs of the gate: a Composer run through a CA bundle
+# rebuilt for a machine whose TLS is being intercepted, and a link that points a Laravel application
+# at this checkout. Both are started by hand, on Windows, by whoever is working on this repository —
+# an installer has neither the platform nor the checkout they assume, and neither script is reachable
+# from anything under `src/`.
+/bin/composer-ca.ps1   export-ignore
+/bin/composer-link.cmd export-ignore
+
 # The agentic layer: the rules an agent reads, the skills it loads, the checks that keep the two
 # honest, and a pointer file for each of the ten tools that expect one. A consumer installs the
 # middleware and the config; none of this is anything they run. It is left in the repository rather
@@ -68,3 +76,11 @@
 # One row per line, read back with an `explode` on the tab: a carriage return left on the last
 # cell would make two identical rows compare unequal, in the weighing and in `--check` alike.
 *.tsv               text eol=lf
+
+# A batch file is the one shape here whose correctness turns on its line ending: cmd.exe reads it
+# through `goto` and `call` and wants the ending a Windows filesystem hands it, while the general
+# `text=auto` above leaves that to each contributor's `core.autocrlf`. This script jumps between
+# labels from its first line to its last, so the ending is pinned rather than left to a local
+# setting. `eol=` is a checkout fact and nothing else: the blob is stored LF like every other file
+# in this repository.
+*.cmd               text eol=crlf
