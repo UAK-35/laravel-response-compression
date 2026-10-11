@@ -136,12 +136,13 @@ final class GuardIndex
      * one pattern reads the declaration out of all of them.
      *
      * The line's end is `[ \t\r]*$` rather than `[ \t]*$`, and that one `\r` is the difference
-     * between an index that reads a Windows checkout and one that refuses it. Every file here is
-     * read as the bytes on disk, while `* text=auto` in `.gitattributes` and a `core.autocrlf` of
-     * `true` put CRLF in a working tree — so a checkout that is byte-identical to `HEAD`, and that
-     * `git status` calls clean, is one where `$` does not match in front of the `\r`. The whole of
-     * `docs/guards.md` went unreadable on this machine that way, with five test files failing on a
-     * file that says exactly what it is supposed to say.
+     * between an index that reads a checkout and one that refuses it. Every file here is read as the
+     * bytes on disk, so the pattern may not assume an ending: `.gitattributes` pins the text files to
+     * LF now, and a reading is still not the place to bank on the attribute being respected — a tree
+     * written before the pin, a file an editor saved with CRLF, or a checkout that never had the pin
+     * all put a `\r` in front of the `$`. The whole of `docs/guards.md` went unreadable that way once,
+     * on a tree that is byte-identical to `HEAD` and that `git status` calls clean, with five test
+     * files failing on a file that says exactly what it is supposed to say.
      */
     private const string DECLARATION_PATTERN = '/^[\s\/*|#<!-]*@guards-index\s+(\S+)(?:[ \t]+(.+?))?[ \t\r]*$/m';
 

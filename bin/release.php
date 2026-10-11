@@ -2194,9 +2194,9 @@ function syncInventory(string $root, string $tag, bool $write = true, ?string $r
  * One inventory read back: the tag it says it describes, its column names, and its rows in the
  * order they were written.
  *
- * CRLF is normalised away rather than trusted: the files are pinned to LF in `.gitattributes`, but
- * a Windows checkout can still hand one back with carriage returns, and a `\r` left on the last
- * cell would make two identical rows compare unequal.
+ * CRLF is normalised away rather than trusted: `.gitattributes` pins the text files to LF and these
+ * two are written LF, but a `\r` left on the last cell by whatever touched the file afterwards would
+ * make two identical rows compare unequal.
  *
  * @return array{stamp: string, columns: list<string>, rows: list<array<string, string>>}|null
  */

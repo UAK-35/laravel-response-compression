@@ -14,7 +14,7 @@ one catches is in the second column, and where it lives is in the third.
 
 | Guard | What it catches | Where |
 |---|---|---|
-| `* text=auto` | whether a CRLF file is committed as CRLF depending on each contributor's `core.autocrlf` | [`../.gitattributes`](../.gitattributes) |
+| `* text=auto eol=lf` | whether a working tree agrees with the repository about line endings, which decides what everything that reads a file as bytes on disk is answering for — this package, or the machine that checked it out, since Pint's `line_ending` rule, the `$`-anchored patterns and the two readings that own a declaration line all read the bytes a checkout wrote | [`../.gitattributes`](../.gitattributes) |
 | `.githooks/pre-commit` | a commit carrying PHP that does not parse, style the project does not use, a source file the suite that covers it would fail on, a link between the records that no longer resolves, or a claim about a config key that the source has outgrown — by running `bin/checks.php --staged` | [`../.githooks/pre-commit`](../.githooks/pre-commit) |
 | CI on `tags: ["v*"]` | a published version — release or prerelease — with no CI record against it | [`../.github/workflows/main.yml`](../.github/workflows/main.yml) |
 | CI running the gate | a gate that is weaker than the one a tag is cut behind | [`../.github/workflows/main.yml`](../.github/workflows/main.yml) |

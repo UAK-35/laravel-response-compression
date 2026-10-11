@@ -66,13 +66,13 @@ it('states in the index only the numbers the code produces', function (): void {
 it('reads the gate when the checkout holds it with CRLF endings', function (): void {
     $root = indexNumbersRoot();
 
-    // The gate is read as the bytes on disk, like every file these readings open, and a Windows
-    // checkout writes CRLF over the LF a blob holds — `* text=auto` in `.gitattributes` meeting a
-    // `core.autocrlf` of `true`, which is a tree `git status` calls clean. `bin/checks.php` is LF
-    // on this machine today, so this reading is safe by luck rather than by construction: one
-    // `git checkout` of that tree is all it would take to put the gate's own keys out of reach.
-    // The reading refuses when it finds no keys, so the failure is loud — but the number the page
-    // states would then have nothing to be compared with, on a checkout with nothing wrong in it.
+    // The gate is read as the bytes on disk, like every file these readings open, and a checkout can
+    // hold CRLF where the blob holds LF — a tree written before `.gitattributes` pinned the text
+    // files to LF, which is a checkout `git status` calls clean. `bin/checks.php` is LF here, so
+    // without this test the reading would be safe by luck rather than by construction: one checkout
+    // that writes CRLF is all it would take to put the gate's own keys out of reach. The reading
+    // refuses when it finds no keys, so the failure is loud — but the number the page states would
+    // then have nothing to be compared with, on a tree with nothing wrong in it.
     $lf = IndexNumbers::checks($root);
 
     expect($lf)->toContain('syntax')

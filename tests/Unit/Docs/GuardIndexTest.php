@@ -210,14 +210,14 @@ it('reads a checkout whose line endings are CRLF, which is what Windows writes',
     $tree = guardIndexTree();
     $root = $tree['root'];
 
-    // Every file here is read as the bytes on disk, and a Windows checkout writes CRLF over the LF
-    // a blob holds: `* text=auto` in `.gitattributes` with a `core.autocrlf` of `true`, so a tree
-    // `git status` calls clean is one where a `$`-anchored pattern stops matching in front of the
-    // `\r`. That is what made `docs/guards.md` unreadable on this machine — five test files red on
-    // a checkout with nothing wrong in it — so the declaring files are written the way this one
-    // writes them, and the document is left LF because `docs/guards.md` is LF here while 29 tracked
-    // files around it are not: the reading has to hold a worktree whose files disagree with each
-    // other about line endings, which is the checkout it is run in.
+    // Every file here is read as the bytes on disk, and a checkout can hold CRLF where the blob
+    // holds LF — a tree written before `.gitattributes` pinned the text files to LF, which is a
+    // checkout `git status` calls clean, and the way `docs/guards.md` went unreadable on this machine
+    // with five test files red on a tree with nothing wrong in it. The declaring files are written
+    // the way this one writes them, and the document is left LF on purpose: the reading has to hold a
+    // tree whose files disagree with each other about line endings, because the pin is a promise
+    // about the checkouts this package writes and a reading is what happens when a file arrives
+    // anyway.
     $crlf = static fn (string $text): string => str_replace("\n", "\r\n", str_replace("\r\n", "\n", $text));
 
     foreach (guardIndexSources() as $file => $contents) {

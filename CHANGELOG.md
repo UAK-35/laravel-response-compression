@@ -39,8 +39,8 @@ release — which is why it sits in the repository rather than in the package.
   whoever works on this repository — and `docs/scripts.md` and `docs/tool-registry.md` carry a row for
   each. The batch file's line ending is pinned as it arrives: it jumps between labels from its first
   line to its last, and cmd.exe wants the ending a Windows filesystem hands it, so `.gitattributes`
-  sets `*.cmd text eol=crlf` instead of leaving that to each contributor's `core.autocrlf` — the same
-  reason `*.tsv` is already pinned to LF, and the blob is stored LF like every other file here.
+  sets `*.cmd text eol=crlf` — the one line that overrides the `eol=lf` the general rule pins, and it
+  is written after that rule so that it does — and the blob is stored LF like every other file here.
 - **The file a workspace tool writes at this checkout's root is ignored, so `git status` is not where it announces itself.** `/opencode.jsonc` appears the first time a checkout is opened as an OpenCode workspace, and what it holds is a setting for one machine, so it belongs to no version of this package. Untracked and *not* ignored is the one combination that matters: it shows in `git status`, so a broad `git add` would publish a file whose whole content is one editor's preference. The rule is named beside the artefacts a run already leaves behind, which is why `/.freebuff/` sits there for the same reason, and it is written down rather than remembered because the next machine writes its own.
 - **The behavioural guidelines this repository works under are a committed file rather than a session's private prompt.** `BEHAVE.mdc` collects four rules a session is expected to hold to — think before coding and surface the trade-offs, prefer the simplest change that solves the problem, keep each edit surgical, and turn a request into a goal that can be verified — and every one of them is written against a mistake a change here has already made rather than against the package. It sits at the root beside the rules file, names no command, no file of `src/` and no machine, and is versioned with the checkout so the behaviour one session brings is the one the next finds.
 - **The environment table is held to `.agents/machine.local.json`, so a row naming a token nothing
@@ -61,12 +61,13 @@ release — which is why it sits in the repository rather than in the package.
   `tests/Unit/Support/HandoffTest.php` declares the row, the mutation harness plants an added row
   naming a token the renderer does not have and requires the reading to carry it back, and both lists
   in `docs/guards.md` were rendered from the files.
-- **The modified list a Windows checkout shows is recorded here as line-ending bookkeeping rather 
-  than as work waiting to be committed.** `* text=auto` in `.gitattributes` meets 
-  `core.autocrlf=true` on the machine this package is written on, so a tree write that touches none 
-  of a file's content still leaves `git status` listing it: the blob git would stage is the one 
-  `HEAD` already holds and the diff is empty, so a commit naming such a path would carry no lines at 
-  all. The paths fall into eight groups - the gate's own account of itself and the pointer files it 
+- **The modified list a Windows checkout shows is recorded here as line-ending bookkeeping rather
+  than as work waiting to be committed.** A checkout that wrote CRLF over a blob's LF — what `*
+  text=auto` alone did here, and what the pin in `### Changed` ends — left `git status` listing the
+  files it touched: the blob git would stage is the one `HEAD` already holds and the diff is empty,
+  so a commit naming such a path would carry no lines at all. The list came back once more when this
+  worktree was rewritten to LF, and `git add --renormalize` cleared it without staging a line. The
+  paths fall into eight groups - the gate's own account of itself and the pointer files it 
   reaches, the guarded commit path and its skill, this package's own rules and the machine-name 
   record, the diagnostic records, the PHP floor and the drifted settings file, the machine-path and 
   doc-link readings, the release inventory and the releaser, and four files carried over from 
@@ -662,6 +663,23 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **The text files are pinned to LF, so what a checkout writes stops depending on the machine that
+  checked it out.** `* text=auto` decided what was *committed* and left what a checkout *writes* to
+  each contributor's `core.autocrlf` — `true` on the machine this package is written on, unset
+  elsewhere — which made every reading that opens a file as the bytes on disk answer for the machine
+  rather than for the package: `GuardIndex` and `IndexNumbers` refused files that carry exactly the
+  declaration they were read for, and Pint reported nine `line_ending` findings in a worktree `git
+  status` calls clean, which is where the line-end classes and the CRLF cover in `### Fixed` come
+  from. `.gitattributes` says `* text=auto eol=lf` now, and the case for it is a measurement rather
+  than an argument — in a throwaway clone with `core.autocrlf` set the way this machine sets it, 196
+  of the 199 tracked files came out CRLF before the pin and one does now: the batch file, whose own
+  `*.cmd text eol=crlf` line overrides the pin and is written after it so that it does. Nothing an
+  installer receives changes, because `eol=` is a checkout fact and every blob was already LF, and
+  the guard row in `docs/guards.md` moved with the line, because that table is rendered from the file
+  the guard lives in. A tree already written CRLF keeps its CRLF until something rewrites it: `git
+  add --renormalize` refreshes the index's record of a file and leaves the bytes alone, `git checkout
+  -- <path>` writes the file again, and a checkout reads these attributes from the index rather than
+  from the working copy — so the pin binds a checkout once it is committed.
 - **The rules are `AGENTS.md`'s and nothing else's, and the two files that still read as though they
   held one no longer do.** `.agents/README.md` is the index: its pointer sat under a `## Hard rule`
   heading, which reads as though the index carried a rule of the repository's, and it is `## Where

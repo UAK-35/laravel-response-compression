@@ -105,9 +105,10 @@ final class IndexNumbers
      * is what keeps the nested `title`, `skip` and `run` of each check from being read as a check.
      *
      * The line's end is `[ \t\r]*$` rather than `$` for the reason `GuardIndex` gives about its own
-     * pattern: this reads the bytes on disk, and a Windows checkout holds the same file with CRLF in
-     * it, where `$` does not match in front of the `\r`. `bin/checks.php` is LF here today, so this
-     * reading is safe by luck, and that luck is one `git checkout` wide.
+     * pattern: this reads the bytes on disk, and a file can hold CRLF where the blob holds LF — a
+     * checkout written before `.gitattributes` pinned the text files to LF, or a save by an editor
+     * that writes CRLF — where `$` does not match in front of the `\r`. `bin/checks.php` is LF here,
+     * so without the cover in the test beside this reading that is luck rather than construction.
      *
      * @return list<string>
      */

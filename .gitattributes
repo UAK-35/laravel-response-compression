@@ -1,16 +1,31 @@
 # Path-based git attributes
 # https://www.kernel.org/pub/software/scm/git/docs/gitattributes.html
 
-# @guards-index guard `* text=auto`
+# @guards-index guard `* text=auto eol=lf`
 #
-# whether a CRLF file is committed as CRLF depending on each contributor's `core.autocrlf`
+# whether a working tree agrees with the repository about line endings, which decides what everything that reads a file as bytes on disk is answering for — this package, or the machine that checked it out, since Pint's `line_ending` rule, the `$`-anchored patterns and the two readings that own a declaration line all read the bytes a checkout wrote
 
-# Line endings: LF in the repository, and whatever the platform wants in a working tree.
-# Without this, whether a CRLF file is committed as CRLF depends on each contributor's
-# core.autocrlf — `true` on the machine this package is written on, unset elsewhere. No
-# `eol=` is set, so a Windows checkout still gets the CRLF that CHANGELOG.md and README.md
-# are edited with, and every blob in this repository is already LF.
-* text=auto
+# Line endings: LF in the repository and LF in every working tree, so that a file opened as the
+# bytes on disk holds the same characters wherever the checkout is.
+#
+# `text=auto` alone decides what is *committed*, and leaves what a checkout *writes* to each
+# contributor's `core.autocrlf` — `true` on the machine this package is written on, unset
+# elsewhere — so a reading that opens a file as bytes answers for the machine rather than for the
+# package. Measured rather than reasoned about, in a throwaway clone of this repository with
+# `core.autocrlf` set the way this machine sets it: before the `eol=` below, 196 of the 199 files a
+# checkout writes came out CRLF, which is what made `docs/guards.md` unreadable on this machine and
+# what Pint reported as nine `line_ending` findings in a worktree `git status` calls clean. With
+# the `eol=`, one file still comes out CRLF, and it is the batch file pinned at the bottom of this
+# file on purpose.
+#
+# A tree already written under the old setting stays CRLF until something rewrites it, and the two
+# repairs are not the same one: `git add --renormalize` refreshes the index's record of a file and
+# leaves the bytes alone, while `git checkout -- <path>` writes the file again — LF under this
+# attribute, CRLF without it. Which one is needed depends on what a checkout reads, and that is the
+# index rather than the working copy: measured by pinning only the working copy, where both
+# `git checkout -- <path>` and `git checkout-index -f` went on writing CRLF. So the pin binds a
+# checkout once it is committed, and until then every clone reads the line above as it was.
+* text=auto eol=lf
 
 # Ignore all test and documentation with "export-ignore".
 /.gitattributes     export-ignore
@@ -78,9 +93,9 @@
 *.tsv               text eol=lf
 
 # A batch file is the one shape here whose correctness turns on its line ending: cmd.exe reads it
-# through `goto` and `call` and wants the ending a Windows filesystem hands it, while the general
-# `text=auto` above leaves that to each contributor's `core.autocrlf`. This script jumps between
-# labels from its first line to its last, so the ending is pinned rather than left to a local
-# setting. `eol=` is a checkout fact and nothing else: the blob is stored LF like every other file
-# in this repository.
+# through `goto` and `call` and wants the ending a Windows filesystem hands it. This script jumps
+# between labels from its first line to its last, so it is the one file here that overrides the
+# `eol=lf` above — which is why this line is written after it, since the later line is the one that
+# decides. `eol=` is a checkout fact and nothing else: the blob is stored LF like every other file in
+# this repository.
 *.cmd               text eol=crlf
