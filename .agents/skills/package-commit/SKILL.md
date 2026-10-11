@@ -51,9 +51,10 @@ and write inside the root and nowhere else, so a temp directory outside it is ou
 for a file nobody will ever commit. A generator, a snapshot of the authored state and a saved
 `git show` all belong beside the work they are about.
 - **The two mandated shells are not the same shell.** PowerShell 7 on Windows and `bash` on Linux,
-so a command that leans on `sed`, `awk` or another POSIX tool is a command that exists on half the
-machines. `rg` is the search utility section 2 names, `git grep` where a shell has no `rg`, and
-statements are separated with `;` or `&&` rather than a literal newline.
+so a command that leans on `sed`, `awk` or another POSIX tool is a command that exists on half the  machines. `rg` is the search utility section 2 names, `git grep` where a shell has no `rg`, and
+  statements are separated with `;` or `&&` rather than a literal newline — and a marker search that
+  comes back empty is a claim about the quoting before it is a claim about the file, because an
+  apostrophe inside the pattern is the usual cause of a bullet that looks absent and is not.
 - **A staged check that spawns a shell needs `sh` resolvable.** On a Windows host where `sh` is
 Git's and is not on `PATH`, the check fails with an empty answer that looks like a real defect.
 Append Git's `usr/bin` to `PATH` **for that run** — append, never prepend, because putting MSYS git
@@ -190,7 +191,10 @@ until it has **one** reason to have changed.
    committed twice, so the authored copy and the `HEAD` copy are both saved first (`Copy-Item`, and
    `git show HEAD:<path>` for the other end) and each commit materialises the intermediate state that
    belongs to it. The changelog is the same shape: one state per commit, each a superset of the one
-   before it, and each carrying only the bullets earned by the commits up to it.
+   before it, and each carrying only the bullets earned by the commits up to it. Build each state
+   from the file rather than from a template — the blank line between `## Unreleased` and the first
+   section is part of the state, and a generator that starts at the first heading silently drops it,
+   which is a diff in every one of the intermediate commits.
 7. **Unstage anything already in the index** — `git restore --staged -- <paths>` is an index write,
    never a revert, and it is not optional: the tool reads the index before it stages anything and
    refuses a set the index is not already inside.
