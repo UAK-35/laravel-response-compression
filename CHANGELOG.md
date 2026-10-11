@@ -18,6 +18,28 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **A reading that declines to ask a question says so in a note, and the note is printed where its
+  answer would otherwise be indistinguishable from a clean one.** Half of `tests/Support/` asks a
+  question some machines cannot answer — `Handoff` holds the environment table to
+  `.agents/machine.local.json`, and `PhpBinary` walks its resolver ladder only where there is a machine
+  file or an override to ask about — and both answer with nothing, which is also their answer when
+  there is nothing wrong: a CI runner and a checkout nobody has run `--init` in read exactly like a
+  reading that asked and agreed. `tests/Support/Notes.php` is the channel they say it in now. A
+  reading hands it its class and a sentence, the suite prints what a test made — on the error stream,
+  because PHPUnit keeps what a test writes to output as that test's unexpected output and shows it
+  only for one that did not pass — and `bin/checks.php` repeats every marked line under its summary,
+  where a skip used to be read as a green run. The channel has a second half because the gate runs the
+  suite under `paratest`: a worker's *two* streams are dropped by the runner when its test passed,
+  which is measured rather than assumed — a probe printing to each of them from a passing test came
+  back in neither — so the gate names a file in `RESPONSE_COMPRESSION_NOTES`, every worker writes its
+  notes into it, and the gate reads it back with the notes its own checks printed, one line per
+  sentence however many workers wrote that sentence down. A note is written to the file *as well* as
+  held for the terminal, never instead of it: a sink that cannot be written therefore costs nothing,
+  and no reader can be shown a line twice because each collects sentences into a set. The channel's
+  own tests change nothing they do not put back — a worker runs more than one file, and a test that
+  unset the variable for its own convenience would silence the file half of every reading after it in
+  that process — each skip is asserted where it happens, and `tests/Unit/Gate/ChecksTest.php` plants a
+  runner that can only write a note to the file it was handed and requires the gate to print it.
 - **Two Windows conveniences moved into `bin/`, where their own headers said they lived, and were
   adapted to this package rather than to the checkout beside it.** `bin/composer-ca.ps1` runs Composer
   through a CA bundle rebuilt from Git's own plus every intercepting root it finds in the Windows trust

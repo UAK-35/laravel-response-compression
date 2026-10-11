@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Uak35\ResponseCompression\Middleware\CompressResponse;
+use Uak35\ResponseCompression\Tests\Support\Notes;
 use Uak35\ResponseCompression\Tests\TestCase;
 
 /*
@@ -18,7 +19,17 @@ use Uak35\ResponseCompression\Tests\TestCase;
 |
 */
 
-pest()->extend(TestCase::class)->in('Unit');
+pest()->extend(TestCase::class)->in('Unit')
+    ->afterEach(function (): void {
+        foreach (Notes::take() as $note) {
+            // What a reading declined to ask, printed by the test that made it. The error stream
+            // rather than the output one: PHPUnit keeps what a test writes to output as that test's
+            // unexpected output, which it shows only for a test that did not pass — and on a runner
+            // both streams are dropped that way, which is why a run that named a sink has nothing to
+            // print here: the file is that half, and the program that named it is what prints.
+            fwrite(STDERR, $note.PHP_EOL);
+        }
+    });
 
 /*
 |--------------------------------------------------------------------------

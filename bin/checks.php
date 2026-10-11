@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 use PhpParser\Error;
 use PhpParser\ParserFactory;
+use Uak35\ResponseCompression\Tests\Support\Notes;
 use Uak35\ResponseCompression\Tests\Support\TestMap;
 
 /**
@@ -591,6 +592,34 @@ if ($options['list']) {
 // Run
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Where a worker puts a note
+// ─────────────────────────────────────────────────────────────────────────────
+
+// The two spellings of the note channel, taken from the class that owns them where there is a class
+// to load — and there is not always one, because this program is pointed at trees that are not this
+// package: the release rails plant one, every fixture in `tests/Unit/Gate/ChecksTest.php` is a tree
+// with no `vendor/`, and the autoloader above is required only when the tree has one. What keeps the
+// two spellings one is a test rather than a comment: the planted check there writes to the variable
+// it is handed and prints the marker the class holds, and the summary has to carry both back.
+$notesMarker = class_exists(Notes::class) ? Notes::MARKER : '[NOTE]';
+$notesVariable = class_exists(Notes::class) ? Notes::SINK : 'RESPONSE_COMPRESSION_NOTES';
+
+// The suite below runs under `paratest`, and a line a worker prints does not survive it: PHPUnit
+// keeps what a test wrote as that test's unexpected output, which it prints for a test that did not
+// pass and drops for one that did, so a note about a machine with no file to read would be lost on
+// exactly the green run it was made for. What crosses a worker boundary is a file. So one is named
+// here and handed to every child through the environment — `proc_open` passes this process's
+// environment on, and `pest` passes it on again to each worker — and its contents are read back
+// below, under the same heading as the notes the checks printed themselves. A temp directory that
+// refuses the file is not a reason to run without notes: nothing is named, no variable is set, and
+// every reading is left with the stream a check can print.
+$notesFile = tempnam(sys_get_temp_dir(), 'response-compression-notes-');
+
+if ($notesFile !== false) {
+    putenv($notesVariable.'='.$notesFile);
+}
+
 $results = [];
 $startedAt = microtime(true);
 
@@ -669,6 +698,57 @@ foreach ($results as $key => $result) {
         $result['seconds'],
         $result['note'],
     );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notes
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Something a run needs to say that is neither a verdict nor a finding: a reading declining to ask
+// a question, or a step of the agentic layer naming the probe it left out. Each of those is printed
+// by the check that produced it and captured with that check's output, which is exactly how a skip
+// comes to read as a clean answer — the summary shows one line per check, and the note is not in it.
+// So the marked lines are repeated under the table, beside the verdicts they qualify: those a check
+// printed, out of its output, and those the suite's workers could not print, out of the file named
+// above. One copy of each: a reading is asked by tests in a dozen files, so the same sentence
+// arrives once per worker, and four identical lines is a reader learning nothing four times.
+$notes = [];
+
+foreach ($results as $result) {
+    foreach (explode(PHP_EOL, $result['output']) as $line) {
+        $line = trim(stripAnsi($line));
+
+        if (str_starts_with($line, $notesMarker.' ')) {
+            $notes[$line] = true;
+        }
+    }
+}
+
+// The half a check cannot print at all, and the one CI is run on: a note made inside a paratest
+// worker reaches no check's output, because the runner drops what a passing test wrote. The file is
+// this program's own — named before the checks ran, handed to every child, and taken away here
+// whether or not anything was written to it. A sentence that arrived both ways stays one line: the
+// set is keyed by the sentence rather than by where it came from.
+if ($notesFile !== false) {
+    if (is_file($notesFile)) {
+        foreach (file($notesFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $written) {
+            $written = trim($written);
+
+            if (str_starts_with($written, $notesMarker.' ')) {
+                $notes[$written] = true;
+            }
+        }
+    }
+
+    @unlink($notesFile);
+}
+
+if ($notes !== []) {
+    echo PHP_EOL;
+
+    foreach (array_keys($notes) as $note) {
+        echo $note.PHP_EOL;
+    }
 }
 
 if ($failed !== []) {

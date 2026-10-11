@@ -315,7 +315,15 @@ final class Handoff
 
         if ($machine === null) {
             // No machine file: the value half of this reading has nothing to be short of a value,
-            // and the renderer is not asked on behalf of a machine that never named one.
+            // and the renderer is not asked on behalf of a machine that never named one. Said out
+            // loud rather than answered quietly, because "there is no file to be short of a value"
+            // and "the file holds everything the table names" are otherwise the same answer, and
+            // only one of them is this reading having read something.
+            Notes::add(self::class, sprintf(
+                'there is no %s in this checkout, so the value half of the environment table was not asked - a runner and a checkout nobody has run `--init` in both look like this',
+                self::MACHINE,
+            ));
+
             return [];
         }
 

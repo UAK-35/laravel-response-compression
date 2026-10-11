@@ -59,6 +59,14 @@ final readonly class PhpBinary
     /** The other rung that is a decision: an override for one command. */
     public const string ENVIRONMENT = 'the environment';
 
+    /**
+     * The variable that rung is read from, named once.
+     *
+     * It is read here and quoted in the note below, and a second copy of the spelling would be a
+     * note that sends a reader looking for a variable by a name no machine has.
+     */
+    public const string VARIABLE = 'RESPONSE_COMPRESSION_PHP';
+
     /** The two rungs that are fallbacks, kept here so a reader of this file can see the split. */
     public const array FALLBACKS = ['git config', 'PATH'];
 
@@ -170,7 +178,21 @@ final readonly class PhpBinary
         $root = rtrim(str_replace('\\', '/', $root), '/');
         $resolver = $root.'/'.self::RESOLVER;
 
-        if (! is_file($resolver) || ! self::worthAsking($root)) {
+        if (! is_file($resolver)) {
+            return '';
+        }
+
+        if (! self::worthAsking($root)) {
+            // Two rungs, and neither is here: no `RESPONSE_COMPRESSION_PHP` and no machine file.
+            // The answer can only be the fallback, so it is not paid for — and the run says so,
+            // because "this machine never named an interpreter" and "the interpreter this machine
+            // named is the one running" arrive as the same empty sentence.
+            Notes::add(self::class, sprintf(
+                'no %s and no %s, so the resolver ladder was not asked and the answer is the fallback',
+                self::VARIABLE,
+                self::MACHINE,
+            ));
+
             return '';
         }
 
@@ -209,7 +231,7 @@ final readonly class PhpBinary
      */
     private static function worthAsking(string $root): bool
     {
-        return getenv('RESPONSE_COMPRESSION_PHP') !== false
+        return getenv(self::VARIABLE) !== false
             || is_file($root.'/'.self::MACHINE);
     }
 

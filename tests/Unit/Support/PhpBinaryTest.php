@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Uak35\ResponseCompression\Tests\Support\Notes;
 use Uak35\ResponseCompression\Tests\Support\PhpBinary;
 use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 
@@ -99,16 +100,36 @@ it('does not ask at all about a tree that cannot have an answer', function (): v
     $without->write('.agents/php-bin.sh', "#!/bin/sh\nprintf '%s' 'the environment\t/other/install/php'\n");
     $without->delete('.agents/machine.local.json');
 
-    expect(PhpBinary::named($without->path)->names)->toBe('')
-        ->and(PhpBinary::named($without->path)->agrees())->toBeNull()
-        ->and(PhpBinary::named($without->path)->disagreement())->toBe('');
+    Notes::clear();
+
+    // Where there is a machine file the question is put, and a reading that asked has nothing to say
+    // about not having asked: the empty list is the answer, not a channel that never filled.
+    PhpBinary::named(phpBinaryRepo(PhpBinary::MACHINE."\t".'/other/install/php')->path);
+
+    expect(Notes::all())->toBe([]);
 
     // And with the machine file there but no resolver: a checkout with an answer and nothing to ask,
-    // which is "not asked" too rather than a disagreement with itself.
+    // which is "not asked" too rather than a disagreement with itself - and not the note below,
+    // which is about the rungs rather than about a resolver that is not in the tree.
     $noResolver = phpBinaryRepo();
 
     expect(PhpBinary::named($noResolver->path)->names)->toBe('')
-        ->and(PhpBinary::named($noResolver->path)->agrees())->toBeNull();
+        ->and(PhpBinary::named($noResolver->path)->agrees())->toBeNull()
+        ->and(Notes::all())->toBe([]);
+
+    // Last, and left where it is: a run is told, because the empty answers above are the answers
+    // every reading that agreed gives as well. The note names the two rungs that were absent - the
+    // same machine-file half `Handoff` writes about - so a reader can tell "this checkout never named
+    // an interpreter" from "the interpreter it named is the one running". The line is asserted and
+    // *not* taken, so a run of the suite echoes it: draining it here would have the test swallow the
+    // very thing this channel exists to say.
+    expect(PhpBinary::named($without->path)->names)->toBe('')
+        ->and(PhpBinary::named($without->path)->agrees())->toBeNull()
+        ->and(PhpBinary::named($without->path)->disagreement())->toBe('')
+        ->and(Notes::all())->toHaveCount(1)
+        ->and(Notes::all()[0])->toContain('PhpBinary: ')
+        ->and(Notes::all()[0])->toContain(PhpBinary::VARIABLE)
+        ->and(Notes::all()[0])->toContain(PhpBinary::MACHINE);
 });
 
 it('answers null rather than false when there is nothing to compare', function (): void {

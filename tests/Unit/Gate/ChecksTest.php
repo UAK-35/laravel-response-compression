@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Uak35\ResponseCompression\Tests\Support\Notes;
 use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 use Uak35\ResponseCompression\Tests\Support\ReleaseRun;
 use Uak35\ResponseCompression\Tests\Support\ToolPaths;
@@ -151,6 +152,67 @@ it('skips the agentic layer on a tree that has none, and refuses to when it is t
     $required = gate(gateRepo(), '--only=agentic', '--require-all');
 
     expect($required->exitCode)->toBe(1);
+});
+
+it('repeats a note a check printed, so a skip is not read as a clean answer', function (): void {
+    $repo = gateRepo();
+
+    // A tool with nothing to report says so on a line of its own, and the note cell beside a check is
+    // the last line of its output — so a marker printed above that line is a line the summary would
+    // otherwise drop, and the run would read as one that had nothing to say. The marker is built from
+    // `Notes::MARKER` rather than typed out, and this fixture is a tree with no `vendor/` and so no
+    // autoloader: the assertion is therefore also the one thing holding the class's spelling of the
+    // marker to the spelling `bin/checks.php` carries for a tree it cannot load the class in.
+    $manifest = ToolPaths::manifest(ReleaseRepo::package().'/'.ToolPaths::MANIFEST);
+
+    $repo->write(
+        $manifest['pint']['path'],
+        "<?php\n\necho 'fixed 0 files'.PHP_EOL;\n".
+        "echo '".Notes::MARKER." probe: nothing to style here'.PHP_EOL;\n".
+        "echo 'done'.PHP_EOL;\n",
+    );
+
+    $run = gate($repo, '--only=pint');
+
+    expect($run->exitCode)->toBe(0)
+        ->and($run->output)->toContain('done')
+        ->and($run->output)->toContain(Notes::MARKER.' probe: nothing to style here');
+});
+
+it('prints what the suite could not, out of the file it named for it', function (): void {
+    $repo = gateRepo();
+
+    // The other half of the note channel, and the one a runner sees: the suite runs under
+    // `paratest`, a worker's own two streams are dropped by the runner when its test passed, so a
+    // note about a runner with no machine file survives only as a file — which means the gate has to
+    // name one, hand it to the suite it starts, and print what came back. The planted check is a
+    // runner that can only do the second thing: it writes the sentence to the file it was handed and
+    // exits green, which is exactly what a reading does and what the runner then drops.
+    //
+    // It writes it twice, because two workers each holding the same reading is what an undisturbed
+    // run of a suite would be, and the gate's answer is one line for one sentence. Both the variable
+    // name and the marker are the class's rather than this test's spelling: a gate that invented
+    // either would find nothing to print here, and that is the assertion.
+    $manifest = ToolPaths::manifest(ReleaseRepo::package().'/'.ToolPaths::MANIFEST);
+    $note = Notes::MARKER.' pest: nothing to test here';
+
+    $repo->write(
+        $manifest['pest']['path'],
+        "<?php\n\n".
+        '$sink = getenv('.var_export(Notes::SINK, true).");\n".
+        "if (is_string(\$sink)) {\n".
+        "    foreach (range(1, 2) as \$worker) {\n".
+        '        file_put_contents($sink, '.var_export($note, true).'.PHP_EOL, FILE_APPEND);'."\n".
+        "    }\n".
+        "}\n".
+        "echo 'Tests: 0 passed (0 assertions)'.PHP_EOL;\n",
+    );
+
+    $run = gate($repo, '--only=tests');
+
+    expect($run->exitCode)->toBe(0)
+        ->and($run->output)->toContain($note)
+        ->and(substr_count($run->output, $note))->toBe(1);
 });
 
 it('checks only what a commit carries, and says so when that is nothing', function (): void {

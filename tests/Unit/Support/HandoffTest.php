@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Uak35\ResponseCompression\Tests\Support\Handoff;
+use Uak35\ResponseCompression\Tests\Support\Notes;
+use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 
 /*
 |--------------------------------------------------------------------------
@@ -83,4 +85,51 @@ it('reads a handoff as a document that can be taken away', function (): void {
     expect(Handoff::handoff($root))->toBeString()
         ->and(Handoff::named((string) Handoff::handoff($root), Handoff::SECTION))
         ->toHaveKey('__PHP_EXE__');
+});
+
+/**
+ * A tree with the two files this reading reads, and no machine file unless one is asked for.
+ *
+ * The table and the renderer are copied rather than written: the question this reading asks is what
+ * this package's own documents say, and a hand-written fixture of them would be a second copy of the
+ * thing under test. What the fixture decides is the one variable the note turns on — whether there
+ * is a file for a value to be missing from.
+ */
+function handoffTree(bool $machine): ReleaseRepo
+{
+    $repo = ReleaseRepo::plain();
+
+    foreach ([Handoff::RULES, Handoff::RENDERER] as $file) {
+        $repo->write($file, (string) file_get_contents(ReleaseRepo::package().'/'.$file));
+    }
+
+    if ($machine) {
+        $repo->write(Handoff::MACHINE, "{}\n");
+    }
+
+    return $repo;
+}
+
+it('says which half it could not ask, and only where there is no machine file', function (): void {
+    // A runner, and a checkout nobody has run `--init` in: the table and the renderer are each
+    // other's answer, so the reading comes back with an empty list — which is exactly what a tree in
+    // step answers with. The note is the only thing that tells a reader which of the two happened,
+    // and it is this reading that has to write it.
+    Notes::clear();
+
+    // With a machine file — even one that holds nothing — the value half is asked, so what is
+    // missing from that file is a finding about the file rather than a question nobody could put.
+    // Asserted first, because the channel is read rather than drained here: the note the other half
+    // makes is left where it is, for the harness that prints what a test made.
+    Handoff::stale(handoffTree(machine: true)->path);
+
+    expect(Notes::all())->toBe([]);
+
+    // And the half that could not ask says so, in the words a reader is shown. The line is asserted
+    // and *left* — not taken and not cleared — so a run of the suite echoes it as well, which is the
+    // property this whole channel exists for.
+    expect(Handoff::stale(handoffTree(machine: false)->path))->toBe([])
+        ->and(Notes::all())->toHaveCount(1)
+        ->and(Notes::all()[0])->toContain('Handoff: ')
+        ->and(Notes::all()[0])->toContain(Handoff::MACHINE);
 });
