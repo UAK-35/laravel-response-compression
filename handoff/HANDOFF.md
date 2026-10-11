@@ -335,8 +335,13 @@ bullet, and a staged check that ran before it existed — `6346b2f` (the text fi
 named in the load order). The predecessor's half of this section was right for
 its own moment — the 28/29 reports were stat-cache reports rather than work (§4), and the eight
 groups below are **areas of the tree**, not batches of work, each already committed with the
-changelog entry its own commit wrote. The table above is history as well now, and what the worktree
-holds is this document and `handoff/state.sh` — the two files whose subject is the state itself:
+changelog entry its own commit wrote. The table above is history as well now, and the list is not
+empty again — this row is re-taken rather than left as it was: the export-ignore line `BEHAVE.mdc`
+did not carry is in the worktree with the `CHANGELOG.md` bullet that records it, both unstaged and
+neither committed, and this document is the third path once it is saved, which is the reading
+`handoff/state.sh` prints against a `HEAD` at `e73e190` — `3 listed — 3 with a real content diff, 0
+untracked`, where the list it counted held nothing before. Everything the table below describes is
+otherwise at that `HEAD`:
 
 | Area | Files | What it is |
 | --- | --- | --- |

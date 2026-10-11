@@ -71,6 +71,7 @@
 # than hidden because it is the reasoning behind the code - and `.agents/machine.local.json`, which
 # is the only file in it that names a machine, is gitignored rather than exported.
 /AGENTS.md          export-ignore
+/BEHAVE.mdc         export-ignore
 /CLAUDE.md          export-ignore
 /GEMINI.md          export-ignore
 /.agents            export-ignore
