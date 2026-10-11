@@ -155,6 +155,40 @@ it('refuses a changelog with no Unreleased section', function (): void {
         ->and($run->refused('no `## Unreleased` section'))->toBeTrue();
 });
 
+it('writes a bullet into a changelog that arrived with CRLF endings', function (): void {
+    $repo = commitFixture();
+    $repo->write('CHANGELOG.md', str_replace("\n", "\r\n", $repo->read('CHANGELOG.md')));
+    $repo->commit('docs: a changelog saved with Windows endings');
+    $repo->write('src/Thing.php', "<?php\n\n// changed\n");
+
+    $run = $repo->script('bin/commit.php', '-m', 'fix: a thing', '--changelog', 'A thing.', '--type', 'fixed', '--skip-checks', '--', 'src/Thing.php');
+    $changelog = $repo->read('CHANGELOG.md');
+
+    // The pin in `.gitattributes` decides what a checkout writes, not what a tree already holds, so
+    // the section is found in the endings the file has and the bullet is joined with those same
+    // endings. The lone-LF assertion is the half a fix that only tolerated `\r\n` would fail: a
+    // bullet written with `\n` into a CRLF file is the whole file in the next diff.
+    expect($run->exitCode)->toBe(0, $run->describe())
+        ->and($changelog)->toContain("## Unreleased\r\n\r\n### Fixed\r\n\r\n- A thing.\r\n\r\n### Added")
+        ->and($changelog)->not->toMatch('/(?<!\r)\n/');
+});
+
+it('joins a CRLF changelog section that is already there', function (): void {
+    $repo = commitFixture();
+    $repo->write('CHANGELOG.md', str_replace("\n", "\r\n", $repo->read('CHANGELOG.md')));
+    $repo->commit('docs: a changelog saved with Windows endings');
+    $repo->write('src/Thing.php', "<?php\n\n// changed\n");
+
+    // `### Added` is the section the fixture already carries, so this is the other branch: the
+    // blank line under the heading is stepped over and the bullet lands above the older entry.
+    $run = $repo->script('bin/commit.php', '-m', 'feat: a thing', '--changelog', 'A thing.', '--type', 'added', '--skip-checks', '--', 'src/Thing.php');
+    $changelog = $repo->read('CHANGELOG.md');
+
+    expect($run->exitCode)->toBe(0, $run->describe())
+        ->and($changelog)->toContain("### Added\r\n\r\n- A thing.\r\n- A thing nobody had before.")
+        ->and($changelog)->not->toMatch('/(?<!\r)\n/');
+});
+
 it('prints the plan and writes nothing on a dry run', function (): void {
     $repo = commitFixture();
     $repo->write('src/Thing.php', "<?php\n\n// changed\n");

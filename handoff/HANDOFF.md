@@ -423,17 +423,21 @@ git log --format='%h %G?' -5          # no `N` in the second column
    `composer-ca.ps1` and `composer-link.cmd`, §3.3 item 3 — moved into `bin/` and adapted to this
    package, which is why the escape reading is green and the machine-path reading now names this file
    alone.
-3. **`bin/commit.php` cannot write into a CRLF `CHANGELOG.md`** — a real, unfixed bug, though the pin
-   in item 5 takes away the way a checkout produced one: `CHANGELOG.md` is written LF now, so hitting
-   this needs a file that arrived with CRLF — a tree written before the pin, or an editor that saves
-   that way — rather than a Windows clone. Four bullets were written into this checkout's LF changelog
-   on 2026-10-11, one per commit of §5, and every one of them was written before its checks ran. Its
-   `withBullet()` pattern is `/^(##[ \t]+Unreleased[ \t]*\n)(.*?)(?=^##[ \t]|\z)/ms`, which does not
-   match a CRLF file, so the run dies with
-   `refusing: CHANGELOG.md has no \`## Unreleased\` section to write into` — *after* the bullet has
-   been written and staged, so recovery is manual. It was hit once, when the CRLF rewrite touched
-   the changelog too. Fix: make the pattern newline-agnostic (`\r?\n`, and a `\r?\n?` lookahead) and
-   cover it in `tests/Unit/Commit/CommitTest.php` with a CRLF changelog.
+3. ~~**`bin/commit.php` cannot write into a CRLF `CHANGELOG.md`**~~ — **done, 2026-10-11**, by the
+   session that read this document. The pin in item 5 took away the way a checkout produced one —
+   `CHANGELOG.md` is written LF now — but the refusal was real for a file that arrived with CRLF, a
+   tree written before the pin or one an editor saves that way. `withBullet()`'s pattern is
+   `/^(##[ \t]+Unreleased[ \t]*\r?\n)(.*?)(?=^##[ \t]|\z)/ms` now, and the bullet is joined with the
+   ending the matched heading carries — `str_ends_with($match[1][0], "\r\n") ? "\r\n" : "\n"` — so a
+   CRLF changelog gains `### Fixed\r\n\r\n- …\r\n` rather than an LF line inside it, which would be
+   the whole file in the next diff. Two tests in `tests/Unit/Commit/CommitTest.php` plant CRLF rather
+   than inherit it, one for a section that is not there yet and one for a section that is already
+   there, and each asserts there is no lone LF in the result.
+   **The recovery claim this line used to carry was wrong**, and the reproduction in a throwaway
+   repository says so: the refusal is an `exit(1)` at the `withBullet()` answer, *before*
+   `file_put_contents` is reached, so a CRLF changelog is left exactly as it was found and nothing is
+   staged. Four bullets were written into this checkout's LF changelog on 2026-10-11, one per commit
+   of §5, and every one of them was written before its checks ran.
 4. **`bin/commit.php` will cut a commit whose named set stages nothing.** Today's eight groups would
    have been eight such commits: paths named, zero lines, bullets describing work already recorded.
    A guard is cheap and this exact confusion cost the thread real time: refuse when no named path's

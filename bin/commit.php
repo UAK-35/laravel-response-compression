@@ -25,7 +25,7 @@ declare(strict_types=1);
  * TAKING THE WORKING-TREE CONTENT
  * -------------------------------
  * A path is staged from the filesystem, not from the index, so a file staged and then written again
- * commits what is on disk rather than the older copy that was staged. `tests/Unit/Gate/CommitTest.php`
+ * commits what is on disk rather than the older copy that was staged. `tests/Unit/Commit/CommitTest.php`
  * holds that, because it is the failure `git add` followed by an edit and then `git commit` produces.
  *
  * EXIT STATUS
@@ -156,36 +156,47 @@ function named(string $root, string $path): ?string
  * The bullet is inserted as the first entry of the section, so the newest change reads first and a
  * section that already has entries keeps them. A section that is not there yet is created directly
  * under the heading; a blank line is kept between the heading and the first entry either way.
+ *
+ * A changelog that arrived with CRLF endings is still a changelog with an `## Unreleased` section,
+ * and the pin this package carries in `.gitattributes` decides what a checkout writes rather than
+ * what a tree already holds: a file staged before the pin, or one an editor saved with Windows
+ * endings, reaches here with `\r\n`. So the heading is matched with either ending, and the bullet
+ * is written back with the **file's own** ending rather than with `\n` — a lone `\n` inserted into
+ * a CRLF file is a whole-file diff the next committer has to explain.
  */
 function withBullet(string $changelog, string $section, string $bulletin): ?string
 {
-    $pattern = '/^(##[ \t]+Unreleased[ \t]*\n)(.*?)(?=^##[ \t]|\z)/ms';
+    $pattern = '/^(##[ \t]+Unreleased[ \t]*\r?\n)(.*?)(?=^##[ \t]|\z)/ms';
 
     if (preg_match($pattern, $changelog, $match, PREG_OFFSET_CAPTURE) !== 1) {
         return null;
     }
 
+    // The heading's own ending is the ending to write with: it is the line the bullet goes under,
+    // so a file the heading matched in is a file the bullet can be joined to without guessing.
+    $newline = str_ends_with($match[1][0], "\r\n") ? "\r\n" : "\n";
+
     $body = $match[2][0];
     $offset = $match[2][1];
     $heading = '### '.$section;
-    $entry = '- '.$bulletin."\n";
+    $entry = '- '.$bulletin.$newline;
 
-    if (preg_match('/^'.preg_quote($heading, '/').'[ \t]*\n/m', $body, $found, PREG_OFFSET_CAPTURE) === 1) {
+    if (preg_match('/^'.preg_quote($heading, '/').'[ \t]*\r?\n/m', $body, $found, PREG_OFFSET_CAPTURE) === 1) {
         $at = $found[0][1] + strlen($found[0][0]);
 
         // A blank line right after the heading is the list's own spacing: step over it so the new
         // bullet joins the entries instead of standing above a gap of its own.
-        if (substr($body, $at, 1) === "\n") {
-            $at++;
+        if (substr($body, $at, strlen($newline)) === $newline) {
+            $at += strlen($newline);
         } else {
-            $entry = "\n".$entry;
+            $entry = $newline.$entry;
         }
 
         $body = substr_replace($body, $entry, $at, 0);
     } else {
         // A section that is not there yet goes in directly under the Unreleased heading, with the
         // blank line that keeps it apart from the heading above it and from the section below.
-        $body = "\n".$heading."\n\n".$entry."\n".ltrim($body, "\n");
+        $body = $newline.$heading.$newline.$newline.$entry.$newline.ltrim($body, "\r\n");
     }
 
     return substr_replace($changelog, $body, $offset, strlen($match[2][0]));
