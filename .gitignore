@@ -16,6 +16,11 @@ composer[0-9].json
 /composer.phar
 /hs_err_pid*.log
 /opencode.jsonc
+/permissions-01.md
+/oc-session-01.md
+/oc-session-01-summarized.md
+/oc-session-01-issues-faced.md
+/oc-session-01-workflow.md
 
 # The editor's agent writes this the first time a checkout is opened as a workspace, and what
 # it holds is a project id: local to one machine and belonging to no version of this package.

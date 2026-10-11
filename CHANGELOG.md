@@ -18,6 +18,16 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **The four files a session leaves at the root of this checkout are ignored, so `git status` stops
+  opening with somebody's transcript.** `/permissions-01.md` and the three `/oc-session-01*.md` files —
+  a session's log, its summary, the issues it faced and the workflow it followed — land at the root of
+  this checkout while work is being done in it, in the same shape as the `/opencode.jsonc` row directly
+  beside them: one tool's record of one machine's run, belonging to no version of this package.
+  Untracked and *not* ignored is the combination that matters, because that is what shows in `git
+  status` and what a broad `git add` publishes: a commit then has to explain a file whose content is
+  somebody's transcript of a session, and a reviewer checking that a commit carries only its own paths
+  has four more paths to read past on every call. The rule is written down beside the rows above it
+  rather than remembered, because the next session writes its own files and it is not this one.
 - **A reading that declines to ask a question says so in a note, and the note is printed where its
   answer would otherwise be indistinguishable from a clean one.** Half of `tests/Support/` asks a
   question some machines cannot answer — `Handoff` holds the environment table to
