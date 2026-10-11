@@ -168,10 +168,11 @@ reason written beside it. Write `__TOKEN__` instead.
 Load, in order:
 
 1. `AGENTS.md` (this file)
-2. `.agents/README.md` (skills, custom agents, commands — the index of everything loadable)
-3. `.trae/TRAE.md` (the anchor a TRAE session starts from)
-4. `GEMINI.md` (team-shared notes; its generated `SKILLS-IMPORT` block lists every skill)
-5. `handoff/HANDOFF.md` — a predecessor thread's handoff, when that folder is here: the state it was
+2. `BEHAVE.mdc` (the behavioral guidelines a session follows while writing here)
+3. `.agents/README.md` (skills, custom agents, commands — the index of everything loadable)
+4. `.trae/TRAE.md` (the anchor a TRAE session starts from)
+5. `GEMINI.md` (team-shared notes; its generated `SKILLS-IMPORT` block lists every skill)
+6. `handoff/HANDOFF.md` — a predecessor thread's handoff, when that folder is here: the state it was
    written in, what it verified, what it left open, and what the suite's colour means today. Read it
    before changing anything; `sh handoff/state.sh` prints that state as it is now. Delete this line
    together with the folder.

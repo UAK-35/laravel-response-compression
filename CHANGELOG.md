@@ -695,6 +695,15 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **The list a session loads on the way in names the behavioural guidelines, so they are read rather than
+  assumed to be found.** `BEHAVE.mdc` was committed with the four rules a session is expected to hold
+  to, and the list did not name it: it went from `AGENTS.md` itself to the indexes and the anchors, so a
+  file at the repository root was found only by somebody who already knew it was there — which is the
+  failure `.agents/README.md` exists to prevent for the layer's own skills, agents and commands, and its
+  reach stops at that directory. It is item 2 now, directly after the rules and before the indexes, and
+  the four entries below it are renumbered together, because the list is read as an order rather than
+  as a set. No other file names it: the rest of the agentic layer points at `AGENTS.md` and restates
+  nothing, which is what makes the rules file's own list the only place this can be said at all.
 - **The text files are pinned to LF, so what a checkout writes stops depending on the machine that
   checked it out.** `* text=auto` decided what was *committed* and left what a checkout *writes* to
   each contributor's `core.autocrlf` — `true` on the machine this package is written on, unset
