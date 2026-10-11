@@ -110,7 +110,9 @@ has changed is marked as changed, and what has not is left alone.
 
 - **nothing staged:** `git diff --cached --name-only` is empty, `git diff --cached --quiet` exits 0,
   and the index is identical to `HEAD`.
-- **the modified list is no longer empty, and it is not §4's phantom either:** `state.sh` reports
+- **the modified list is empty again, as of 2026-10-10** — 0 listed, 0 untracked, 0 reports — because
+  the work it named has been committed (§5). **When this was written the list was not empty, and it
+  was not §4's phantom either:** `state.sh` reported
   **21 listed — 12 with a real content diff and 9 untracked**, with **0 reports holding no content
   difference**. Eleven of the twelve are this package's own work (§5) and the twelfth is `AGENTS.md`,
   whose load order somebody's setup edit added a fifth entry to — pointing at this folder, which is
@@ -321,11 +323,20 @@ file on disk — and that is the pair `state.sh` prints when it reports a non-ze
 
 ## 5. Uncommitted work: eleven files from the sessions that read this, and one that is not its own
 
-**Nothing is staged and no commit was made.** The predecessor's half of this section was right for
+**Nothing is staged and no commit was made when this was written; the work in the table below has
+since been committed** — `d89fc95` (the environment held to the machine file), `272a574` (the machine
+file keeping its own record), `a043dfe` (the two Windows scripts) and `427a1cb` (the index reading a
+CRLF checkout) — and `handoff/state.sh` prints the tree as it stands. The list came back once more
+after that, and is empty again as of 2026-10-11: the twelve files it held were sorted into four
+commits by reason, each cut through `bin/commit.php`, so each carries its own paths, its own changelog
+bullet, and a staged check that ran before it existed — `6346b2f` (the text files pinned to `eol=lf`),
+`9eb5205` (the note channel a reading says a skip in, with the two readings that use it), `89d72d7`
+(the ignore rows for the files a session leaves at this checkout's root) and `c08312e` (`BEHAVE.mdc`
+named in the load order). The predecessor's half of this section was right for
 its own moment — the 28/29 reports were stat-cache reports rather than work (§4), and the eight
 groups below are **areas of the tree**, not batches of work, each already committed with the
-changelog entry its own commit wrote. What has changed is that the worktree is no longer clean, so
-the groups are now history and the table above them is work waiting for a commit:
+changelog entry its own commit wrote. The table above is history as well now, and what the worktree
+holds is this document and `handoff/state.sh` — the two files whose subject is the state itself:
 
 | Area | Files | What it is |
 | --- | --- | --- |
@@ -390,15 +401,16 @@ git log --format='%h %G?' -5          # no `N` in the second column
 
 1. ~~**The guard index cannot read a CRLF checkout**~~ — **done, 2026-10-07**, by the session that
    read this document. It was the defect behind §3.2, and the reason the
-   suite was red that day. `GuardIndex::DECLARATION_PATTERN` (`tests/Support/GuardIndex.php:138`) ended
+   suite was red that day. `GuardIndex::DECLARATION_PATTERN` (`tests/Support/GuardIndex.php:146`) ended
    `[ \t]*$/m`, which does not match in front of `\r\n`, while every file it reads is read as raw
    bytes off the disk. Fix it newline-agnostically (`[ \t\r]*$`, or split on `\R` first and match a
-   line) and cover it with a CRLF copy of a declaring file. **What was done is the first half of that
-   and not the second**: the line-end class is `[ \t\r]*$` in `tests/Support/GuardIndex.php` and in
-   `tests/Support/IndexNumbers.php` now, and the covering test was not written — it is §7 item 8.
-   `tests/Support/IndexNumbers.php:113` has
-   the same shape (`"/^ {4}'([a-z][a-z0-9-]*)' => \[$/m"`, reading `bin/checks.php`) and is only
-   safe today because that file happens to be LF on this machine.
+   line) and cover it with a CRLF copy of a declaring file. **Both halves are done, and committed
+   together as `427a1cb`**: the line-end class is `[ \t\r]*$` in `tests/Support/GuardIndex.php` and
+   in `tests/Support/IndexNumbers.php`, and each is covered by a test that plants CRLF rather than
+   inheriting it — the measurement is in §7 item 8.
+   `tests/Support/IndexNumbers.php:118` had
+   the same shape (`"/^ {4}'([a-z][a-z0-9-]*)' => \[$/m"`, reading `bin/checks.php`), and was only
+   safe because that file happens to be LF on this machine.
    **What it cost and what it uncovered is §3.2**, and the short version is there: the fifteen
    failures are gone, two reds came out from behind the throw, and three numbers stated by hand in
    `docs/guards.md` had to be moved by hand, because prose is the one part of that page no program
@@ -411,7 +423,11 @@ git log --format='%h %G?' -5          # no `N` in the second column
    `composer-ca.ps1` and `composer-link.cmd`, §3.3 item 3 — moved into `bin/` and adapted to this
    package, which is why the escape reading is green and the machine-path reading now names this file
    alone.
-3. **`bin/commit.php` cannot write into a CRLF `CHANGELOG.md`** — a real, unfixed bug. Its
+3. **`bin/commit.php` cannot write into a CRLF `CHANGELOG.md`** — a real, unfixed bug, though the pin
+   in item 5 takes away the way a checkout produced one: `CHANGELOG.md` is written LF now, so hitting
+   this needs a file that arrived with CRLF — a tree written before the pin, or an editor that saves
+   that way — rather than a Windows clone. Four bullets were written into this checkout's LF changelog
+   on 2026-10-11, one per commit of §5, and every one of them was written before its checks ran. Its
    `withBullet()` pattern is `/^(##[ \t]+Unreleased[ \t]*\n)(.*?)(?=^##[ \t]|\z)/ms`, which does not
    match a CRLF file, so the run dies with
    `refusing: CHANGELOG.md has no \`## Unreleased\` section to write into` — *after* the bullet has
@@ -423,28 +439,45 @@ git log --format='%h %G?' -5          # no `N` in the second column
    A guard is cheap and this exact confusion cost the thread real time: refuse when no named path's
    staged blob differs from `HEAD`'s — the mechanism is already in the file (`git hash-object
    --path`, or `git diff --cached --numstat`).
-5. **The root-cause decision, narrowed by item 1 and not settled by it.** The pair is still
-   `* text=auto` (this package's `.gitattributes`, chosen deliberately, with no `eol=` set) meeting
-   `core.autocrlf=true` (this machine's global git config), and the three options are unchanged:
-   leave it, set `core.autocrlf=false` in this clone (stops future drift, does not clear entries
-   already recorded), or pin `eol=lf` for the text types (a Windows checkout stops writing CRLF, and
-   the §4 reports come back until `git add --renormalize .` runs once). What item 1 changed is which
-   *readings* depend on the answer: the two that guard the index and the numbers read a CRLF worktree
-   correctly now, so the suite's colour no longer turns on it. What still does is `pint` and `rector`,
-   which is why a whole-gate run is red on nine `line_ending` files whose blobs are clean — a floor
-   that moves with the platform is exactly what the root-cause decision is about.
+5. ~~**The root-cause decision, narrowed by item 1 and not settled by it.**~~ — **settled
+   2026-10-10, on the third option: `eol=lf` pinned in `.gitattributes`.** The line is
+   `* text=auto eol=lf` now, the guard row moved with it (`docs/guards.md` is rendered from the file
+   the guard lives in, so the guard's name is the line), and the suite's colour no longer moves with
+   the platform: Pint's nine `line_ending` findings are gone from a worktree that is LF, which is the
+   half item 1 could not reach by making the readings CRLF-tolerant. Measured in a throwaway clone
+   rather than argued: with `core.autocrlf=true`, 196 of the 199 tracked files came out CRLF before
+   the pin and one does now — `bin/composer-link.cmd`, whose own `*.cmd text eol=crlf` overrides the
+   pin and is written last so that it does. **A tree already written CRLF keeps its CRLF**, and the
+   two repairs are not the same one: `git add --renormalize` refreshes the index's record of a file
+   and leaves the bytes alone, while `git checkout -- <path>` writes the file again — LF under the
+   pin, CRLF without it. Which one is needed is decided by what a checkout reads, and that is the
+   index rather than the working copy: measured by pinning only the working copy, where both
+   `git checkout -- <path>` and `git checkout-index -f` went on writing CRLF, so the pin binds a
+   checkout once it is committed. This worktree was converted by rewriting the 27 CRLF files with a
+   script and then `git add --renormalize` on those paths — which staged nothing, because no blob's
+   content moved — and `git status` reports two files now, `.gitattributes` and this one. §8's
+   `git checkout`-writes-CRLF trap is the other place this changes what a successor should do.
 6. **Only `docs/guards.md` describes the new fan-out** ("one process per mapped path"). The rows in
    `docs/scripts.md`, `docs/tool-registry.md` and `README.md` still describe the same commands
    without it, so the inventories a reader trusts and the behaviour a reader gets have drifted.
-7. **Push, when asked.** 45 commits ahead of `origin/development` and 0 behind, so a plain push
-   suffices — never a force. `bin/push.php` / `composer push` is this package's own path, and a
-   Windows push goes through PowerShell 7 over HTTPS, never from MSYS. **Nothing below this line has
-   been committed yet, so a push would send the predecessor's five commits and nothing else.**
-8. **The CRLF fix has no test of its own** — new, from item 1. The two patterns are right by
-   construction, and what exercises them here is a worktree that happens to be CRLF (this one); on an
-   LF checkout no test in the suite would fail if both patterns were set back to `[ \t]*$`. The
-   honest cover is a planted CRLF copy of a declaring file, read through `GuardIndex::declared()`,
-   which is what §7 item 1 asked for and what was not written.
+7. **Push, when asked.** 58 commits ahead of `origin/development` and 0 behind as measured on
+   2026-10-11 — and the commit that carries this document is one more. `handoff/state.sh` prints that
+   range and is the reading to trust, because a commit under this document moves it. A plain push suffices; never a force. `bin/push.php` / `composer
+   push` is this package's own path, and a Windows push goes through PowerShell 7 over HTTPS, never
+   from MSYS. **The work below this line is committed and unpushed** — §5's four commits included, which is what
+   moved the count from 54 to 58: nothing here is waiting for a
+   commit, so a push sends the local range and no more — and what a push *is* decided by §3.4's
+   signature check, not by this list.
+8. ~~**The CRLF fix has no test of its own**~~ — **written and committed as `427a1cb`.** Two tests
+   plant the condition rather than inherit it, so the cover fires on an LF checkout as well as on this
+   one: `tests/Unit/Docs/GuardIndexTest.php` writes every declaring file of its fixture with CRLF
+   endings and reads them back through `GuardIndex::declared()`, `guards()` and `drift()` — both
+   header styles among them — and `tests/Unit/Docs/IndexNumbersTest.php` rewrites its copied
+   `bin/checks.php` with CRLF endings and requires the same `$checks` keys back. **Re-measured
+   2026-10-10** by a later session: with `[ \t]*$` put back into one pattern at a time, the matching
+   test goes red — naming a file that carries no declaration, and a gate whose array reads as no
+   checks at all — and green again with the pattern restored byte-identical. Restored by copy, never
+   by `git checkout` or `git restore`, which is the trap in §8.
 9. **The fresh machine file's shape is asserted by nothing** — new, from the `--init` work. A new file
    is opened with the declared sections, and the bootstrap fixture exercises that branch without
    holding the result to anything, so a section dropped from `render_local.py`'s `SECTIONS` would be
@@ -487,9 +520,12 @@ git log --format='%h %G?' -5          # no `N` in the second column
   both gates capture their children.
 - **A failed `bin/commit.php` leaves its changelog bullet on disk *and* staged.** Recover with
   `git restore --staged -- CHANGELOG.md`, then restore the blob with
-  `git show HEAD:CHANGELOG.md > CHANGELOG.md`. Never `git checkout -- CHANGELOG.md`: that rewrites it
-  CRLF, which then trips open work item 3 — and, for the same reason, never `git restore`/`git
-  checkout` a path you intend to keep clean of CRLF.
+  `git show HEAD:CHANGELOG.md > CHANGELOG.md`. The reason that is `git show` rather than
+  `git checkout --` is that a checkout writes the working tree through the attributes, so what the
+  file comes back as depends on them: before the `eol=lf` pin (§7 item 5) it came back CRLF, which is
+  what tripped old item 3, and now it comes back LF and is merely the longer way round. The rule that
+  survives both settings is the one that made it a trap: restore content from the blob, not through
+  the working tree, when what you want is the bytes `HEAD` holds.
 - **`--changelog` text must not begin with `- `** — the tool prepends its own `- `, and the first
   attempt produced a double bullet.
 - **Never `git add -A` / `git commit -a`** here: it stages whatever the stat cache is reporting and

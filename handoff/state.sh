@@ -24,6 +24,10 @@
 #                             rewritten LF, so `git status` says modified and
 #                             `git diff` says empty. They are not work; nothing
 #                             should be staged, committed or reverted for them.
+#                             Since the `eol=lf` pin (that file, section 7 item 5)
+#                             a checkout writes LF, so the count is 0 on a fresh
+#                             clone and above it only where something rewrote a
+#                             file after the index recorded it.
 #   worktree:  N with a real  those are the only modified paths that carry an
 #   content diff              edit.
 #
@@ -141,7 +145,7 @@ if [ -f "$root/CHANGELOG.md" ]; then
     if [ "$cr" = "0" ]; then
         echo "   CHANGELOG.md: LF on disk (0 CR bytes) — bin/commit.php can write a bullet into it"
     else
-        echo "   CHANGELOG.md: $cr CR bytes — CRLF, which bin/commit.php cannot write into (HANDOFF.md section 7 item 1)"
+        echo "   CHANGELOG.md: $cr CR bytes — CRLF, which bin/commit.php cannot write into (HANDOFF.md section 7 item 3)"
     fi
 fi
 
