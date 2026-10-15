@@ -8,7 +8,7 @@ answer is not always "port it".
 
 ## Kept
 
-The table records 36 guards, and it is rendered from the files the guards live in: each row's name
+The table records 37 guards, and it is rendered from the files the guards live in: each row's name
 and its argument are a comment block in that file, and the file itself is the third column. What each
 one catches is in the second column, and where it lives is in the third.
 
@@ -47,6 +47,7 @@ one catches is in the second column, and where it lives is in the third.
 | the release rails | the rails of `bin/release.php` that decide where a release may be cut from — no repository, uncommitted work, the wrong branch, the lane the repository declares — each refusing the condition it is about through the fixture hand that puts a rewritten releaser in front of this test, which is the file the mutation harness takes the branch rail out of; the rails about what a release publishes and the number it takes are asked the same way in the files beside it | [`../tests/Unit/Release/RailsTest.php`](../tests/Unit/Release/RailsTest.php) |
 | the environment table | the environment `AGENTS.md` §2 states — and the same section of the handoff beside it — held to `.agents/machine.local.json`: a name the renderer has never heard of, a token the machine file holds no value for, a recorded path that is not there, and a machine file naming another checkout while reading as a complete answer | [`../tests/Unit/Support/HandoffTest.php`](../tests/Unit/Support/HandoffTest.php) |
 | the machine-path test | a path that only resolves on the machine it was written on — a drive letter, a home directory, a network share, and the same drive as a POSIX shell mounts it (`/e/…`, `/mnt/e/…`, `/cygdrive/e/…`) — in any file a commit would carry | [`../tests/Unit/Support/MachinePathsTest.php`](../tests/Unit/Support/MachinePathsTest.php) |
+| the machine-file shape | the shape a fresh clone is opened with — `.agents/machine.local.json.example`, the committed shape a reader copies, and the sections `python .agents/render_local.py --init` writes — held to each other: a section declared in one and missing from the other, a key `--init` writes that the example shows nowhere, a section the example shows that no fresh clone receives, a token whose value `--init` never writes, and the sections a machine file has recorded nothing in — which `--check` names rather than letting the file read as complete | [`../tests/Unit/Support/MachineShapeTest.php`](../tests/Unit/Support/MachineShapeTest.php) |
 | the mutation harness | the guards above, going quiet: one break at a time is planted in a copy of this checkout, a reading's detector is rewritten under its own tests, and a rail is taken out of the program whose test holds it — so a guard that stopped asking the right question, or a test that stopped asserting, fails there instead of reporting nothing forever | [`../tests/Unit/Support/MutationHarnessTest.php`](../tests/Unit/Support/MutationHarnessTest.php) |
 | the repository-escape test | a relative path that climbs above the repository root — written out, or computed as `dirname(__DIR__, n)` — in any file a commit would carry | [`../tests/Unit/Support/RepoEscapesTest.php`](../tests/Unit/Support/RepoEscapesTest.php) |
 | the tool-path test | a tool's path written down in a second place — in a composer script, or in one of the three programs that runs a tool — a `vendor/bin` shim, which is a second interpreter, a path that is not on disk, a name nothing asks for, an entry nothing runs, and the two facts an entry carries beside the path: a pin that is not the version `composer.json` requires or not the one installed, and an entry with no line saying what its tool is for; and the runner — `.github/workflows/main.yml`, the third place a tool can be invoked and the one that had no reader — held to the gate it has to run (`composer checks -- --require-all` and `composer test:unit`, with a shell comment in a step no substitute for the command) and to the manifest for a tool path written into it | [`../tests/Unit/Support/ToolPathsTest.php`](../tests/Unit/Support/ToolPathsTest.php) |
@@ -348,7 +349,7 @@ nothing, declares a list this page does not have, or has no sentence to quote is
 than left out, because "not in the list" and "in it and correct" are the two answers a rendering
 has to be able to tell apart.
 
-The two lists name 18 readings and 5 files that are not guards, 23 files in `tests/Support/` in
+The two lists name 19 readings and 5 files that are not guards, 24 files in `tests/Support/` in
 all.
 
 | Reading | What it reads |
@@ -364,6 +365,7 @@ all.
 | [`../tests/Support/IndexNumbers.php`](../tests/Support/IndexNumbers.php) | the numbers `docs/guards.md` states, read out of it and checked against the code that produces them |
 | [`../tests/Support/LogMessages.php`](../tests/Support/LogMessages.php) | the diagnostics the compression middleware writes, each declared once with a code it logs under |
 | [`../tests/Support/MachinePaths.php`](../tests/Support/MachinePaths.php) | paths that only resolve on the machine they were written on, found in the files a commit would carry |
+| [`../tests/Support/MachineShape.php`](../tests/Support/MachineShape.php) | the committed machine file's shape, held to the sections and keys `--init` opens a fresh clone with |
 | [`../tests/Support/MutationHarness.php`](../tests/Support/MutationHarness.php) | one break at a time, planted in a copy of this checkout, read back through the guard that is supposed to catch it |
 | [`../tests/Support/PhpBinary.php`](../tests/Support/PhpBinary.php) | which PHP this repository runs, read the one way it is decided |
 | [`../tests/Support/ReleaseLane.php`](../tests/Support/ReleaseLane.php) | the branch releases are cut from, read out of the one file that states it, and held in every other place this repository states it again |

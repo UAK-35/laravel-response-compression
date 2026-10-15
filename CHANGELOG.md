@@ -18,6 +18,30 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **The committed machine file's shape is held to the program that writes it, so the sections a
+  fresh clone is opened with cannot drift from the example a reader copies.**
+  `.agents/machine.local.json` names this machine and is gitignored, so it is in no commit — and two
+  things stand in for it: `.agents/machine.local.json.example`, the committed shape, and the file
+  `python .agents/render_local.py --init` writes, which is what `bin/bootstrap.php` gives a clone
+  nobody has set up yet. Nothing compared them, and the half that could have was the half that is
+  not asked on a runner: `verify.py`'s `tokens` step judges the rendered settings files only where
+  there is a machine file to judge them against, and CI has none. So a section could be declared in
+  the renderer and never reach the example, or the example could grow a section `--init` has never
+  opened, and both read as a shape. `tests/Support/MachineShape.php` is the reading: it takes the
+  renderer's own declarations — `SECTIONS` for what a machine file holds and what each section is
+  for, `OWNED` for the keys `--init` writes from the answers it is handed, and `TOKENS` through
+  `Handoff`, which already reads that mapping — and reports a section declared in one and missing
+  from the other, a section the example shows that no fresh clone is opened with, a key `--init`
+  writes that the example shows nowhere, and a token whose key `--init` never writes. Its other half
+  asks the program rather than its declaration: the real renderer runs in a fixture, and the file it
+  writes there has to be exactly the declared sections, filled from the answers, because the
+  example's claim is about the file a new machine gets. `tests/Unit/Support/MachineShapeTest.php` is
+  the guard, `docs/guards.md` carries its row and `bin/index.php` wrote the two lists — the page's
+  count of guards is 37 rather than 36 — and
+  `tests/Unit/Support/MutationHarness/MachineShapeTest.php` is its hold, which takes a section out of
+  the example and requires the reading to name it. The record sections' keys are deliberately not
+  held: `--init` keeps those as they stand and the renderer declares no keys for them, so a reading
+  that pinned them would be a second copy of the example rather than a comparison with the program.
 - **The four files a session leaves at the root of this checkout are ignored, so `git status` stops
   opening with somebody's transcript.** `/permissions-01.md` and the three `/oc-session-01*.md` files —
   a session's log, its summary, the issues it faced and the workflow it followed — land at the root of

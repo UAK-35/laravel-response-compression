@@ -39,7 +39,7 @@ use RuntimeException;
  * it. `MachinePaths::scan`, `RepoEscapes::scan`, `ChangelogPreamble::stale`, `ConfigClaims::stale`,
  * `Docs::broken`, `Docs::unlinkedRecords`, `ConfigKeys::unknown`, `ConfigKeys::unknownReaders`,
  * `ToolPaths::copies`, `ToolPaths::unsharedNames`, `GuardIndex::drift`,
- * `IndexNumbers::drift` and `LogMessages::duplicates` are one call each, and
+ * `IndexNumbers::drift`, `LogMessages::duplicates` and `MachineShape::stale` are one call each, and
  * `ConfigDoc`'s two halves are one comparison, so this class is a caller rather than a copy for
  * each of them. Where a walk used to be composed in the test — the docs links, the config keys,
  * the config claims, the tool paths — the walk now lives in the support class the guard is about,
@@ -686,6 +686,28 @@ final class MutationHarness
                     return $token;
                 },
                 'read' => Handoff::stale(...),
+            ],
+            [
+                'guard' => 'the machine-file shape',
+                'test' => 'tests/Unit/Support/MachineShapeTest.php',
+                'plant' => static function (string $root): string {
+                    // The shape with a section taken out of it. `.agents/machine.local.json` is
+                    // gitignored, so the example is the only committed telling of what a machine
+                    // file holds, and a reader copies it: a section the renderer opens a new file
+                    // with and this file never shows is a machine file the program would not have
+                    // written, arriving without a word about it.
+                    self::replace($root, MachineShape::EXAMPLE, static function (string $text): string {
+                        $shape = json_decode($text, true);
+                        $shape = is_array($shape) ? $shape : [];
+
+                        unset($shape['envVars']);
+
+                        return json_encode($shape, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
+                    });
+
+                    return 'envVars';
+                },
+                'read' => MachineShape::stale(...),
             ],
         ];
 
