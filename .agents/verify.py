@@ -921,7 +921,11 @@ def step_tokens(root: Path) -> list[str]:
 
     # Every settings template has to parse, and the rendered file has to be what its template would
     # produce. The rendering is not repeated here: `render_local.py` owns it, and it answers --check
-    # for exactly this question.
+    # for exactly this question. That program also prints notes about the declared sections this
+    # machine has recorded nothing in, and the filter below is where the two kinds are told apart:
+    # a `[FAIL]` line is a finding, and a note is something the reader of `--check` is shown on a
+    # machine that is not wrong - a fresh `--init` opens every section it cannot fill, so failing
+    # here would fail the clone `bin/bootstrap.php` has just set up.
     for template in sorted(root.glob(".*/**/*.example")):
         if not template.is_file():
             continue

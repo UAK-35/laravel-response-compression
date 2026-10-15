@@ -38,6 +38,13 @@ the time the answer is a machine value that moved: the file was rendered on this
 value the file holds and the value the machine holds, which is the answer the reader wanted rather
 than the work of finding it - two quoted lines are a diff to do by hand. When no token explains the
 difference it is a hand edit, and the two lines are shown, because there is no token to name.
+
+And the declared sections this machine has recorded nothing in, which is the other way the file can
+be wrong about itself: every section `SECTIONS` names is opened by `--init`, so a file that has just
+been written holds the whole shape with nothing under most of it, and a check that listed only
+tokens and templates would call that complete. Those are printed as notes rather than findings - the
+state is one `--init` creates on purpose, and the sections are this machine's own record rather than
+anything a commit can be wrong about - which `unrecorded()` below argues in full.
 """
 
 from __future__ import annotations
@@ -115,6 +122,69 @@ OWNED: dict[str, tuple[str, ...]] = {
     "pwsh": ("exe",),
     "package": ("dir",),
 }
+
+
+# ---------------------------------------------------------------------------
+# what the machine has not written down
+# ---------------------------------------------------------------------------
+
+
+def nothing(value) -> bool:
+    """Whether a value is this machine having written nothing down for a key.
+
+    A `false`, a `0` and a non-empty string are all facts somebody recorded - `onPath` off,
+    `commitGpgSign` off, a version - so only absence, empty text, and a mapping or list whose every
+    entry is itself nothing answer yes. Anything else is an answer.
+    """
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value.strip() == ""
+    if isinstance(value, dict):
+        return all(nothing(item) for item in value.values())
+    if isinstance(value, list):
+        return all(nothing(item) for item in value)
+
+    return False
+
+
+def unrecorded(data: dict) -> list[str]:
+    """The declared sections this machine has written nothing in, as the lines that say so.
+
+    WHY THIS IS PRINTED AND NOT FAILED
+    ----------------------------------
+    `--init` opens every section the shape declares, and one it cannot fill from its three answers is
+    opened empty on purpose - the file a fresh clone gets is the shape it documents rather than the
+    three answers alone. What that leaves is a file that reads as complete: every section present,
+    a dozen of them holding nothing, and a `--check` with as little to say about it as about a
+    machine that has recorded everything. So the sections are named.
+
+    They are notes rather than findings, and the reason is the state `--init` creates rather than a
+    matter of taste. `bin/bootstrap.php` verifies the clone it has just set up, so a `[FAIL]` here
+    would fail that run on the very file the step before it wrote - a fresh clone could never be
+    green. An empty section is also a fact about this machine rather than a defect in the tree: the
+    shape is the renderer's and what is missing is somebody's record of this checkout. And
+    `verify.py`'s `tokens` step reads the `[FAIL]` lines out of this program and leaves every other
+    line alone, so a note is printed where a reader asks the question and is not a red build on a
+    machine that has not recorded the optional half of its own record yet.
+    """
+    missing = [section for section in SECTIONS if nothing(data.get(section))]
+
+    if not missing:
+        return []
+
+    lines = [
+        f"[NOTE] .agents/machine.local.json: {len(missing)} of the {len(SECTIONS)} sections the shape"
+        " declares are empty - the file is the shape it documents, and this machine has recorded"
+        " nothing in them"
+    ]
+
+    for section in missing:
+        lines.append(
+            f"[NOTE] .agents/machine.local.json: {section} is empty - the section for {SECTIONS[section]}"
+        )
+
+    return lines
 
 
 # ---------------------------------------------------------------------------
@@ -450,7 +520,12 @@ def main(argv: list[str] | None = None) -> int:
         description="Render every per-machine settings file from .agents/machine.local.json.",
     )
     parser.add_argument("--init", action="store_true", help="ask for the paths, write machine.local.json, then render")
-    parser.add_argument("--check", action="store_true", help="report unresolved tokens and drift; write nothing")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="report unresolved tokens, settings files that have drifted, and the declared sections "
+        "this machine has recorded nothing in; write nothing",
+    )
     parser.add_argument("--value", nargs="?", const="", metavar="__TOKEN__", help="print a token's value, or every token")
     parser.add_argument("--php", help="the PHP binary, for --init without a terminal")
     parser.add_argument("--pwsh", help="the PowerShell 7 binary, for --init without a terminal")
@@ -471,12 +546,20 @@ def main(argv: list[str] | None = None) -> int:
     if args.init:
         return initialise(args)
 
-    values = load()
+    data = _read(MACHINE)
+    values = values_from(data)
     missing = unresolved(values)
 
     if missing:
         print(f".agents/machine.local.json has no value for: {', '.join(missing)}")
         print("write it with: python .agents/render_local.py --init")
+
+    # Asked only where there is a file to have recorded nothing in: a machine that has never run
+    # `--init` is already told so twice by the two lines above, and fourteen notes on top of that
+    # would be the report burying the answer.
+    if args.check and MACHINE.is_file():
+        for line in unrecorded(data):
+            print(line)
 
     return render(values, check=args.check) or (0 if not missing else 1)
 

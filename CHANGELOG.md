@@ -695,6 +695,26 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **`render_local.py --check` names the declared sections this machine has recorded nothing in, so a
+  machine file that is the shape and nothing else stops reading as a complete one.** `--init` opens
+  every section the shape declares, and a section it cannot fill from its three answers is opened
+  empty on purpose — the file a fresh clone gets is the shape it documents rather than the three
+  answers alone. What that left was a file nothing complained about: fourteen sections, eleven of
+  them holding nothing, and a `--check` with as little to say about it as about a machine that has
+  recorded everything. It now prints the count and then one line per empty section, each naming what
+  the section is for. They are notes rather than findings, and the state `--init` creates is why:
+  `bin/bootstrap.php` verifies the clone whose machine file the step before it wrote, so a `[FAIL]`
+  here would fail that run on its own output, and an empty section is a fact about this machine
+  rather than a defect in the tree. `verify.py`'s `tokens` step reads the `[FAIL]` lines out of that
+  program and leaves every other line alone, which is what makes the distinction hold in CI as well
+  as in front of a reader — said where it is decided, in that step. `Tests\Support\MachineShape`
+  gained `checked()` — the renderer run in a fixture, answering with its exit code and its lines —
+  and `tests/Unit/Support/MachineShapeTest.php` asserts both halves: the notes and exit 0 on the
+  file `--init` has just written, no line at all once every declared section holds one fact, and no
+  notes on a tree that has never named itself, where the unresolved tokens already say so twice.
+  `AGENTS.md` section 3, `.agents/README.md` and `docs/scripts.md` name the new report where they
+  describe the command, and `docs/guards.md`'s row for the machine-file shape says the guard catches
+  it.
 - **The behavioural guidelines stop travelling alone: an installed package no longer receives
   `BEHAVE.mdc`, because the rules file that names it has never travelled either.** `.gitattributes`
   marks the agentic layer `export-ignore` — the rules an agent reads, the skills it loads, the checks
