@@ -67,7 +67,12 @@ final class AcceptEncoding
 
         foreach (explode(',', (string) $header) as $entry) {
             $parameters = explode(';', $entry);
-            $coding = strtolower(trim((string) array_shift($parameters)));
+
+            // No cast and no coalesce, because there is nothing to allow for: `explode` answers with
+            // a non-empty list and its first item is a string, which is what both readings say - the
+            // cast this used to carry was Rector's finding and the null it allowed for was never
+            // reachable.
+            $coding = strtolower(trim(array_shift($parameters)));
 
             if ($coding === '') {
                 continue;
