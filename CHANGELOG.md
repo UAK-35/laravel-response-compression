@@ -719,6 +719,7 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **The session-file rows are a glob rather than four names, so the next run's log is ignored the moment it appears.** The rule named the four files one session had written — `/oc-session-01.md` and the three beside it — and a list of filenames is not a shape: a second session writes `/oc-session-02.md`, and `git status` opens with a path no row covers, which is the state `/opencode.jsonc` and `/.freebuff/` are ignored to keep out of a commit. `/oc-session-*.md` says what the files are rather than which run wrote them, and nothing else in this checkout is named that.
 - **`render_local.py --check` names the declared sections this machine has recorded nothing in, so a
   machine file that is the shape and nothing else stops reading as a complete one.** `--init` opens
   every section the shape declares, and a section it cannot fill from its three answers is opened
