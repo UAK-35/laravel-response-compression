@@ -1536,17 +1536,72 @@ def run(root: Path, only: list[str] | None, scope: str) -> int:
 # ---------------------------------------------------------------------------
 
 
+def carried() -> set[str] | None:
+    """The files this checkout's commits carry, as paths from the root, or None when there is no
+    repository to ask.
+
+    The same listing `repository_files()` reads in a checkout, asked once for the whole tree rather
+    than once per entry: `plant()` wants to know what travels, and the answer is the tracked files
+    together with the untracked ones no ignore rule covers.
+    """
+    if not is_a_repo(ROOT):
+        return None
+
+    result = subprocess.run(
+        ["git", "-C", str(ROOT), "ls-files", "--cached", "--others", "--exclude-standard"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    return {name for name in result.stdout.splitlines() if name} if result.returncode == 0 else None
+
+
 def plant(root: Path) -> None:
+    """Copy this checkout's layer into `root`, and no more of it than a commit would carry.
+
+    What must not travel is a file this tree ignores, and the reason is the reading rather than the
+    tidiness. The planted copy is not a repository, so a step that asks git in a checkout walks the
+    directory where there is none — and it then reads the copy *including* what the ignore rules
+    cover. A machine file for the package next door, ignored here and in no commit, was read as the
+    layer's own content that way: `toolchain` and `interpreter-restated` reported it on a copy that
+    is supposed to be clean by construction, and the selftest called its own precondition the failure
+    rather than reporting the mutation it had planted. Two steps green on this checkout, red on a
+    copy of it, and the difference between them was in neither step.
+
+    A copy is not asked to be a repository — the steps have a walk for the tree that is not one, and
+    the selftest is where that walk is exercised. It is asked to hold the layer, which is the files a
+    commit carries rather than every file on the disk.
+    """
+    travels = carried()
+
+    def keep(path: Path) -> bool:
+        # The machine file is ignored by design — it names this machine and belongs in no commit — and
+        # the copy needs it: the renderer below writes the rendered settings from it, which is the
+        # state `tokens` judges rather than a tree that happens to hold whatever this machine left.
+        name = rel(path, ROOT)
+
+        return travels is None or name in travels or name == MACHINE_NAME
+
     for entry in LAYER:
         source = ROOT / entry
-        target = root / entry
         if not source.exists():
             continue
-        target.parent.mkdir(parents=True, exist_ok=True)
-        if source.is_dir():
-            shutil.copytree(source, target, dirs_exist_ok=True)
-        else:
-            shutil.copy2(source, target)
+
+        if source.is_file():
+            if keep(source):
+                target = root / entry
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+            continue
+
+        for candidate in sorted(source.rglob("*")):
+            if not candidate.is_file() or not keep(candidate):
+                continue
+
+            target = root / candidate.relative_to(ROOT)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(candidate, target)
 
     # The phar travels with it, because the toolchain probe would otherwise judge the layer with
     # whatever `composer` happens to be on PATH - and on a machine with the phar beside the checkout
