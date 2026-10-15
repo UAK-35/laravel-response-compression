@@ -53,7 +53,8 @@
         "preferred-install": "dist",
         "allow-plugins": {
             "pestphp/pest-plugin": true
-        }
+        },
+        "process-timeout": 0
     },
     "extra": {
         "laravel": {
