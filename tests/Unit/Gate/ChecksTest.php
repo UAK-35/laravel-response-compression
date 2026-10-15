@@ -56,6 +56,57 @@ function gate(ReleaseRepo $repo, string ...$arguments): ReleaseRun
     return $repo->script('bin/checks.php', ...$arguments);
 }
 
+/**
+ * Plant a `pest` that answers a pooled run from a JUnit log and a lone run from what it was told.
+ *
+ * The reading this holds is the gate's, and the program it starts is the tree's own tool — so this
+ * is a stub in the shape the real Pest answers in rather than the real Pest, which is the same
+ * arrangement every other check here is driven through. Handed `--parallel` it is the pooled run: it
+ * writes the JUnit log the gate reads back and exits non-zero. Asked a single file it is the retry:
+ * it appends what it was asked about to `asked-again.txt` at the tree's root, so a test can see
+ * whether the gate asked at all and about what, and exits with the code it was told to.
+ *
+ * @param  string  $counts  what the file's `<testsuite>` reports — `errors="1" failures="0"` for the
+ *                          pool's own noise, `failures="1"` for a run that asserted something
+ * @param  int  $alone  the exit code a lone run answers with: 0 heals, 1 does not
+ * @param  string  $alsoAsserts  a second file the same run reports as an assertion failure, which is
+ *                               the shape a storm of pool errors arrives in: noise beside a finding
+ */
+function plantFlakyPest(ReleaseRepo $repo, string $file, string $counts, int $alone, string $alsoAsserts = ''): void
+{
+    $manifest = ToolPaths::manifest(ReleaseRepo::package().'/'.ToolPaths::MANIFEST);
+
+    $second = $alsoAsserts === ''
+        ? ''
+        : sprintf('<testsuite name="also" file="%s" errors="0" failures="1"></testsuite>', $alsoAsserts);
+
+    // The nowdoc's label is `STUB` rather than `PHP`, and that is not a whim: a label whose name
+    // appears in the body — `PHP_EOL` is on the next screenful — is one Rector rewrites into an
+    // indented `PHP_WRAP` heredoc, because a label found in the content is the case its rule cannot
+    // tell from a closing marker that would end the string early.
+    $repo->write($manifest['pest']['path'], sprintf(<<<'STUB'
+<?php
+
+$arguments = array_slice($argv, 1);
+$pooled = in_array('--parallel', $arguments, true);
+
+if ($pooled) {
+    $log = $arguments[array_search('--log-junit', $arguments, true) + 1];
+
+    file_put_contents($log, '<testsuites><testsuite name="pool" file="%s" %s></testsuite>%s</testsuites>');
+    echo 'Tests: 1 failed, 1 passed (2 assertions)'.PHP_EOL;
+
+    exit(1);
+}
+
+$asked = array_values(array_filter($arguments, static fn (string $argument): bool => ! str_starts_with($argument, '-')));
+
+file_put_contents('asked-again.txt', implode(PHP_EOL, $asked).PHP_EOL, FILE_APPEND);
+
+exit(%d);
+STUB, $file, $counts, $second, $alone));
+}
+
 it('lists what it would run, and the tools it would run them with', function (): void {
     $run = gate(gateRepo(), '--list');
 
@@ -213,6 +264,75 @@ it('prints what the suite could not, out of the file it named for it', function 
     expect($run->exitCode)->toBe(0)
         ->and($run->output)->toContain($note)
         ->and(substr_count($run->output, $note))->toBe(1);
+});
+
+it('asks a file the pool erred on again, alone, and counts the run as the pool being wrong', function (): void {
+    $repo = gateRepo();
+    $file = 'tests/Unit/Heavy/HeavyTest.php';
+
+    // The pool's own failure, in the shape it arrives in: an error — a test that could not start a
+    // process — for a file that passes when it is the only thing running.
+    plantFlakyPest($repo, $file, 'errors="1" failures="0"', 0);
+
+    $run = gate($repo, '--only=tests');
+
+    // Green, because the file answered a second time — and said so in both places a reader looks:
+    // the marked note under the table, which names the file, and the check's own summary line,
+    // which would otherwise read PASS beside the "1 failed" the pool's run printed.
+    expect($run->exitCode)->toBe(0)
+        ->and($run->output)->toContain(Notes::MARKER.' the parallel run errored on '.$file)
+        ->and($run->output)->toContain('1 file the pool errored on passed alone')
+        ->and($repo->read('asked-again.txt'))->toBe($file.PHP_EOL);
+});
+
+it('keeps the failure when the file errs alone as well', function (): void {
+    $repo = gateRepo();
+    $file = 'tests/Unit/Heavy/HeavyTest.php';
+
+    // The same first answer, from a file that is genuinely broken: asked on its own, it fails again.
+    plantFlakyPest($repo, $file, 'errors="1" failures="0"', 1);
+
+    $run = gate($repo, '--only=tests');
+
+    // A file that fails twice is a finding rather than noise, so the run keeps the verdict the first
+    // run gave — and the second run is in the output, because it is evidence rather than a secret.
+    expect($run->exitCode)->toBe(1)
+        ->and($run->output)->toContain($file.' — failed alone too')
+        ->and(str_contains($run->output, Notes::MARKER.' the parallel run errored on'))->toBeFalse();
+});
+
+it('names the pool\'s files even when the same run asserted something', function (): void {
+    $repo = gateRepo();
+    $erred = 'tests/Unit/Heavy/HeavyTest.php';
+    $asserted = 'tests/Unit/Real/RealTest.php';
+
+    // The shape a storm arrives in: a pile of `proc_open` failures under the pool, beside one real
+    // finding. The verdict is the finding's and stays red — but the run has to say which of the two
+    // dozen red lines were the pool being wrong, or a reader is left to work it out.
+    plantFlakyPest($repo, $erred, 'errors="1" failures="0"', 0, $asserted);
+
+    $run = gate($repo, '--only=tests');
+
+    expect($run->exitCode)->toBe(1)
+        ->and($run->output)->toContain(Notes::MARKER.' the parallel run errored on '.$erred)
+        ->and($run->output)->toContain('1 file the pool errored on passed alone')
+        ->and($repo->read('asked-again.txt'))->toBe($erred.PHP_EOL);
+});
+
+it('does not ask again for a file that failed an assertion', function (): void {
+    $repo = gateRepo();
+    $file = 'tests/Unit/Heavy/HeavyTest.php';
+
+    // The half the retry must never touch: a file that asserted something has told the truth about
+    // the code, and asking it again would be the gate giving an assertion a second chance. The stub
+    // is planted so that a lone run *would* pass — so the absence of the record below is the whole
+    // assertion: nothing was ever asked.
+    plantFlakyPest($repo, $file, 'errors="0" failures="1"', 0);
+
+    $run = gate($repo, '--only=tests');
+
+    expect($run->exitCode)->toBe(1)
+        ->and($repo->exists('asked-again.txt'))->toBeFalse();
 });
 
 it('checks only what a commit carries, and says so when that is nothing', function (): void {

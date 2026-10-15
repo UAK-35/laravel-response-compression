@@ -739,6 +739,31 @@ read as a runner that still runs the gate.
   `AGENTS.md` section 3, `.agents/README.md` and `docs/scripts.md` name the new report where they
   describe the command, and `docs/guards.md`'s row for the machine-file shape says the guard catches
   it.
+- **The gate's tests step asks a file the pool erred on again, alone and without the pool, so the
+  pool's own flakiness stops being reported as a test failure.** `paratest` is the one part of
+  `bin/checks.php` that can be wrong about a test: sixteen workers each spawning children of their own
+  is a machine under a load nothing else here creates, and `proc_open` fails sporadically under it —
+  `CreateProcess failed: The parameter is incorrect`, at `tests/Support/ReleaseRepo.php`'s `git` and
+  PHP spawns alike, and never as an assertion — for a command that passes when it is the only thing
+  running. Every pest command now carries `--log-junit`, and a failed parallel run is read before it
+  is believed: PHPUnit writes one `<testsuite>` per test file carrying that file's `errors` and
+  `failures`, which is how a test that could not start a process is told apart from one that asserted
+  something and answered about the code. The files that erred are asked again one at a time, with the
+  same binary and no `--parallel` — the failing file alone is exactly the condition the flake needs to
+  disappear — and the check is green only when each of them passes and nothing in the run asserted. A
+  file that fails alone too keeps the verdict the first run gave, named in the retry's own section
+  rather than reprinted, because the run's output above it already carries that file's trace and a
+  second `Tests:` line would be summed into the check's summary as a second run of the suite; a storm
+  of pool errors beside one real finding stays red, and the files the pool was wrong about are named
+  rather than left for the reader to separate. Both facts reach the summary —
+  the healed count in the check's own line, and one marked note under the table naming the files —
+  because a check that quietly asked twice would read as one that had never failed. Measured on this
+  machine with a probe file that errors only where `paratest`'s `TEST_TOKEN` is set: the pooled run
+  read `32 failed, 417 passed` — the probe, and seven of the release rails' own spawn-heavy files,
+  which is the shape this exists for — and the check came back `PASS`, exit 0, with `8 files the pool
+  errored on passed alone`. The same probe made to error wherever it runs keeps the run red, names
+  the file under `failed alone too`, and is not asked a third time. Nothing here re-runs a test that
+  asserted something, and a run that wrote no JUnit log at all is left exactly as it was found.
 - **The behavioural guidelines stop travelling alone: an installed package no longer receives
   `BEHAVE.mdc`, because the rules file that names it has never travelled either.** `.gitattributes`
   marks the agentic layer `export-ignore` — the rules an agent reads, the skills it loads, the checks

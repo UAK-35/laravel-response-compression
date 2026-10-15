@@ -38,6 +38,16 @@ use Uak35\ResponseCompression\Tests\Support\TestMap;
  * minutes and seconds. A narrowed run is not asked to: one file handed to a worker per
  * core is more booting than testing, and `--staged` runs in front of every commit.
  *
+ * A parallel run that fails is read before it is believed, because the pool is the one part of
+ * this gate that can be wrong about a test: sixteen workers each spawning children of their own
+ * is a machine under a load nothing else here creates, and on Windows `proc_open` fails
+ * sporadically under it for a command that passes when it is the only thing running. That arrives
+ * as an *error* — a test that could not start a process, rather than one that asserted something
+ * — so the files a parallel run erred on are asked again, one at a time and without the pool: the
+ * check is green only for a run whose every failure was the pool's, and red for a file that fails
+ * twice or for anything that asserted. `runPest()` below is where that happens, and what it says
+ * about the files it healed.
+ *
  * USAGE
  * -----
  *   composer checks [-- options]     or, the same thing directly:
@@ -310,6 +320,19 @@ $pestCommands = count($stagedTests) > 1
     )
     : [[PHP_BINARY, $tools['pest']['path'], ...$pestParallel, ...$stagedTests]];
 
+// The two spellings of the note channel, taken from the class that owns them where there is a class
+// to load — and there is not always one, because this program is pointed at trees that are not this
+// package: the release rails plant one, every fixture in `tests/Unit/Gate/ChecksTest.php` is a tree
+// with no `vendor/`, and the autoloader above is required only when the tree has one. What keeps the
+// two spellings one is a test rather than a comment: the planted check there writes to the variable
+// it is handed and prints the marker the class holds, and the summary has to carry both back.
+//
+// Both are read before the file that is named further down for a worker to write into, because two
+// things read them: the note file, and the retry `runPest()` makes, whose healed files are marked
+// lines like any other.
+$notesMarker = class_exists(Notes::class) ? Notes::MARKER : '[NOTE]';
+$notesVariable = class_exists(Notes::class) ? Notes::SINK : 'RESPONSE_COMPRESSION_NOTES';
+
 $level = phpstanLevel($root);
 
 $checks = [
@@ -483,9 +506,9 @@ $checks = [
             $testsSkip !== null => $testsSkip,
             default => null,
         },
-        'run' => static fn (): array => count($pestCommands) === 1
-            ? runCommand($pestCommands[0], $root)
-            : runCommands($pestCommands, $root),
+        // The whole reading — the run, and the narrower second run a pool failure can earn — is
+        // `runPest()`'s, so the split of the set and the retry of a file in it are one decision.
+        'run' => static fn (): array => runPest($pestCommands, $tools['pest']['path'], $root, $notesMarker),
         'note' => static function (array $result): string {
             // Pest ends with its duration, which says nothing about whether it
             // passed; the count it printed a line earlier does. A staged set of
@@ -500,36 +523,48 @@ $checks = [
             }
 
             if (count($lines) === 1) {
-                return $lines[0].' (coverage floor is measured by composer test:unit)';
-            }
+                $summary = $lines[0].' (coverage floor is measured by composer test:unit)';
+            } else {
+                $passed = 0;
+                $failed = 0;
+                $assertions = 0;
 
-            $passed = 0;
-            $failed = 0;
-            $assertions = 0;
+                foreach ($lines as $line) {
+                    preg_match('/(\d+) passed/', $line, $count);
+                    preg_match('/(\d+) failed/', $line, $broke);
+                    preg_match('/(\d+) assertion/', $line, $checked);
 
-            foreach ($lines as $line) {
-                preg_match('/(\d+) passed/', $line, $count);
-                preg_match('/(\d+) failed/', $line, $broke);
-                preg_match('/(\d+) assertion/', $line, $checked);
+                    // A count in a shape this reading does not know is quoted rather
+                    // than summed: a total nobody computed is worse than a long line.
+                    if (! isset($count[1])) {
+                        return implode(' / ', $lines).' ('.count($lines).' runs)';
+                    }
 
-                // A count in a shape this reading does not know is quoted rather
-                // than summed: a total nobody computed is worse than a long line.
-                if (! isset($count[1])) {
-                    return implode(' / ', $lines).' ('.count($lines).' runs)';
+                    $passed += (int) $count[1];
+                    $failed += (int) ($broke[1] ?? 0);
+                    $assertions += (int) ($checked[1] ?? 0);
                 }
 
-                $passed += (int) $count[1];
-                $failed += (int) ($broke[1] ?? 0);
-                $assertions += (int) ($checked[1] ?? 0);
+                $summary = sprintf(
+                    '%d passed%s (%d assertions) in %d runs',
+                    $passed,
+                    $failed === 0 ? '' : ", {$failed} failed",
+                    $assertions,
+                    count($lines),
+                );
             }
 
-            return sprintf(
-                '%d passed%s (%d assertions) in %d runs',
-                $passed,
-                $failed === 0 ? '' : ", {$failed} failed",
-                $assertions,
-                count($lines),
-            );
+            // A run that was asked again says so here as well as in the note below the table: the
+            // count above is what the pool's own run printed, so a row reading PASS beside "1
+            // failed" would be the one contradiction this whole reading exists to explain away.
+            $healed = $result['healed'] ?? [];
+
+            if ($healed === []) {
+                return $summary;
+            }
+
+            return $summary.'; '.count($healed).' file'.(count($healed) === 1 ? '' : 's')
+                .' the pool errored on passed alone';
         },
     ],
 ];
@@ -596,15 +631,6 @@ if ($options['list']) {
 // Where a worker puts a note
 // ─────────────────────────────────────────────────────────────────────────────
 
-// The two spellings of the note channel, taken from the class that owns them where there is a class
-// to load — and there is not always one, because this program is pointed at trees that are not this
-// package: the release rails plant one, every fixture in `tests/Unit/Gate/ChecksTest.php` is a tree
-// with no `vendor/`, and the autoloader above is required only when the tree has one. What keeps the
-// two spellings one is a test rather than a comment: the planted check there writes to the variable
-// it is handed and prints the marker the class holds, and the summary has to carry both back.
-$notesMarker = class_exists(Notes::class) ? Notes::MARKER : '[NOTE]';
-$notesVariable = class_exists(Notes::class) ? Notes::SINK : 'RESPONSE_COMPRESSION_NOTES';
-
 // The suite below runs under `paratest`, and a line a worker prints does not survive it: PHPUnit
 // keeps what a test wrote as that test's unexpected output, which it prints for a test that did not
 // pass and drops for one that did, so a note about a machine with no file to read would be lost on
@@ -656,7 +682,11 @@ foreach ($checks as $key => $check) {
     // would otherwise miss them, because a colour reset ends in `m` and `m` is a
     // word character.
     $note = isset($check['note'])
-        ? $check['note'](['exit' => $result['exit'], 'output' => stripAnsi($result['output'])])
+        ? $check['note']([
+            'exit' => $result['exit'],
+            'output' => stripAnsi($result['output']),
+            'healed' => $result['healed'] ?? [],
+        ])
         : null;
 
     $results[$key] = [
@@ -913,6 +943,195 @@ function runCommands(array $commands, string $cwd): array
     }
 
     return ['exit' => $exit, 'output' => $output];
+}
+
+/**
+ * Run the pest commands for the tests check, and ask again — one file at a time, and without the
+ * pool — for the files a parallel run reported as errors.
+ *
+ * WHY A PARALLEL FAILURE IS READ BEFORE IT IS BELIEVED
+ * ----------------------------------------------------
+ * `--parallel` is paratest, and paratest is the only part of this gate that can be wrong about a
+ * test. Sixteen workers, each spawning children of its own, is a machine under a load nothing else
+ * here creates, and on Windows `proc_open` fails sporadically under it — `CreateProcess failed:
+ * The parameter is incorrect` — for a command that passes when it is the only thing running. What
+ * matters is the shape that failure arrives in: an *error*, never an assertion failure. A test that
+ * asserted something has answered about the code; a test that could not start a process has
+ * answered about the pool, and reporting the second as a finding is how a green tree comes back red
+ * for a reason that is not in it.
+ *
+ * So every command is handed `--log-junit`, and when a parallel run fails its log is read: PHPUnit
+ * writes one `<testsuite>` per test file carrying that file's `errors` and `failures`, so the two
+ * kinds of red are told apart by the run's own record rather than by a sentence about where they
+ * usually come from. The files that erred are asked again — the failing file alone, the same
+ * binary, no `--parallel` — which is exactly the condition the flake needs to disappear, and it is
+ * the file rather than the whole set because a second full run would spend minutes answering a
+ * question about three files.
+ *
+ * Two things it deliberately does not do. A file that fails alone too is not asked a third time: the
+ * check keeps the non-zero exit the first run gave and names the file, because a file that fails
+ * twice is a finding rather than noise — and the run's own output already carries that file's trace,
+ * so the retry reports what it *found* rather than printing the same failure a second time. (It is
+ * also what keeps the check's summary line honest: a lone run of a file prints a `Tests:` line of
+ * its own, and a note that summed it would report the retry as a second run of the suite.) And a run
+ * that wrote no log at all — a tree whose `pest` is a stub, or a Pest from before the flag — is left
+ * exactly as it was found, which is what this check did before any of it existed.
+ *
+ * The files are asked again even when the same run also reported an assertion failure somewhere else,
+ * and that is the case worth arguing: a storm of `proc_open` failures usually arrives beside one real
+ * finding, and a check that answered it with twenty-six error traces and no separation would leave
+ * the reader to work out which one is about their code. The verdict does not move — an assertion
+ * failure keeps the run red whatever the retries say — but the twenty-six are named as the pool's.
+ *
+ * What it does do is say so. A check that quietly asked twice would read as one that never failed,
+ * so the healed files are listed and the marker makes them a note like any other, repeated under the
+ * summary beside the verdict they qualify.
+ *
+ * @param  list<list<string>>  $commands  one command per run: the whole suite, or one per mapped path
+ * @param  string  $pest  the Pest entry file, as the manifest gives it
+ * @param  string  $marker  the note marker, which is `$notesMarker`
+ * @return array{exit: int, output: string, healed?: list<string>}
+ */
+function runPest(array $commands, string $pest, string $root, string $marker): array
+{
+    $logs = [];
+    $logged = [];
+
+    // One log per command rather than one for the set: the fan-out starts every command before
+    // reading any, so a single file would be written by whichever run finished last.
+    foreach ($commands as $command) {
+        $log = tempnam(sys_get_temp_dir(), 'response-compression-junit-');
+
+        $logs[] = is_string($log) ? $log : null;
+        $logged[] = is_string($log) ? [...$command, '--log-junit', $log] : $command;
+    }
+
+    $result = count($logged) === 1 ? runCommand($logged[0], $root) : runCommands($logged, $root);
+
+    $erred = [];
+    $asserted = [];
+
+    foreach ($commands as $index => $command) {
+        $log = $logs[$index];
+
+        if (! is_string($log)) {
+            continue;
+        }
+
+        // A run that passed, or one that was not the pool's, has nothing to ask again: a single
+        // file handed to one worker is the condition the retry creates, so an error there is that
+        // file's answer rather than the pool's noise.
+        if ($result['exit'] !== 0 && in_array('--parallel', $command, true) && is_file($log)) {
+            $outcome = junitOutcome((string) file_get_contents($log));
+
+            $erred = [...$erred, ...$outcome['erred']];
+            $asserted = [...$asserted, ...$outcome['asserted']];
+        }
+
+        @unlink($log);
+    }
+
+    $erred = array_values(array_unique($erred));
+
+    if ($erred === []) {
+        return $result;
+    }
+
+    $healed = [];
+    $again = [];
+    $output = $result['output'].PHP_EOL.'▶ the pool errored on '.count($erred).' file(s), and each was asked again, alone'.PHP_EOL;
+
+    foreach ($erred as $file) {
+        $retry = runCommand([PHP_BINARY, $pest, $file], $root);
+
+        if ($retry['exit'] === 0) {
+            $healed[] = $file;
+            $output .= '  '.$file.' — passed alone'.PHP_EOL;
+
+            continue;
+        }
+
+        $again[] = $file;
+        $output .= '  '.$file.' — failed alone too'.PHP_EOL;
+    }
+
+    // Said when every file that erred answered the second time, whether or not something else in the
+    // run asserted: the sentence is about those files, and a red run that also contains the pool's
+    // noise is the run that needs it most.
+    if ($again === []) {
+        $output .= $marker.' the parallel run errored on '.implode(', ', $healed)
+            .', asked again without the pool, and each passed'.PHP_EOL;
+    }
+
+    // Whatever the retries found, a run that asserted something is red: that verdict belongs to the
+    // code and nothing here may soften it, so only a run whose every failure was the pool's can come
+    // back green — and only because each of those files answered a second time.
+    //
+    // `healed` goes to the check's own summary line rather than being parsed back out of the note
+    // above: a row that reads PASS beside the "1 failed" the pool's run printed — or FAIL beside two
+    // dozen errors, most of them the pool's — is the ambiguity this whole reading exists to remove.
+    return [
+        'exit' => $again === [] && $asserted === [] ? 0 : $result['exit'],
+        'output' => $output,
+        'healed' => $healed,
+    ];
+}
+
+/**
+ * Which of a run's files erred, and which asserted something, out of the JUnit log it wrote.
+ *
+ * Read off the `<testsuite>` elements rather than the `<testcase>` ones: PHPUnit writes one
+ * `<testsuite>` per test file — carrying that file, its `errors` and its `failures` — and the
+ * counts are summed exactly where this reading wants them. Parallel mode merges the workers' logs
+ * under an element of its own, which carries no `file` and is skipped rather than read as a file.
+ *
+ * The log is matched rather than parsed: this program is pointed at trees that have no `vendor/` —
+ * every fixture it is tested in — so `ext-simplexml` or `ext-dom` is a dependency the gate would be
+ * wrong to have. A log in a shape the three attributes do not appear in names nothing, and naming
+ * nothing is the answer that changes nothing.
+ *
+ * @return array{erred: list<string>, asserted: list<string>} paths as the run named them, slashed
+ */
+function junitOutcome(string $log): array
+{
+    $erred = [];
+    $asserted = [];
+
+    preg_match_all('/<testsuite\b[^>]*>/', $log, $elements);
+
+    foreach ($elements[0] as $element) {
+        if (preg_match('/\bfile="([^"]+)"/', $element, $file) !== 1) {
+            continue;
+        }
+
+        // Windows spells a path with backslashes, and every other path this program prints is
+        // git's spelling — the two are compared, deduplicated and listed together.
+        $path = PHP_OS_FAMILY === 'Windows' ? str_replace('\\', '/', $file[1]) : $file[1];
+
+        if (junitCount($element, 'errors') > 0) {
+            $erred[] = $path;
+        }
+
+        if (junitCount($element, 'failures') > 0) {
+            $asserted[] = $path;
+        }
+    }
+
+    return [
+        'erred' => array_values(array_unique($erred)),
+        'asserted' => array_values(array_unique($asserted)),
+    ];
+}
+
+/**
+ * One attribute of a JUnit element as a count, and 0 when the element does not carry it.
+ *
+ * The missing case is the one that matters: a log from a runner that reports some other way has
+ * attributed nothing to any file, so nothing is asked again rather than everything.
+ */
+function junitCount(string $element, string $name): int
+{
+    return preg_match('/\b'.$name.'="(\d+)"/', $element, $count) === 1 ? (int) $count[1] : 0;
 }
 
 /**
