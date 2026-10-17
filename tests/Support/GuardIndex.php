@@ -1326,7 +1326,11 @@ final class GuardIndex
             return null;
         }
 
-        $at = $block['at'] + $match[0][1];
+        // The line the declaration is written on, not the line its decoration begins on: `\s` in
+        // the class above admits a newline, so a header written in the docblock style this package
+        // writes them in — a blank ` *` line above the tag — starts the match on that line and
+        // reports the declaration one line early. Counting to the word itself is the difference.
+        $at = $block['at'] + $match[0][1] + (int) strpos($match[0][0], self::DECLARATION);
         $name = isset($match[2]) ? trim($match[2][0]) : '';
 
         return [

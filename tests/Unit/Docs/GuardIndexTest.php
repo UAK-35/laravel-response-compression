@@ -229,6 +229,21 @@ it('reads a checkout whose line endings are CRLF, which is what Windows writes',
     $declared = GuardIndex::declared($root);
     $guards = GuardIndex::guards($root);
 
+    // The plant is the claim, so it is asked before the reading is: a fixture written LF here would
+    // be read exactly as an LF checkout is — every assertion below would hold, and the `\r` in the
+    // pattern would be untested. So the bytes on disk come first: one file, every ending in it a
+    // CRLF, against a source that carries none. Then the line the declaration is reported on, taken
+    // from the source rather than typed, because a declaration on line 4 of a CRLF file is still on
+    // line 4 — a count kept separately from this would let the ending move the line it names.
+    $planted = (string) file_get_contents($root.'/tests/Support/One.php');
+    $source = guardIndexSources()['tests/Support/One.php'];
+
+    expect($planted)->toContain("\r\n")
+        ->and(preg_match('/(?<!\r)\n/', $planted))->toBe(0)
+        ->and($source)->not->toContain("\r\n")
+        ->and($declared['tests/Support/One.php']['line'])
+        ->toBe(substr_count(substr($source, 0, (int) strpos($source, GuardIndex::DECLARATION)), "\n") + 1);
+
     // Substance first, and both header styles with it: the class-docblock declaration and the
     // ruled banner a script opens with are read the same on a CRLF tree as on an LF one, the words
     // beside a row are still quoted out of the file's own first sentence, and a test that declares

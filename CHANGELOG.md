@@ -1130,6 +1130,18 @@ read as a runner that still runs the gate.
 
 ### Fixed
 
+- **The line `GuardIndex::declared()` reports is the line the declaration is on, and the CRLF test
+  asks its own plant before it reads it.** `declaration()` counted newlines to the start of the
+  match, and the decoration class that match begins with carries `\s` — so on a header written the
+  way every file in `tests/Support/` writes one, with a blank ` *` line above the tag, the match
+  starts on that line and the reading names the line before the declaration:
+  `tests/Support/MachineShape.php` said 47 for a tag on 48, and every declared file was one line
+  early. Nothing consumed the field, which is why it stood; the test that reads a CRLF checkout asks
+  it now. That test also stopped trusting its own fixture — it asserts the planted file holds CRLF
+  and no bare LF, and that the source it was planted from holds none, so a fixture written with this
+  checkout's own endings cannot leave the `\r` in the pattern untested — and asserts the reported
+  line is the one computed from the source rather than typed. The fix is one offset, counted to the
+  word instead of to the decoration in front of it.
 - **The documented gate command can finish again, because `composer.json` raises the process timeout that was killing it at 300 seconds.** Composer gives every command a script starts a 300-second cap by default, and nothing in this package had ever said otherwise — while the gate it documents as the one a tag is cut behind measures 607.9 seconds here, and the coverage floor behind `composer test:unit` is longer still. So `composer checks` died mid-run with `The process "… bin\checks.php --require-all" exceeded the timeout of 300 seconds` and exit 1, having printed nothing about the eleven checks it was part-way through: a command that reads as a failing package and is a failing wrapper. It was never the gate — `bin/checks.php --require-all` under the same interpreter reads `11 checks: 11 passed, 0 failed, 0 skipped` — and it was not only a workstation: `python .agents/verify.py`'s `gate` step runs `composer checks -- --require-all`, so the same cap made the package's own reading red for a run that had passed. `config.process-timeout` is `0` in `composer.json`, which is Composer's own word for "this is not the deadline a run of this package is measured by": a number would be a second copy of ten minutes, kept beside  the program that knows how long the gate takes and raised again the next time the suite grows. Nothing about the gate's work changed, and the next thing that runs long — Pest under coverage, a `composer update` on a cold cache — inherits the same answer. Measured after the change: `python .agents/verify.py --only=gate` reads `[ OK ] gate` and exits 0, where the same step before it reported the timeout as its finding.
 - **The selftest's planted layer is a copy of the files a commit would carry, so a file this tree
   ignores can no longer be read as the layer's own content.** `python .agents/verify.py --selftest`
