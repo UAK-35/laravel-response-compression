@@ -719,6 +719,17 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **The `*.txt` ignore rule says what it is holding, so the one file it keeps a guard from reading
+  is written down beside the rule instead of inferred from a green run.** `*.txt` was added so that
+  untracked text files stop appearing in `git status`, and it does that by deciding what `git
+  ls-files --cached --others --exclude-standard` answers — the listing both path guards read. The
+  rule is not wrong; what it was missing is the sentence saying what it answers.
+  `.agents/sample.machine.local.json.txt` is a machine file for the package next door, full of drive
+  paths, and the decision recorded about it is to leave it in place and let the machine-path reading
+  stay red while it is there — so the rule is what keeps this tree green instead, and a reader of
+  `.gitignore` had no way to know that. The paragraph above the rule now names the file, the
+  decision, and the direction to narrow the rule in once the file goes home. Nothing about the tree
+  changed: the same paths are ignored before and after it, and no guard's answer moves.
 - **The session-file rows are a glob rather than four names, so the next run's log is ignored the moment it appears.** The rule named the four files one session had written — `/oc-session-01.md` and the three beside it — and a list of filenames is not a shape: a second session writes `/oc-session-02.md`, and `git status` opens with a path no row covers, which is the state `/opencode.jsonc` and `/.freebuff/` are ignored to keep out of a commit. `/oc-session-*.md` says what the files are rather than which run wrote them, and nothing else in this checkout is named that.
 - **`render_local.py --check` names the declared sections this machine has recorded nothing in, so a
   machine file that is the shape and nothing else stops reading as a complete one.** `--init` opens
