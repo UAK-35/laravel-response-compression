@@ -1,0 +1,22 @@
+{
+  "name": "rc-investigation",
+  "version": "1.0.0",
+  "description": "Investigate a question about this package and record the investigation as a markdown document under docs/investigations/. Activate when a prompt begins with the /rc-investigation marker, or when a prompt asks to investigate or to find out why and the user answers yes to 'Is this an RC package investigation?'. Commands - rc-investigation, record.",
+  "author": "UAK35",
+  "license": "MIT",
+  "date": "2026-10-20",
+  "updated_at": 1792513396292,
+  "tags": [
+    "investigation",
+    "docs",
+    "package",
+    "research"
+  ],
+  "categories": [
+    "tooling"
+  ],
+  "organization": "UAK35",
+  "platform": "codebuff",
+  "id": 1366373906,
+  "source_hash": "f4ff5435683169f8"
+}

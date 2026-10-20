@@ -1,0 +1,29 @@
+# =============================================================================
+# rc-investigation — answering a question about this package, and keeping it
+# =============================================================================
+# `description` is read by the `descriptions` step of `python .agents/verify.py`:
+# every hyphenated word in it is read as a command name, so the two that appear
+# here (`rc-investigation` and `record`) are commands `instructions.md` defines.
+# The marker is written with its leading slash on purpose - `/rc-investigation`
+# is not a command name and is not read as one, where the bare word would be.
+#
+# The generator reads a small subset of YAML: `tags` and `categories` are one
+# comma separated line rather than a list, and there is no `files:` key.
+name: "rc-investigation"
+version: "1.0.0"
+description: "Investigate a question about this package and record the investigation as a markdown document under docs/investigations/. Activate when a prompt begins with the /rc-investigation marker, or when a prompt asks to investigate or to find out why and the user answers yes to 'Is this an RC package investigation?'. Commands - rc-investigation, record."
+instructions: "instructions.md"
+author: "UAK35"
+license: "MIT"
+tags: investigation, docs, package, research
+categories: tooling
+
+sync:
+  freebuff:
+    enabled: true
+    name_override: "rc-investigation"
+  gemini:
+    enabled: true
+  windsurf:
+    enabled: true
+    filename: "rc-investigation.windsurf.md"

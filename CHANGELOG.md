@@ -18,6 +18,22 @@ release — which is why it sits in the repository rather than in the package.
 
 ### Added
 
+- **A session can now investigate a question about this package and keep the answer, so the next one
+  reads what was found instead of repeating the reading.** `rc-investigation` is a skill authored in
+  `.skills/rc-investigation/` and read from `.agents/skills/rc-investigation/SKILL.md`: it activates
+  on a prompt that begins with the `/rc-investigation` marker, and for a prompt that does not carry it
+  but asks to investigate or to find out why it asks *"Is this an RC package investigation?"* first
+  and activates only on a yes — the marker is the confirmation, so it is never asked of a prompt that
+  already carries one. When the response is finished the skill writes the investigation as a markdown
+  document under `docs/investigations/`: the question as it was put, what was read, what stands behind
+  each finding and what the reading did not establish. That folder is deliberately not read by the
+  docs-link guard, whose glob is `docs/*.md` and non-recursive, so a record links nothing and nothing
+  links to it; `docs/investigations/README.md` says so and carries the two rules a record still obeys
+  as a file a commit would carry — no machine path and no climb above the root. The description names
+  two commands, `rc-investigation` and `record`, both defined in `instructions.md`, which is what the
+  `descriptions` step requires of a hyphenated word; `python .skills/_sync.py` wrote the target, its
+  `_meta.json`, the `GEMINI.md` import and the Windsurf pointer, and `.agents/README.md` carries the
+  skill's row.
 - **The committed machine file's shape is held to the program that writes it, so the sections a
   fresh clone is opened with cannot drift from the example a reader copies.**
   `.agents/machine.local.json` names this machine and is gitignored, so it is in no commit — and two

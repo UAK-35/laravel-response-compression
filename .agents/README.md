@@ -47,6 +47,7 @@ sentence that mentions a skill is not an entry.
 | `package-deploy` | `.skills/package-deploy/` | weighing and cutting a version, on this side of the remote — `unreleased`, `weigh`, `weigh-dry-run`, `release-cut`, `prerelease`, `verify-releasing` |
 | `package-push` | `.skills/package-push/` | getting a cut tag to the remote — `push`, `verify-pushing` |
 | `php-code-analyzer` | `.skills/php-code-analyzer/` | reading a path rather than gating it — `analyze`, `syntax-sweep`, `analyze-types`, `analyze-modernize`, `recommend-tools`, `analyze-apply <id>` |
+| `rc-investigation` | `.skills/rc-investigation/` | answering a question about this package by reading it, and keeping the answer under `docs/investigations/` — `rc-investigation`, `record` |
 
 | Custom agent | Defined in | What it does |
 |---|---|---|

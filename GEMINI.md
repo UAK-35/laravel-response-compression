@@ -29,4 +29,5 @@ else. It is not restated here.
 @.agents/skills/package-dev/SKILL.md
 @.agents/skills/package-push/SKILL.md
 @.agents/skills/php-code-analyzer/SKILL.md
+@.agents/skills/rc-investigation/SKILL.md
 <!-- SKILLS-IMPORT:END -->
