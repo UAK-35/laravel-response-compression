@@ -755,6 +755,7 @@ read as a runner that still runs the gate.
 
 ### Changed
 
+- **The workspace config's backups are ignored by the rule that ignores the config, so a session file stops reading as one a commit would carry.** `/opencode.jsonc` is ignored because what it holds is one machine's preference, and writing the config for a second version left `opencode.v1-backup.jsonc` beside it — untracked and not ignored, which is the one combination that matters, since a file a commit would carry is what the two path guards read; that backup holds a drive path and this machine's temporary directory, so `MachinePathsTest` named both. The row is `/opencode*.jsonc` now, which covers the config, the backup this upgrade wrote, and the next one's the moment it appears.
 - **The `*.txt` ignore rule says what it is holding, so the one file it keeps a guard from reading
   is written down beside the rule instead of inferred from a green run.** `*.txt` was added so that
   untracked text files stop appearing in `git status`, and it does that by deciding what `git

@@ -26,7 +26,7 @@ build
 composer[0-9].json
 /composer.phar
 /hs_err_pid*.log
-/opencode.jsonc
+/opencode*.jsonc
 /permissions-01.md
 /oc-session-*.md
 
