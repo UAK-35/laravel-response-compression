@@ -34,6 +34,26 @@ release — which is why it sits in the repository rather than in the package.
   `descriptions` step requires of a hyphenated word; `python .skills/_sync.py` wrote the target, its
   `_meta.json`, the `GEMINI.md` import and the Windsurf pointer, and `.agents/README.md` carries the
   skill's row.
+- **The handoff's state section is held to `handoff/state.sh`, so the counts and the colour a reader
+  is handed cannot go on describing a tree this checkout has stopped being.** `handoff/HANDOFF.md`
+  §3 opens by promising that `bash handoff/state.sh` outranks it, and nothing held the two together:
+  the section carried `CHANGELOG.md` as a file "`bin/commit.php` can only write a bullet into while
+  it is LF" for five days after `ca776f0` made the writer take the heading's own ending, and the
+  script contradicted the sentence on every run — it prints the ending it measured beside what the
+  writer can do with it. A snapshot cannot be held to the tree it was taken from, because the live
+  `HEAD` moves with every commit, so `tests/Support/HandoffState.php` splits the claims where they
+  divide: the branch, the `core.hooksPath` the gate is wired through and `CHANGELOG.md`'s endings are
+  held to the script now; a bullet that states `HEAD`, how far ahead the branch is, a tally such as
+  `466 passed` or the colour in a word has to say when it looked — in the bullet, or in the heading
+  it sits under, which is how §3.2's dated heading covers the counts beneath it; and the section has
+  to be dated and say the script outranks it, because the colour it carries is a tally no script
+  measures. Two lines of the handoff moved with it — §1's bullet now names the date it was measured
+  on, and §3.1's says what the writer can do rather than what it could not.
+  `tests/Unit/Support/HandoffStateTest.php` holds the reading over this checkout and over a document
+  with each break planted back, including the same tally under a heading that dates it and one that
+  does not; the mutation harness plants both breaks — the ending claim and the undated count — in a
+  copy of the tree. Measured: `HandoffStateTest` 8 passed (28 assertions), the two holds 2 passed (6 assertions),
+  `docs/guards.md` at 38 guards and 20 readings, and `bin/index.php --check` at exit 0.
 - **The committed machine file's shape is held to the program that writes it, so the sections a
   fresh clone is opened with cannot drift from the example a reader copies.**
   `.agents/machine.local.json` names this machine and is gitignored, so it is in no commit — and two

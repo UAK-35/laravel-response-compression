@@ -709,6 +709,44 @@ final class MutationHarness
                 },
                 'read' => MachineShape::stale(...),
             ],
+            [
+                'guard' => "the handoff's state section, on the ending it says the writer cannot use",
+                'test' => 'tests/Unit/Support/HandoffStateTest.php',
+                'plant' => static function (string $root): string {
+                    // The claim as it stood before `ca776f0`: `bin/commit.php` "can only write a
+                    // bullet into an LF file", true the day it was typed and false from the commit
+                    // that made the writer take the heading's own ending. It is the drift this
+                    // reading was written for, planted back in the sentence it was written in.
+                    self::replace($root, HandoffState::DOCUMENT, static fn (string $text): string => str_replace(
+                        'and `bin/commit.php` can write a bullet into either',
+                        'and `bin/commit.php` can only write a bullet into either',
+                        $text,
+                    ));
+
+                    return 'cannot write a bullet into `CHANGELOG.md`';
+                },
+                // The measurement of this checkout rather than the planted tree's: the tree the
+                // harness builds has no commit and no branch to measure, and which sentence the
+                // reading names is the question here, not what a fresh `git init` answers.
+                'read' => static fn (string $root): array => HandoffState::stale($root, HandoffState::measured(self::package())),
+            ],
+            [
+                'guard' => "the handoff's state section, on a count with no date",
+                'test' => 'tests/Unit/Support/HandoffStateTest.php',
+                'plant' => static function (string $root): string {
+                    // `HEAD` and how far ahead the branch is, written down the way the section used
+                    // to: a measurement of a moment with nothing saying which, which reads as a
+                    // claim about now the moment the next commit lands.
+                    self::replace($root, HandoffState::DOCUMENT, static fn (string $text): string => str_replace(
+                        "measured 2026-10-07,\n  this was `ac96830`, **45 ahead and 0 behind**, with nothing pushed;",
+                        'HEAD `ac96830`, **45 commits ahead of `origin/development` and 0 behind**, nothing pushed;',
+                        $text,
+                    ));
+
+                    return 'HEAD ac96830';
+                },
+                'read' => static fn (string $root): array => HandoffState::stale($root, HandoffState::measured(self::package())),
+            ],
         ];
 
         return self::held($mutations, $test, 'mutation');

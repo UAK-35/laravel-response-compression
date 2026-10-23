@@ -53,8 +53,9 @@ A standalone Composer package (`src/`, `config/response-compression.php`, a Pest
 `tests/Unit/` with the readings in `tests/Support/`, the records in `docs/`), with an agentic layer
 of its own and no dependency on anything beside it.
 
-- branch `development`, HEAD `ac96830`, **45 commits ahead of `origin/development` and 0 behind**,
-  nothing pushed;
+- branch `development`. `HEAD` and how far ahead of `origin/development` it is move with every
+  commit, so `bash handoff/state.sh` is where they are read rather than here: measured 2026-10-07,
+  this was `ac96830`, **45 ahead and 0 behind**, with nothing pushed;
 - gate wired: `core.hooksPath` is `.githooks`, so the hook at `.githooks/pre-commit` runs on every
   commit here;
 - its own tooling, all run from the package root: `bin/checks.php` (the gate), `bin/commit.php`
@@ -131,8 +132,9 @@ has changed is marked as changed, and what has not is left alone.
 - `hs_err_pid6024.log` at the root is a JVM crash log nothing here explains. `.gitignore` has
   `/hs_err_pid*.log`, so it is on disk and invisible to git; it is named here only so it is not
   mistaken for your mess.
-- `CHANGELOG.md` is **LF on disk** (0 CR bytes), which matters: `bin/commit.php` can only write a
-  bullet into an LF file today (§7 item 3).
+- `CHANGELOG.md` is **LF on disk** (0 CR bytes), and `bin/commit.php` can write a bullet into either
+  ending: it joins the bullet with the ending the heading it matched carries, so a file that arrives
+  CRLF gains a CRLF bullet (§7 item 3, done 2026-10-11).
 
 ### 3.2 The suite, measured twice on 2026-10-07
 
