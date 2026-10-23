@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Uak35\ResponseCompression\Tests\Support\MachinePaths;
 use Uak35\ResponseCompression\Tests\Support\MutationHarness;
+use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,7 +41,7 @@ use Uak35\ResponseCompression\Tests\Support\MutationHarness;
 /**
  * @guards-index guard the mutation harness
  *
- * the guards above, going quiet: one break at a time is planted in a copy of this checkout, a reading's detector is rewritten under its own tests, and a rail is taken out of the program whose test holds it — so a guard that stopped asking the right question, or a test that stopped asserting, fails there instead of reporting nothing forever
+ * the guards above, going quiet: one break at a time is planted in a copy of this checkout — the package's own work, with a spill from the checkout beside it left out rather than read through — a reading's detector is rewritten under its own tests, and a rail is taken out of the program whose test holds it — so a guard that stopped asking the right question, or a test that stopped asserting, fails there instead of reporting nothing forever
  */
 beforeEach(function (): void {
     MutationHarness::restore();
@@ -60,6 +61,32 @@ it('plants this checkout in a temporary tree, with an index of it', function ():
         ->and($files)->toContain('tests/Support/MachinePaths.php')
         ->and(is_dir($root.'/.git'))->toBeTrue()
         ->and(is_dir($root.'/vendor'))->toBeFalse();
+});
+
+it('plants this package\'s own work, and leaves a spill from the checkout beside it out of the tree', function (): void {
+    // A package developed beside this one has left files in this folder before now, and each was
+    // untracked and not ignored — so each was a file a commit here would carry, and each made the
+    // path readings name a file this package did not write. On the real tree that is the right
+    // colour. In the planted tree it is not: the pristine read would come back naming somebody
+    // else's file, and every hold would be red for a reason no mutation planted.
+    // The drive path and the climb are assembled rather than written out, because this test file is
+    // itself a file a commit would carry: a literal drive path in it would be a finding of the very
+    // guard the fixture is about, and the reading would name the test that proves it works.
+    $drive = 'C:'.'/tools/php/php.exe';
+
+    $repo = ReleaseRepo::make();
+    $repo->write('own-note.md', "# A note this package wrote\n");
+    $repo->write('spill.machine.json', json_encode(['php' => $drive])."\n");
+    $repo->write('spill-script.md', 'See [the package next door]('.'../'.'../sibling/notes.md).'."\n");
+
+    $files = MutationHarness::carried($repo->path);
+
+    // The listing is checked for substance before the exclusion is believed: a `carried()` that
+    // answered with nothing would satisfy both "not the spill" claims without carrying anything.
+    expect($files)->toContain('composer.json')
+        ->toContain('own-note.md')
+        ->not->toContain('spill.machine.json')
+        ->not->toContain('spill-script.md');
 });
 
 it('carries every guard it holds in a file of its own, one guard each', function (): void {

@@ -246,8 +246,49 @@ final class MachinePaths
      */
     public static function files(string $root): array
     {
+        return self::listing($root, ['--cached', '--others', '--exclude-standard']);
+    }
+
+    /**
+     * The half of that set git does not have yet: untracked, and not ignored.
+     *
+     * Split out because a caller can need the difference, and one does: a planted tree carries
+     * this package's own work, and only an untracked file can be somebody else's spill — a tracked
+     * one is already in a commit, and an ignored one is in neither answer. Asking git here rather
+     * than working the difference out from timestamps or paths keeps the two answers to "what would
+     * a commit carry" in one place.
+     *
+     * @return list<string>
+     */
+    public static function untracked(string $root): array
+    {
+        return self::listing($root, ['--others', '--exclude-standard']);
+    }
+
+    /**
+     * Whether a file's contents are binary, read the way git reads them: a NUL byte in the
+     * opening bytes.
+     *
+     * Public because the repository-escape reading reads the same set of files and skips them
+     * the same way rather than keeping a second copy of either decision: what a commit would
+     * carry and what a text is are one question each, and a file is text whichever of the two
+     * is asking.
+     */
+    public static function binary(string $contents): bool
+    {
+        return str_contains(substr($contents, 0, 8000), "\0");
+    }
+
+    /**
+     * One `git ls-files` question, in the shape every caller reads: NUL-separated, sorted.
+     *
+     * @param  list<string>  $arguments
+     * @return list<string>
+     */
+    private static function listing(string $root, array $arguments): array
+    {
         $process = proc_open(
-            ['git', '-C', $root, 'ls-files', '--cached', '--others', '--exclude-standard', '-z'],
+            ['git', '-C', $root, 'ls-files', ...$arguments, '-z'],
             [1 => ['pipe', 'w'], 2 => ['redirect', 1]],
             $pipes,
         );
@@ -269,20 +310,6 @@ final class MachinePaths
         sort($files);
 
         return $files;
-    }
-
-    /**
-     * Whether a file's contents are binary, read the way git reads them: a NUL byte in the
-     * opening bytes.
-     *
-     * Public because the repository-escape reading reads the same set of files and skips them
-     * the same way rather than keeping a second copy of either decision: what a commit would
-     * carry and what a text is are one question each, and a file is text whichever of the two
-     * is asking.
-     */
-    public static function binary(string $contents): bool
-    {
-        return str_contains(substr($contents, 0, 8000), "\0");
     }
 
     /**

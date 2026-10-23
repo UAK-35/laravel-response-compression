@@ -91,9 +91,11 @@ use RuntimeException;
  * The guards read this checkout's own files, so a mutated tree is the only way to ask them a
  * question with a wrong answer in it — and mutating the checkout in place would make this suite's
  * tree the thing under test, which one failed run would leave broken for the next reader. The copy
- * carries every file a commit would carry from this checkout, which is the set both path readings
- * walk, plus a git index of them, because `MachinePaths::files()` asks git rather than the
- * directory.
+ * carries this package's own work — the files a commit would carry, minus the untracked files the
+ * two path readings already refuse to have here, which is what a spill from the checkout beside
+ * this one looks like — plus a git index of them, because `MachinePaths::files()` asks git rather
+ * than the directory. What that trim is for, and why it leaves the real tree's colour alone, is
+ * `carried()`'s.
  *
  * One tree is planted and every mutation is reverted after it, rather than a tree per mutation: the
  * copy is ninety-odd files, and a second one would cost more than the whole harness. What a
@@ -1225,6 +1227,53 @@ final class MutationHarness
     }
 
     /**
+     * The files the planted tree is made of: this checkout's own work, which is the files a commit
+     * would carry minus the ones this package's readings already refuse to have here.
+     *
+     * The listing comes from `MachinePaths::files()` rather than from a second `git ls-files`
+     * written here. The planted tree, the tree the guards walk and the tree a commit would publish
+     * are one question, and two answers to it are two answers that can come to disagree.
+     *
+     * WHY AN UNTRACKED FILE IS THE ONE THAT CAN BE DROPPED
+     * ---------------------------------------------------
+     * Only an untracked file can be somebody else's: a tracked one is in this package's commits and
+     * an ignored one is in neither listing, so a spill from the checkout beside this one arrives
+     * untracked and not ignored — which is exactly what makes it a file a commit here would carry,
+     * and why the two path readings name it on the real tree.
+     *
+     * The harness cannot use a file's authorship, because nothing in the tree records it. What it
+     * can use is the definition this repository already has for a file that must not be here: a
+     * machine-local path, or a relative path that climbs above the root. A sibling package's spill
+     * is that twice over in the cases this checkout has seen — a sample machine file full of drive
+     * paths, and two scripts pointing into the package next door — so the planted tree is asked for
+     * this package's own work and not for a copy of whatever else has landed in the folder.
+     *
+     * This is not a hole in the holds: the real checkout still carries the spill, so the two path
+     * readings still name it there, which is the colour the tree is supposed to have. What changes
+     * is that a break planted for a guard is read on a tree with nothing else wrong in it — which is
+     * the only tree a mutation can be measured on.
+     *
+     * The file is dropped only when it cannot be read at all (nothing says it is a spill) and when
+     * it is binary (a reading of it would be a reading of its bytes as text); an unreadable file is
+     * the caller's problem to see, not the harness's to guess about.
+     *
+     * @param  string|null  $root  the checkout to read, or this package's own when the planted tree
+     *                             is being built — the argument is what lets a test ask the rule
+     *                             about a fixture instead of writing a spill into this checkout
+     * @return list<string>
+     */
+    public static function carried(?string $root = null): array
+    {
+        $root = rtrim(str_replace('\\', '/', $root ?? self::package()), '/');
+        $untracked = MachinePaths::untracked($root);
+
+        return array_values(array_filter(
+            MachinePaths::files($root),
+            static fn (string $file): bool => ! in_array($file, $untracked, true) || self::belongs($root, $file),
+        ));
+    }
+
+    /**
      * A program's own test, in a child process in which every fixture is built from that program.
      *
      * The program is written to a directory of its own rather than into this checkout: the fixture
@@ -1422,19 +1471,23 @@ final class MutationHarness
     }
 
     /**
-     * The files a commit would carry from this checkout — the tracked set and the files that have
-     * just been written, which is what both path readings walk and therefore what the planted tree
-     * has to be.
+     * Whether an untracked file is this package's own work rather than a spill from the checkout
+     * beside it.
      *
-     * The listing comes from `MachinePaths::files()` rather than from a second `git ls-files`
-     * written here. The planted tree, the tree the guards walk and the tree a commit would publish
-     * are one question, and two answers to it are two answers that can come to disagree.
-     *
-     * @return list<string>
+     * The two path readings are called on the file's text rather than a third detector being
+     * written here, because they are the definition: a file they name is a file this repository has
+     * already decided does not belong on this machine or in this tree.
      */
-    private static function carried(): array
+    private static function belongs(string $root, string $file): bool
     {
-        return MachinePaths::files(self::package());
+        $contents = @file_get_contents($root.'/'.$file);
+
+        if ($contents === false || MachinePaths::binary($contents)) {
+            return true;
+        }
+
+        return MachinePaths::in($contents) === []
+            && RepoEscapes::in($contents, substr_count($file, '/')) === [];
     }
 
     /**

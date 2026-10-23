@@ -1166,6 +1166,28 @@ read as a runner that still runs the gate.
 
 ### Fixed
 
+- **The planted tree is this package's own work, so a spill from the checkout beside it cannot turn
+  every hold red.** `MutationHarness::tree()` copied `MachinePaths::files()` — every file a commit
+  would carry, which is the tracked set plus the untracked files the ignore rules leave alone. That
+  is the right set for the path readings on the real checkout, and it is exactly why a spill is
+  named there: an untracked file from the package next door is a file a commit here would carry.
+  It is the wrong set for a hold, because a hold begins by requiring its reading to come back with
+  nothing on the unmutated tree — so one spill reddened every hold for a reason no mutation planted.
+  The handoff measured it on 2026-10-07: `MutationHarness/MachinePathsTest.php` was 2 failed and
+  `MachinePathsTest.php` 1 failed, all of it `.agents/sample.machine.local.json`, and not one line
+  of this package's code.
+  `MachinePaths::untracked()` now answers the half of the listing git does not have yet, and
+  `MutationHarness::carried()` keeps an untracked file only when `MachinePaths::in()` and
+  `RepoEscapes::in()` — the two readings that define a file this repository will not have — name
+  nothing in it; a tracked or ignored file never takes part, and a file that cannot be read as text
+  is carried rather than guessed about. `tests/Unit/Support/MutationHarnessTest.php` asks the rule
+  of a fixture with a tracked file, an untracked note this package wrote, a sample machine file and
+  a script that climbs out of the root, and requires the last two to be left behind while the first
+  two are carried. What does not change is the colour of the real tree: both readings still run
+  against the checkout, so a spill is still named there, which is the finding the checkout is
+  supposed to carry. Measured: `MutationHarnessTest` 5 passed (16 assertions), `MachinePathsTest`
+  with `RepoEscapesTest` 59 passed (78 assertions), the machine-path and guard-index holds 8 passed
+  (26 assertions), and `bin/index.php --check` at exit 0 after the harness row was re-rendered.
 - **The line `GuardIndex::declared()` reports is the line the declaration is on, and the CRLF test
   asks its own plant before it reads it.** `declaration()` counted newlines to the start of the
   match, and the decoration class that match begins with carries `\s` — so on a header written the
