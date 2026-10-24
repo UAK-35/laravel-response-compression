@@ -107,6 +107,54 @@ exit(%d);
 STUB, $file, $counts, $second, $alone));
 }
 
+/**
+ * Plant a `pest` whose pooled run cannot start several files at once, and whose lone runs answer.
+ *
+ * The storm `runPest()` was written for, and the one a list of names answers badly: the log carries
+ * every test file the run held, most of them fine and a handful of them errors, so the gate can count
+ * what it could not start against what it ran. A lone run is the retry, and it does what
+ * `plantFlakyPest()`'s does — records the file it was asked about, then exits with the code it was
+ * told, so the same stub serves a storm that heals and one that does not.
+ */
+function plantStormPest(ReleaseRepo $repo, int $erred, int $clean, int $alone): void
+{
+    $manifest = ToolPaths::manifest(ReleaseRepo::package().'/'.ToolPaths::MANIFEST);
+
+    $suites = '';
+
+    for ($index = 1; $index <= $clean; $index++) {
+        $suites .= sprintf('<testsuite name="ok" file="tests/Unit/Ok/Ok%02dTest.php" errors="0" failures="0"></testsuite>', $index);
+    }
+
+    for ($index = 1; $index <= $erred; $index++) {
+        $suites .= sprintf('<testsuite name="erred" file="tests/Unit/Heavy/Heavy%02dTest.php" errors="1" failures="0"></testsuite>', $index);
+    }
+
+    // The label is `STUB` for the reason the other stub gives: a label whose name appears in the body
+    // — `PHP_EOL` does — is one Rector rewrites into a heredoc.
+    $repo->write($manifest['pest']['path'], sprintf(<<<'STUB'
+<?php
+
+$arguments = array_slice($argv, 1);
+$pooled = in_array('--parallel', $arguments, true);
+
+if ($pooled) {
+    $log = $arguments[array_search('--log-junit', $arguments, true) + 1];
+
+    file_put_contents($log, '<testsuites>%s</testsuites>');
+    echo 'Tests: %d passed, %d failed (%d assertions)'.PHP_EOL;
+
+    exit(1);
+}
+
+$asked = array_values(array_filter($arguments, static fn (string $argument): bool => ! str_starts_with($argument, '-')));
+
+file_put_contents('asked-again.txt', implode(PHP_EOL, $asked).PHP_EOL, FILE_APPEND);
+
+exit(%d);
+STUB, $suites, $clean, $erred, ($clean + $erred) * 10, $alone));
+}
+
 it('lists what it would run, and the tools it would run them with', function (): void {
     $run = gate(gateRepo(), '--list');
 
@@ -277,10 +325,16 @@ it('asks a file the pool erred on again, alone, and counts the run as the pool b
     $run = gate($repo, '--only=tests');
 
     // Green, because the file answered a second time — and said so in both places a reader looks:
-    // the marked note under the table, which names the file, and the check's own summary line,
-    // which would otherwise read PASS beside the "1 failed" the pool's run printed.
+    // the marked note under the table, and the check's own summary line, which would otherwise read
+    // PASS beside the "1 failed" the pool's run printed. The note counts the file against the run
+    // rather than naming it again: it sits under a line that already names it, and "1 of the 1 test
+    // files it ran" is the sentence a machine's answer is made of. One file is not called load: the
+    // machine is only the reading when a second file fails to start in the same run, because a file
+    // cannot make another file's process fail.
     expect($run->exitCode)->toBe(0)
-        ->and($run->output)->toContain(Notes::MARKER.' the parallel run errored on '.$file)
+        ->and($run->output)->toContain(
+            Notes::MARKER.' the parallel run could not start 1 of the 1 test files it ran, and it passed when it was asked again alone'
+        )
         ->and($run->output)->toContain('1 file the pool errored on passed alone')
         ->and($repo->read('asked-again.txt'))->toBe($file.PHP_EOL);
 });
@@ -313,10 +367,42 @@ it('names the pool\'s files even when the same run asserted something', function
 
     $run = gate($repo, '--only=tests');
 
+    // Two files are in the log — the one that erred and the one that asserted — so the note counts
+    // the one against the two, and the summary repeats it: a red run whose numbers were the pool's is
+    // the case that most needs both halves said out loud.
     expect($run->exitCode)->toBe(1)
-        ->and($run->output)->toContain(Notes::MARKER.' the parallel run errored on '.$erred)
+        ->and($run->output)->toContain(
+            Notes::MARKER.' the parallel run could not start 1 of the 2 test files it ran, and it passed when it was asked again alone'
+        )
         ->and($run->output)->toContain('1 file the pool errored on passed alone')
         ->and($repo->read('asked-again.txt'))->toBe($erred.PHP_EOL);
+});
+
+it('calls a storm a machine under load, and says how many of the files it ran could not start', function (): void {
+    $repo = gateRepo();
+
+    // The shape a reader has to work out for themselves today: thirty-nine test files in one pooled
+    // run, five of which the pool could not start, and every one of those five green when asked on
+    // its own. What a list of five names does not say is the denominator — five of thirty-nine is a
+    // machine with sixteen workers spawning children, five of five is a codebase in trouble — and the
+    // count printed beside the run is the only place that distinction can be made.
+    plantStormPest($repo, 5, 34, 0);
+
+    $run = gate($repo, '--only=tests');
+
+    expect($run->exitCode)->toBe(0)
+        // The note is the measurement and the reading of it: how many files the run held, how many it
+        // could not start, and that five at once is the machine rather than five findings.
+        ->and($run->output)->toContain(
+            Notes::MARKER.' the parallel run could not start 5 of the 39 test files it ran — a machine under load rather than 5 findings in the code — and each passed when it was asked again alone'
+        )
+        // And the row says the same two numbers, because the note under the table is not where a
+        // reader of a gate run looks first: the summary is what they came for.
+        ->and($run->output)->toContain('; 5 of the 39 files the pool ran could not start under load, and each passed alone')
+        ->and($run->output)->not->toContain(Notes::MARKER.' the parallel run errored on')
+        // Every one of the five was asked, once, and alone: the count above is only worth printing if
+        // the retry behind it actually happened.
+        ->and(explode(PHP_EOL, trim($repo->read('asked-again.txt'))))->toHaveCount(5);
 });
 
 it('does not ask again for a file that failed an assertion', function (): void {

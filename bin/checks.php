@@ -45,8 +45,10 @@ use Uak35\ResponseCompression\Tests\Support\TestMap;
  * as an *error* — a test that could not start a process, rather than one that asserted something
  * — so the files a parallel run erred on are asked again, one at a time and without the pool: the
  * check is green only for a run whose every failure was the pool's, and red for a file that fails
- * twice or for anything that asserted. `runPest()` below is where that happens, and what it says
- * about the files it healed.
+ * twice or for anything that asserted. `runPest()` below is where that happens, and it says what it
+ * measured: how many of the test files the run started could not be started at all, against how many
+ * it ran — because more than one of those at once is a machine under load rather than a finding, and
+ * a list of names is a number the reader would have to count for themselves.
  *
  * USAGE
  * -----
@@ -563,10 +565,25 @@ $checks = [
             // A run that was asked again says so here as well as in the note below the table: the
             // count above is what the pool's own run printed, so a row reading PASS beside "1
             // failed" would be the one contradiction this whole reading exists to explain away.
+            //
+            // Which of the two sentences depends on how many answered at once, and the bulk one is a
+            // measurement rather than a count of names: "5 of the 39 files it ran" already contains the
+            // list's information and adds the thing the list leaves out — that the pool had 39 files to
+            // start and could not start five of them — which is what makes it the machine's fault.
             $healed = $result['healed'] ?? [];
+            $pool = $result['pool'] ?? [];
 
             if ($healed === []) {
                 return $summary;
+            }
+
+            if (($pool['erred'] ?? 0) > 1) {
+                return $summary.'; '.sprintf(
+                    '%d of the %d files the pool ran could not start under load, and %s passed alone',
+                    $pool['healed'],
+                    $pool['files'],
+                    $pool['healed'] === $pool['erred'] ? 'each' : (string) $pool['healed'],
+                );
             }
 
             return $summary.'; '.count($healed).' file'.(count($healed) === 1 ? '' : 's')
@@ -692,6 +709,7 @@ foreach ($checks as $key => $check) {
             'exit' => $result['exit'],
             'output' => stripAnsi($result['output']),
             'healed' => $result['healed'] ?? [],
+            'pool' => $result['pool'] ?? [],
         ])
         : null;
 
@@ -1006,14 +1024,20 @@ function runCommands(array $commands, string $cwd): array
  * the reader to work out which one is about their code. The verdict does not move — an assertion
  * failure keeps the run red whatever the retries say — but the twenty-six are named as the pool's.
  *
- * What it does do is say so. A check that quietly asked twice would read as one that never failed,
- * so the healed files are listed and the marker makes them a note like any other, repeated under the
- * summary beside the verdict they qualify.
+ * What it does do is say so, and say what it measured. A check that quietly asked twice would read as
+ * one that never failed, so the marker makes the run a note like any other, repeated under the summary
+ * beside the verdict it qualifies — and the sentence is the measurement rather than the list: how many
+ * of the test files the run started could not be started at all, against how many the run held. Two of
+ * those in one run is already the machine, not the code: a file cannot make another file's `proc_open`
+ * fail, so one error is a file the pool could not start and its own retry is the answer, while a second
+ * in the same run is the condition those workers share. That is the reading a reader cannot do from a
+ * list of paths — which is why the count is printed as a count, and why the per-file lines above it are
+ * left as the evidence they are.
  *
  * @param  list<list<string>>  $commands  one command per run: the whole suite, or one per mapped path
  * @param  string  $pest  the Pest entry file, as the manifest gives it
  * @param  string  $marker  the note marker, which is `$notesMarker`
- * @return array{exit: int, output: string, healed?: list<string>}
+ * @return array{exit: int, output: string, healed?: list<string>, pool?: array{erred: int, healed: int, files: int}}
  */
 function runPest(array $commands, string $pest, string $root, string $marker): array
 {
@@ -1033,6 +1057,7 @@ function runPest(array $commands, string $pest, string $root, string $marker): a
 
     $erred = [];
     $asserted = [];
+    $ran = 0;
 
     foreach ($commands as $index => $command) {
         $log = $logs[$index];
@@ -1049,6 +1074,7 @@ function runPest(array $commands, string $pest, string $root, string $marker): a
 
             $erred = [...$erred, ...$outcome['erred']];
             $asserted = [...$asserted, ...$outcome['asserted']];
+            $ran += $outcome['files'];
         }
 
         @unlink($log);
@@ -1080,10 +1106,22 @@ function runPest(array $commands, string $pest, string $root, string $marker): a
 
     // Said when every file that erred answered the second time, whether or not something else in the
     // run asserted: the sentence is about those files, and a red run that also contains the pool's
-    // noise is the run that needs it most.
+    // noise is the run that needs it most. What it says is the measurement rather than the names — the
+    // names are the lines just above it — and more than one is called the machine, because a file
+    // cannot make another file's process fail and each of these has already passed on its own.
     if ($again === []) {
-        $output .= $marker.' the parallel run errored on '.implode(', ', $healed)
-            .', asked again without the pool, and each passed'.PHP_EOL;
+        $output .= $marker.' '.(count($erred) > 1
+            ? sprintf(
+                'the parallel run could not start %d of the %d test files it ran — a machine under load rather than %d findings in the code — and each passed when it was asked again alone',
+                count($healed),
+                $ran,
+                count($healed),
+            )
+            : sprintf(
+                'the parallel run could not start %d of the %d test files it ran, and it passed when it was asked again alone',
+                count($healed),
+                $ran,
+            )).PHP_EOL;
     }
 
     // Whatever the retries found, a run that asserted something is red: that verdict belongs to the
@@ -1097,6 +1135,7 @@ function runPest(array $commands, string $pest, string $root, string $marker): a
         'exit' => $again === [] && $asserted === [] ? 0 : $result['exit'],
         'output' => $output,
         'healed' => $healed,
+        'pool' => ['erred' => count($erred), 'healed' => count($healed), 'files' => $ran],
     ];
 }
 
@@ -1113,12 +1152,17 @@ function runPest(array $commands, string $pest, string $root, string $marker): a
  * wrong to have. A log in a shape the three attributes do not appear in names nothing, and naming
  * nothing is the answer that changes nothing.
  *
- * @return array{erred: list<string>, asserted: list<string>} paths as the run named them, slashed
+ * `files` is how many test files the log accounts for, which is the denominator the pool's own count
+ * needs: a run prints the tests it ran, not the files it held, and "five of them could not start" is
+ * a sentence about a machine only beside the number that says five of how many.
+ *
+ * @return array{erred: list<string>, asserted: list<string>, files: int} paths as the run named them, slashed
  */
 function junitOutcome(string $log): array
 {
     $erred = [];
     $asserted = [];
+    $ran = [];
 
     preg_match_all('/<testsuite\b[^>]*>/', $log, $elements);
 
@@ -1130,6 +1174,7 @@ function junitOutcome(string $log): array
         // Windows spells a path with backslashes, and every other path this program prints is
         // git's spelling — the two are compared, deduplicated and listed together.
         $path = PHP_OS_FAMILY === 'Windows' ? str_replace('\\', '/', $file[1]) : $file[1];
+        $ran[] = $path;
 
         if (junitCount($element, 'errors') > 0) {
             $erred[] = $path;
@@ -1143,6 +1188,7 @@ function junitOutcome(string $log): array
     return [
         'erred' => array_values(array_unique($erred)),
         'asserted' => array_values(array_unique($asserted)),
+        'files' => count(array_unique($ran)),
     ];
 }
 
