@@ -133,6 +133,38 @@ function bootstrapJournal(ReleaseRepo $checkout): array
 }
 
 /**
+ * The renderer, run in the fixture the way every command in this layer runs it: with no arguments
+ * of its own, so every `__TOKEN__` it answers comes from `.agents/machine.local.json`.
+ *
+ * `--init` cannot answer this question about a file it wrote: it renders the settings from the
+ * answers it was handed in the same run, so a settings file existing says nothing about the file
+ * that was written down. This is the reader that starts from the file.
+ */
+function bootstrapRenderer(ReleaseRepo $checkout, string ...$arguments): ReleaseRun
+{
+    $command = ['python', $checkout->path('.agents/render_local.py'), ...$arguments];
+
+    $process = proc_open(
+        $command,
+        [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+        $pipes,
+        $checkout->path,
+    );
+
+    if (! is_resource($process)) {
+        throw new RuntimeException('Could not run '.implode(' ', $command));
+    }
+
+    fclose($pipes[0]);
+    $output = (string) stream_get_contents($pipes[1]);
+    $error = (string) stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+
+    return new ReleaseRun(proc_close($process), $output, $error, implode(' ', $command));
+}
+
+/**
  * The interpreter the fixture's checkout is now named after, read the way this package reads it.
  *
  * Not by opening the machine file here: which PHP runs is answered in one place, and
@@ -186,6 +218,54 @@ it('names this machine\'s PHP, installs the dependencies and verifies the clone,
         ->and($run->output)->toContain('run the whole verification')
         ->and($run->output)->toContain('1/3')
         ->and($run->output)->toContain('3/3');
+});
+
+it('writes a machine file the renderer can answer every token from, read back from the file', function (): void {
+    $checkout = bootstrapCheckout();
+
+    // The naming step is the renderer's own `--init`, and `--init` renders the settings from the
+    // answers it was handed — in the same run, before anything has read them back. So the settings
+    // file that step leaves behind is not evidence about the file: what every other command in this
+    // layer does is start from `.agents/machine.local.json`, and a writer that dropped a key, or
+    // wrote one under a name nothing reads, would still have rendered for that run and be found out
+    // on the next one. Nothing asked the two halves of that step about each other.
+    $named = $checkout->script('bin/bootstrap.php', '--skip-install', '--skip-verify');
+
+    expect($named->exitCode)->toBe(0, $named->describe())
+        ->and($checkout->exists('.agents/machine.local.json'))->toBeTrue();
+
+    // The three files the naming step rendered are taken away first: a render that found them
+    // already right would write nothing, and "the file is still here" would be the answer to a
+    // question about whether anything was rendered at all.
+    foreach (['.trae/settings.json', '.trae/settings.local.json', '.kiro/settings/local.json'] as $settings) {
+        $checkout->delete($settings);
+    }
+
+    $rendered = bootstrapRenderer($checkout);
+
+    // The answer is the file's: the exit code is the renderer's, the value in the settings file is
+    // the interpreter this run is under, and every template was written from the machine file rather
+    // than from the run that wrote it. A token the file could not answer is a `[FAIL]` line and a
+    // settings file that is not written at all, which is why all three are asserted rather than one.
+    expect($rendered->exitCode)->toBe(0, $rendered->describe())
+        ->and($rendered->output)->not->toContain('has no value for')
+        ->and($rendered->output)->not->toContain('[FAIL]')
+        ->and($checkout->exists('.trae/settings.json'))->toBeTrue()
+        ->and($checkout->exists('.trae/settings.local.json'))->toBeTrue()
+        ->and($checkout->exists('.kiro/settings/local.json'))->toBeTrue()
+        ->and($checkout->read('.trae/settings.json'))->toContain(str_replace('\\', '/', PHP_BINARY));
+
+    // And every token, asked one by one: `--value` with no token prints the table, and a token the
+    // file does not answer is the word `unset` rather than an empty line — so the reading is that no
+    // token is in that state, which is the same claim the render made above, made per token.
+    $answered = bootstrapRenderer($checkout, '--value');
+
+    expect($answered->exitCode)->toBe(0, $answered->describe())
+        ->and($answered->output)->not->toContain('<unset>')
+        ->and($answered->output)->toContain('__PHP_EXE__')
+        ->and($answered->output)->toContain('__PHP_DIR__')
+        ->and($answered->output)->toContain('__PWSH_EXE__')
+        ->and($answered->output)->toContain('__PACKAGE_DIR__');
 });
 
 it('refuses when a program it needs is not here, naming the one that is missing', function (): void {

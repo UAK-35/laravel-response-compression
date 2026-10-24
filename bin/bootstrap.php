@@ -59,7 +59,7 @@ declare(strict_types=1);
 /**
  * @guards-index guard `bin/bootstrap.php`
  *
- * a clone that is half set up and reads as ready: the three steps a fresh checkout needs — name this machine's PHP, install the dependencies, verify the tree — in the one order that works, each ending the run when it fails rather than being followed by the next
+ * a clone that is half set up and reads as ready: the three steps a fresh checkout needs — name this machine's PHP, install the dependencies, verify the tree — in the one order that works, each ending the run when it fails rather than being followed by the next, and the file the first step writes read back through the renderer rather than trusted because the same run rendered the settings from the answers it was handed
  */
 $root = str_replace('\\', '/', dirname(__DIR__));
 
