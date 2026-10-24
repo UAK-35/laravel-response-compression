@@ -88,9 +88,9 @@ use Uak35\ResponseCompression\Tests\Support\TestMap;
  *
  * One line of that run is not a check: the ignored entries at the root are printed as a note. A
  * file an ignore rule keeps out of a commit is the one kind of uncommitted work `git status` says
- * nothing about - it is absent from the listing rather than marked - and the rules here are
- * written for a session's leavings (`*.txt`, `/oc-session-*.md`, `/opencode*.jsonc`), so the
- * moment somebody looks is the moment worth telling.
+ * nothing about - it is absent from the listing rather than marked - and the rules here name a
+ * session's leavings (`/oc-session-*.md`, `/permissions-01.md`), so the moment somebody looks is
+ * the moment worth telling.
  *
  * WHICH test a file is measured by is `tests/Support/TestMap.php`'s answer, not this file's.
  * The mapping used to be three lines here - markdown to the docs links and the config claims,
@@ -798,10 +798,10 @@ if ($notesFile !== false) {
 }
 
 // What this commit will not carry, which is the one question `git status` cannot answer: an ignored
-// file is missing from its listing rather than marked in it. The tree's own rules are written for a
-// session's leavings - `*.txt`, `/oc-session-*.md`, `/opencode*.jsonc` - and a rule doing its job
-// looks exactly like a rule hiding the file somebody meant to commit, so the names are repeated at
-// the moment the commit is made rather than left to whoever thinks to ask.
+// file is missing from its listing rather than marked in it. The tree's own rules name a session's
+// leavings - `/oc-session-*.md`, `/permissions-01.md` - and a rule doing its job looks exactly like a
+// rule hiding the file somebody meant to commit, so the names are repeated at the moment the commit
+// is made rather than left to whoever thinks to ask.
 //
 // Every entry at the root, `vendor/` and `composer.phar` beside a scratch copy: the plainest reading
 // of what the commit does not carry is the whole of it, and a curated half would be a second

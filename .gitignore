@@ -12,23 +12,21 @@ build
 *.swp
 *.swo
 
-# Untracked text files are ignored by extension, because the names are whatever wrote them: a
-# scratch copy, an editor's export, a session's log. It is the one rule here whose reach is worth
-# naming, because ignoring a file is also how a file is kept out of a commit without being kept out
-# of the tree - and a file this rule hides is one neither path guard reads, since both read the set
-# a commit would carry. `.agents/sample.machine.local.json.txt` is the case in hand: a machine file
-# for the package next door, left in place by decision rather than adopted, held out of `git status`
-# and out of both of those readings by this rule rather than by anything about the file. The rule
-# stays, and what it is holding is no longer only a paragraph: `tests/Support/Ignored.php` reads the
-# files these rules hold and names a machine record that is another checkout's, so whoever narrows
-# the rule can see what it answers as well as read why it exists. An ignore rule that answers a
-# guard is the quiet half of the failure AGENTS.md section 0 describes, and the fix is a reading
-# over what the rule holds rather than a silence that reads as a green.
-*.txt
+# A session's leavings are named here, not matched by extension. `*.txt` used to sit at this point,
+# and its reach was the problem rather than its purpose: it held `AGENTS.md.txt` — a copy of a file
+# this package owns — and `.agents/sample.machine.local.json.txt`, another package's machine record,
+# out of `git status` and out of both path readings, because ignoring a file is also how a file is
+# kept out of a commit without being kept out of the tree. An ignore rule that answers a guard is
+# the quiet half of the failure AGENTS.md section 0 describes: the guards read the set a commit
+# would carry, so a file this rule hides is one neither of them can report. The names below are what
+# a session actually leaves here; a scratch copy of a file this package owns now shows in
+# `git status`, and another package's machine record is reported by
+# `tests/Unit/Support/MachinePathsTest.php`, which is the colour this repository decided on for a
+# file that is somebody else's — a sentence rather than a silence. `tests/Support/Ignored.php` still
+# reads whatever these rules do hold, so a rule that starts hiding a record again is named too.
 composer[0-9].json
 /composer.phar
 /hs_err_pid*.log
-/opencode*.jsonc
 /permissions-01.md
 /oc-session-*.md
 

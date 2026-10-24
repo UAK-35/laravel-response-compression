@@ -207,11 +207,11 @@ final class MutationHarness
 
         self::git($root, ['init', '--quiet']);
 
-        // `--force`, because this tree's `.gitignore` excludes `*.txt` and the checkout being
-        // copied carries one: the planted tree is the files a commit would carry from here, which
-        // is a set the ignore rules have already been applied to. Asking git for the files that
-        // merely survive them would plant a tree one file smaller than the one these guards are
-        // about.
+        // `--force`, because the planted tree is the files a commit would carry from here — a set
+        // the ignore rules have already been applied to, and a copy of this checkout's own
+        // `.gitignore` travels with it. Asking git for the files that merely survive that copy's
+        // rules would plant a tree smaller than the one these guards are about, which is the failure
+        // the `--force` and the reason above it exist to keep out.
         self::git($root, ['add', '--all', '--force']);
 
         register_shutdown_function(static function () use ($root): void {

@@ -12,16 +12,17 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 |--------------------------------------------------------------------------
 |
 | `MachinePaths` and `RepoEscapes` read the files a commit would carry, and an ignored file is in
-| neither answer. That is right for a rule doing its job and wrong for the one file here that is
-| somebody else's machine record: `.agents/sample.machine.local.json.txt` is a machine file for the
-| package beside this one, and `*.txt` is what keeps it out of `git status`, out of both path
-| readings, and out of every word a session reads.
+| neither answer. That is right for a rule doing its job and wrong for one holding somebody else's
+| machine record — which is what `*.txt` did here until it was narrowed: it kept
+| `.agents/sample.machine.local.json.txt` out of `git status`, out of both path readings, and out of
+| every word a session reads.
 |
 | So the reading is over the other set: the files git does not have and the rules keep out of a
 | commit. It answers with names rather than findings, because a clone with no spill must stay green,
-| and the one case that is here is left in place by a decision written down in `.gitignore`. What is
-| held here is that the names are said — on a fixture that has a spill, in the note channel a run
-| prints, and from this checkout's own listing, so the file is named rather than kept quiet.
+| and the record that is here is left in place by a decision rather than adopted. What is held here
+| is that the names are said — on a fixture that has a spill, in the note channel a run prints, and
+| from this checkout's own listing, where the answer today is nothing because the record is once
+| again a file a commit would carry.
 |
 | The breaks a mutated tree would have to plant are not this test's: the reading is a note rather
 | than a guard, so the mutation harness has nothing to turn red, and the substance is asked here —

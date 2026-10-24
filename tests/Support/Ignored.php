@@ -13,16 +13,17 @@ use RuntimeException;
  * ---------------
  * `MachinePaths` and `RepoEscapes` read the files a commit would carry, which is the right set for
  * a path that could reach a commit and the wrong set for a file this repository has decided not to
- * carry. `.agents/sample.machine.local.json.txt` is the case in hand: a machine record for the
- * package beside this one, full of drive paths. `*.txt` keeps it out of `git status` and out of both
- * path readings, so a rule written to hold a session's scratch copy also keeps somebody else's
- * machine file from being mentioned at all — in the directory this repository's own machine file is
- * kept in, which is the one place a stray record is least surprising and worst placed.
+ * carry. The shape that matters is an ignore rule answering a guard: the file is out of the set the
+ * guards read, so the guards come back green, and nothing says the rule is what keeps them green.
  *
- * The shape of that failure is worth stating plainly: an ignore rule answering a guard. The file is
- * out of the set the guards read, so the guards are green, and nothing says the rule is what keeps
- * them green. What is read here is the other half of the sentence — the files the rules hold are a
- * set of their own, and this asks what is in it.
+ * That is what was happening here. `*.txt` — a rule written for a session's scratch copies — was
+ * holding `.agents/sample.machine.local.json.txt`, a machine record for the package beside this one,
+ * and `AGENTS.md.txt`, a copy of a file this package owns, out of `git status` and out of both path
+ * readings. The rule was narrowed on 2026-10-25 to the names a session actually leaves, so the record
+ * is a file a commit would carry again and the machine-path reading reports it — the colour this
+ * repository decided on for somebody else's file in its tree. This reading stays because the next
+ * rule that holds a record has to be named too, so what is asked here is the other half of the
+ * sentence: the files the rules hold are a set of their own.
  *
  * WHY IT NAMES RATHER THAN FAILS
  * ------------------------------
