@@ -30,6 +30,17 @@ composer[0-9].json
 /permissions-01.md
 /oc-session-*.md
 
+# Files that are not this checkout's work but were sitting in it: another package's machine record,
+# and the two session configs a workspace agent wrote. They are moved here rather than deleted, and
+# here rather than outdoors, because both guards read the files a commit would carry and a write to a
+# path outside this root is the one edit AGENTS.md section 0 refuses. Move rather than a rule over
+# their names, because a rule is what the paragraph above was written against: the guard has to stop
+# reading the file, and nothing else has to be told to look away — and the file is still named, by
+# `tests/Support/Ignored.php` for the one that is a machine record and by this comment for all three.
+# Nothing inside is tracked: an index entry is listed by `git ls-files --cached` whatever this file
+# says, which is why the two opencode configs were unstaged when they were moved.
+/.quarantine/
+
 # The editor's agent writes this the first time a checkout is opened as a workspace, and what
 # it holds is a project id: local to one machine and belonging to no version of this package.
 /.freebuff/

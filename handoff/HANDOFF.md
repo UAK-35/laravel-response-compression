@@ -426,7 +426,12 @@ git log --format='%h %G?' -5          # no `N` in the second column
    it.** It belongs to a sibling package and is out of this package's scope, so it is not this
    thread's file to delete, move or ignore by rule. Nothing to do here beyond knowing why the
    readings of §3.3 are red; the package it belongs to now carries a scope rule that refuses the
-   write, so the next spill does not reach this tree. **Its two siblings were adopted instead** —
+   write, so the next spill does not reach this tree. **Moved 2026-10-25**: the decision to leave it
+   in place stands — it is still on disk — but it is in the gitignored `.quarantine/` now, with the
+   two session configs a workspace agent wrote, because a file in the carried set is what kept every
+   path reading red and `bin/commit.php` refusing this checkout's own commits. `.quarantine/README.md`
+   says what each one is and how to put it back, `.gitignore` says why a move and not a rule, and
+   `tests/Support/Ignored.php` still names it in the note a run prints. **Its two siblings were adopted instead** —
    `composer-ca.ps1` and `composer-link.cmd`, §3.3 item 3 — moved into `bin/` and adapted to this
    package, which is why the escape reading is green and the machine-path reading now names this file
    alone.
