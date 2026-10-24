@@ -45,8 +45,12 @@ difference worth naming is that it was asked for and decided rather than improvi
 The half of this that is written down is guarded: `tests/Unit/Support/MachinePathsTest.php` reports a
 path that names a machine in any file a commit would carry, `tests/Unit/Support/RepoEscapesTest.php`
 reports a relative path that climbs above the root, and `python .agents/verify.py` fails on any
-agentic file that names a path outside this repository. What none of the three can see is a command
-run against a path nobody wrote down — the half only the agent holding the terminal can keep.
+agentic file that names a path outside this repository. The complement is named rather than judged:
+`tests/Unit/Support/IgnoredTest.php` reads the files this repository ignores — the set neither path
+guard sees — and prints a note for a machine record that belongs to another checkout, which is how
+the file an ignore rule is holding stops being a thing nobody ever mentions. What none of them can
+see is a command run against a path nobody wrote down — the half only the agent holding the terminal
+can keep.
 
 ---
 

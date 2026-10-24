@@ -18,10 +18,12 @@ build
 # of the tree - and a file this rule hides is one neither path guard reads, since both read the set
 # a commit would carry. `.agents/sample.machine.local.json.txt` is the case in hand: a machine file
 # for the package next door, left in place by decision rather than adopted, held out of `git status`
-# and out of both readings by this rule rather than by anything about the file. The rule stays; what
-# it is holding is written down here so that whoever narrows it knows what it answers. An ignore
-# rule that answers a guard is the quiet half of the failure AGENTS.md section 0 describes, and the
-# fix is to say so rather than to let the silence read as a green.
+# and out of both of those readings by this rule rather than by anything about the file. The rule
+# stays, and what it is holding is no longer only a paragraph: `tests/Support/Ignored.php` reads the
+# files these rules hold and names a machine record that is another checkout's, so whoever narrows
+# the rule can see what it answers as well as read why it exists. An ignore rule that answers a
+# guard is the quiet half of the failure AGENTS.md section 0 describes, and the fix is a reading
+# over what the rule holds rather than a silence that reads as a green.
 *.txt
 composer[0-9].json
 /composer.phar

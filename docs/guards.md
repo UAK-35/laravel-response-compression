@@ -350,7 +350,7 @@ nothing, declares a list this page does not have, or has no sentence to quote is
 than left out, because "not in the list" and "in it and correct" are the two answers a rendering
 has to be able to tell apart.
 
-The two lists name 20 readings and 5 files that are not guards, 25 files in `tests/Support/` in
+The two lists name 21 readings and 5 files that are not guards, 26 files in `tests/Support/` in
 all.
 
 | Reading | What it reads |
@@ -364,6 +364,7 @@ all.
 | [`../tests/Support/GuardIndex.php`](../tests/Support/GuardIndex.php) | `docs/guards.md` read as a claim about a directory |
 | [`../tests/Support/Handoff.php`](../tests/Support/Handoff.php) | the environment as this checkout's own documents state it, held to the one file on a machine that answers it |
 | [`../tests/Support/HandoffState.php`](../tests/Support/HandoffState.php) | the state section of the handoff, held to what `handoff/state.sh` measures: its branch, its gate wiring, its changelog endings, and the date every count and colour it states was measured on |
+| [`../tests/Support/Ignored.php`](../tests/Support/Ignored.php) | a machine record for another checkout, found among the files this one ignores — the rule that keeps a spilled file out of a commit, and the reading that says what it is holding |
 | [`../tests/Support/IndexNumbers.php`](../tests/Support/IndexNumbers.php) | the numbers `docs/guards.md` states, read out of it and checked against the code that produces them |
 | [`../tests/Support/LogMessages.php`](../tests/Support/LogMessages.php) | the diagnostics the compression middleware writes, each declared once with a code it logs under |
 | [`../tests/Support/MachinePaths.php`](../tests/Support/MachinePaths.php) | paths that only resolve on the machine they were written on, found in the files a commit would carry |
