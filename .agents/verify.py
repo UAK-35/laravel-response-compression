@@ -921,11 +921,11 @@ def step_tokens(root: Path) -> list[str]:
 
     # Every settings template has to parse, and the rendered file has to be what its template would
     # produce. The rendering is not repeated here: `render_local.py` owns it, and it answers --check
-    # for exactly this question. That program also prints notes about the declared sections this
-    # machine has recorded nothing in, and the filter below is where the two kinds are told apart:
-    # a `[FAIL]` line is a finding, and a note is something the reader of `--check` is shown on a
-    # machine that is not wrong - a fresh `--init` opens every section it cannot fill, so failing
-    # here would fail the clone `bin/bootstrap.php` has just set up.
+    # for exactly this question. That program also says how much of its own record the machine file
+    # has written, and the filter below is where the two kinds are told apart: a `[FAIL]` line is a
+    # finding, and a note is something the reader of `--check` is shown on a machine that is not
+    # wrong - a fresh `--init` opens every section it cannot fill, so failing here would fail the
+    # clone `bin/bootstrap.php` has just set up.
     for template in sorted(root.glob(".*/**/*.example")):
         if not template.is_file():
             continue
@@ -949,7 +949,20 @@ def step_tokens(root: Path) -> list[str]:
                 text=True,
                 check=False,
             )
-            findings += [line.strip() for line in result.stdout.splitlines() if line.startswith("[FAIL]")]
+            # One pass over the lines, each read for the prefix that says which kind it is: a
+            # `[FAIL]` is a finding, and a `[NOTE]` is carried into this run's report. Every note,
+            # not only the summary: the summary says which state the record is in, and the lines
+            # under it name the sections still empty and what each one is for - which is the half a
+            # session needs to finish the file, and the half it would otherwise have to know to ask
+            # `--check` for. None of it fails the run: a fresh `--init` opens every section it
+            # cannot fill, so `bin/bootstrap.php` would go red on the file its own first step wrote.
+            for line in result.stdout.splitlines():
+                stripped = line.strip()
+
+                if stripped.startswith("[FAIL]"):
+                    findings.append(stripped)
+                elif stripped.startswith("[NOTE]"):
+                    NOTES.append(stripped)
         else:
             # A machine that has not been set up is a machine, not a defect in this commit. Saying so
             # is the point: the alternative is a green run that silently judged nothing.

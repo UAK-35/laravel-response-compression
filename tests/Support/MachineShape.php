@@ -244,9 +244,10 @@ final class MachineShape
      *
      * Asked of the program for the same reason `opened()` is — the report is the renderer's, and a
      * list of sections kept here would be a second copy of the question rather than the answer to
-     * it. Both answers are returned because both are the claim: the lines say which sections this
-     * machine has recorded nothing in, and the exit code says that a machine in that state is being
-     * told rather than failed, which is what makes the report usable on the clone
+     * it. Both answers are returned because both are the claim: the lines say how much of its own
+     * record the file holds — none of it, only the answers `--init` was handed, or a record that has
+     * grown and the sections still left — and the exit code says that a machine in any of those
+     * states is being told rather than failed, which is what makes the report usable on the clone
      * `bin/bootstrap.php` has just set up.
      *
      * @return array{exit: int, lines: list<string>}
@@ -262,6 +263,59 @@ final class MachineShape
         ), static fn (string $line): bool => $line !== ''));
 
         return ['exit' => $answer['exit'], 'lines' => $lines];
+    }
+
+    /**
+     * What `--check` says about the record of a tree the naming step has just opened: nothing when
+     * the report names the state that file is in, and the sentence it answered instead when not.
+     *
+     * The question is not whether the empty sections are listed — they always are — but whether the
+     * report says which half of its own record the file holds. `--init` writes three answered
+     * sections and opens the rest empty, so a report that describes that file as a record somebody
+     * has been growing sends its reader looking for the one section left rather than at the answers
+     * they gave, and `bin/bootstrap.php` is verified on exactly this file. The other half is asked
+     * beside this one in `MachineShapeTest`, on a file with a section recorded; the hold in
+     * `tests/Unit/Support/MutationHarness/MachineShapeTest.php` takes the branch that tells the two
+     * apart out of the renderer and requires this reading to name what comes back in its place.
+     *
+     * The tree goes back as it was found, because this is a reading rather than a step: the holds
+     * share one copy of this checkout, and a machine file left in it would be one more fact for every
+     * reading after this one to see. A tree that already holds one is refused instead — the renderer
+     * will not name a machine again without `--force`, and the file a fresh clone gets is the
+     * question here.
+     *
+     * @return list<string>
+     *
+     * @throws RuntimeException when there is no renderer to run, or when `--init` answers non-zero
+     */
+    public static function state(string $root): array
+    {
+        $root = self::root($root);
+        $written = [self::MACHINE, ...self::rendered()];
+        $before = array_values(array_filter(
+            $written,
+            static fn (string $file): bool => is_file($root.'/'.$file),
+        ));
+
+        try {
+            self::opened($root);
+            $summary = self::summary($root);
+        } finally {
+            foreach ($written as $file) {
+                if (! in_array($file, $before, true) && is_file($root.'/'.$file)) {
+                    unlink($root.'/'.$file);
+                }
+            }
+        }
+
+        if (str_contains($summary, '`--init` was handed')) {
+            return [];
+        }
+
+        return [sprintf(
+            'the file the naming step just wrote is reported as %s rather than as the answers `--init` was handed',
+            $summary === '' ? 'nothing at all' : '`'.$summary.'`',
+        )];
     }
 
     /**
@@ -388,6 +442,43 @@ final class MachineShape
         self::vague(self::seeded($root), '', $source, $written, $findings);
 
         return $findings;
+    }
+
+    /**
+     * The summary line of that report — the one saying which state the record is in — and an empty
+     * string when it printed none.
+     *
+     * The first note is the summary by construction: `unrecorded()` answers with the state and then
+     * one line per empty section, so position is the renderer's contract rather than a guess at its
+     * wording.
+     */
+    private static function summary(string $root): string
+    {
+        foreach (self::checked($root)['lines'] as $line) {
+            if (str_starts_with($line, '[NOTE]')) {
+                return $line;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * The settings files `--init` writes, derived from the templates it renders them from.
+     *
+     * `TEMPLATES` is what a fixture has to plant for the renderer to run at all; the file it writes
+     * beside each one is that template's name without the suffix, which is the convention the
+     * repository states above `TARGETS`. Written out here rather than copied from the renderer's
+     * list, because a second list of paths is a second thing to keep in step.
+     *
+     * @return list<string>
+     */
+    private static function rendered(): array
+    {
+        return array_values(array_map(
+            static fn (string $template): string => str_replace('.example', '', $template),
+            self::TEMPLATES,
+        ));
     }
 
     /**

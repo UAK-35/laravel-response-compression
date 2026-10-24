@@ -39,7 +39,8 @@ use RuntimeException;
  * it. `MachinePaths::scan`, `RepoEscapes::scan`, `ChangelogPreamble::stale`, `ConfigClaims::stale`,
  * `Docs::broken`, `Docs::unlinkedRecords`, `ConfigKeys::unknown`, `ConfigKeys::unknownReaders`,
  * `ToolPaths::copies`, `ToolPaths::unsharedNames`, `GuardIndex::drift`,
- * `IndexNumbers::drift`, `LogMessages::duplicates` and `MachineShape::stale` are one call each, and
+ * `IndexNumbers::drift`, `LogMessages::duplicates`, `MachineShape::stale` and `MachineShape::state`
+ * are one call each, and
  * `ConfigDoc`'s two halves are one comparison, so this class is a caller rather than a copy for
  * each of them. Where a walk used to be composed in the test — the docs links, the config keys,
  * the config claims, the tool paths — the walk now lives in the support class the guard is about,
@@ -741,6 +742,26 @@ final class MutationHarness
                     return '`php.exe` is written as `<absolute path to php.exe>`';
                 },
                 'read' => MachineShape::generic(...),
+            ],
+            [
+                'guard' => 'the machine-file shape, on which state the record is in',
+                'test' => 'tests/Unit/Support/MachineShapeTest.php',
+                'plant' => static function (string $root): string {
+                    // The one branch that tells the file `--init` leaves on a fresh clone from a
+                    // record somebody has been growing. With it gone the two states collapse into
+                    // the general sentence, which is not silence — the sections still get listed —
+                    // but a reader who has just set this clone up is told they have been living in
+                    // it, and goes looking for the one section left rather than at the answers they
+                    // gave. The reading has to be the one that says so.
+                    self::replace($root, MachineShape::RENDERER, static fn (string $text): string => str_replace(
+                        '    elif len(answered) == len(OWNED) and len(missing) == total - len(OWNED):',
+                        '    elif False:',
+                        $text,
+                    ));
+
+                    return 'are recorded; still empty: ';
+                },
+                'read' => MachineShape::state(...),
             ],
             [
                 'guard' => "the handoff's state section, on the ending it says the writer cannot use",

@@ -30,7 +30,7 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 /**
  * @guards-index guard the machine-file shape
  *
- * the shape a fresh clone is opened with — `.agents/machine.local.json.example`, the committed shape a reader copies, and the sections `python .agents/render_local.py --init` writes — held to each other: a section declared in one and missing from the other, a key `--init` writes that the example shows nowhere, a section the example shows that no fresh clone receives, a token whose value `--init` never writes, and the sections a machine file has recorded nothing in — which `--check` names rather than letting the file read as complete — and the placeholder text of the values themselves, held to the key each one sits under rather than left as a token that fits any key: an angle-bracket string, a stock word, and one sentence written under two keys
+ * the shape a fresh clone is opened with — `.agents/machine.local.json.example`, the committed shape a reader copies, and the sections `python .agents/render_local.py --init` writes — held to each other: a section declared in one and missing from the other, a key `--init` writes that the example shows nowhere, a section the example shows that no fresh clone receives, a token whose value `--init` never writes, how much of its own record a machine file has written — `--check` telling a file nobody has lived in yet from one that has recorded almost all of itself rather than giving both the same line, and naming the sections left either way — and the placeholder text of the values themselves, held to the key each one sits under rather than left as a token that fits any key: an angle-bracket string, a stock word, and one sentence written under two keys
  */
 it('holds the committed example to the shape the renderer declares, and reports nothing where the two agree', function (): void {
     $root = str_replace('\\', '/', packageRoot());
@@ -85,7 +85,7 @@ it('opens a fresh clone\'s file with the declared sections, filled from the answ
         ->and($opened['envVars'])->toBe([]);
 });
 
-it('says which declared sections this machine has recorded nothing in, and says nothing once they are recorded', function (): void {
+it('says which half of its own record the machine file has written, and says nothing once the record is complete', function (): void {
     $tree = machineShapeTree();
 
     // The state a fresh clone is in, made by the program that makes it: the whole shape, with
@@ -97,22 +97,81 @@ it('says which declared sections this machine has recorded nothing in, and says 
 
     $opened = MachineShape::checked($tree->path);
 
-    // A file that holds the shape and nothing else reads as complete to every other reading, so the
-    // report has to name the sections rather than count them: an empty section is a fact this
-    // machine has not recorded, and it is what a reader came for. The three `--init` was handed
-    // answers for are the three it does not mention.
+    // A file that holds the shape reads as complete to every other reading, so the report has to say
+    // which state the record is in rather than count the sections: a machine nobody has lived in yet
+    // and a machine that has recorded all but one of them are not the same answer, and "sections are
+    // empty" is the sentence that reads the same for both. This is the first: the three answers
+    // `--init` was handed, and the record beside them still to be written.
     expect($opened['exit'])->toBe(0)
         ->and(implode(PHP_EOL, $opened['lines']))
         ->toContain(sprintf(
-            '%d of the %d sections the shape declares are empty',
+            'the %d sections `--init` was handed answers for are here and the other %d have recorded nothing',
+            count($filled),
             count($declared) - count($filled),
-            count($declared),
         ))
+        // Not the sentence a record that has been grown gets, and not the one a file with nothing at
+        // all in it gets: the three states are told apart rather than each starting the same way.
+        ->not->toContain(' are recorded; still empty: ')
+        ->not->toContain('none of the '.count($declared).' sections')
         ->toContain('envVars is empty')
         ->toContain('python is empty')
         // The three sections `--init` was handed answers for are the three it does not report.
         ->not->toContain('php is empty')
         ->not->toContain('package is empty');
+
+    // The same question as a reading of its own, on a tree nothing has opened yet. It answers with
+    // nothing here, and its hold in `tests/Unit/Support/MutationHarness/MachineShapeTest.php` is what
+    // requires it to name the sentence when the renderer stops telling the two apart — which is the
+    // difference between a reading and a test that asserts the reading returned an empty array.
+    expect(MachineShape::state(machineShapeTree()->path))->toBe([]);
+
+    // The shape with every section opened and nothing under any of them: a file that was wiped, or
+    // one written from the declaration alone. A machine that has not started, which is not the clone
+    // `--init` opens, and the third answer the summary owes. Its exit is 1 for a reason about the run
+    // rather than about the record - the three sections the tokens are answered from are empty too,
+    // so nothing resolves and nothing renders - which is why the sentence is the part asserted, and
+    // why it says nothing has been recorded rather than reporting a count of what is left.
+    $unstarted = machineShapeTree();
+    MachineShape::opened($unstarted->path);
+    $wiped = json_decode($unstarted->read(MachineShape::MACHINE), true);
+    $wiped = is_array($wiped) ? $wiped : [];
+
+    foreach ($declared as $section) {
+        $wiped[$section] = [];
+    }
+
+    $unstarted->write(MachineShape::MACHINE, machineShapeJson($wiped));
+
+    $nothing = MachineShape::checked($unstarted->path);
+
+    expect(implode(PHP_EOL, $nothing['lines']))
+        ->toContain(sprintf('none of the %d sections the shape declares has been recorded', count($declared)))
+        ->not->toContain('`--init` was handed')
+        ->not->toContain(' are recorded; still empty: ')
+        ->toContain('php is empty');
+
+    // And a record that has been grown: one section beyond the three filled in, ten still empty. This
+    // is the state that used to read exactly like the fresh clone, and it is the one where "how much
+    // is left" is the answer a reader needs.
+    $growing = machineShapeTree();
+    MachineShape::opened($growing->path);
+    $partial = json_decode($growing->read(MachineShape::MACHINE), true);
+    $partial = is_array($partial) ? $partial : [];
+    $partial['python'] = ['version' => 'the version this machine reports'];
+    $growing->write(MachineShape::MACHINE, machineShapeJson($partial));
+
+    $grown = MachineShape::checked($growing->path);
+
+    expect($grown['exit'])->toBe(0)
+        ->and(implode(PHP_EOL, $grown['lines']))
+        ->toContain(sprintf(
+            '%d of the %d sections the shape declares are recorded; still empty: ',
+            count($filled) + 1,
+            count($declared),
+        ))
+        ->not->toContain('`--init` was handed')
+        ->not->toContain('none of the '.count($declared).' sections')
+        ->not->toContain('python is empty');
 
     // And a machine that has recorded itself gets the other answer: one fact in each declared
     // section is enough, the settings files were rendered from values that have not moved, so there

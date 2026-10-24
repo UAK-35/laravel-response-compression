@@ -39,12 +39,14 @@ value the file holds and the value the machine holds, which is the answer the re
 than the work of finding it - two quoted lines are a diff to do by hand. When no token explains the
 difference it is a hand edit, and the two lines are shown, because there is no token to name.
 
-And the declared sections this machine has recorded nothing in, which is the other way the file can
-be wrong about itself: every section `SECTIONS` names is opened by `--init`, so a file that has just
-been written holds the whole shape with nothing under most of it, and a check that listed only
-tokens and templates would call that complete. Those are printed as notes rather than findings - the
-state is one `--init` creates on purpose, and the sections are this machine's own record rather than
-anything a commit can be wrong about - which `unrecorded()` below argues in full.
+And how much of itself the machine file has recorded, which is the other way the file can be wrong
+about itself: every section `SECTIONS` names is opened by `--init`, so a file that has just been
+written holds the whole shape with nothing under most of it, and a check that listed only tokens and
+templates would call that complete. That is said as one summary line naming which state the record is
+in - nothing, the three answers `--init` was handed, or a record that has grown - and then each
+section still empty is named. Those are printed as notes rather than findings - the state is one
+`--init` creates on purpose, and the sections are this machine's own record rather than anything a
+commit can be wrong about - which `unrecorded()` below argues in full.
 """
 
 from __future__ import annotations
@@ -159,25 +161,53 @@ def unrecorded(data: dict) -> list[str]:
     a dozen of them holding nothing, and a `--check` with as little to say about it as about a
     machine that has recorded everything. So the sections are named.
 
+    WHICH HALF IS LEFT
+    ------------------
+    A machine file spends most of its life somewhere between those two states, and one sentence about
+    "empty sections" reads the same whether nobody has started or almost everything is in. So the
+    summary says which state the file is in, because it is the one answer that tells a reader what to
+    do next: nothing recorded, the answers `--init` wrote and nothing beside them (a fresh clone), or
+    a record that has been grown and the sections still left. The per-section lines below are the
+    same in all three - each names what that section is for, which the summary cannot.
+
     They are notes rather than findings, and the reason is the state `--init` creates rather than a
     matter of taste. `bin/bootstrap.php` verifies the clone it has just set up, so a `[FAIL]` here
     would fail that run on the very file the step before it wrote - a fresh clone could never be
     green. An empty section is also a fact about this machine rather than a defect in the tree: the
     shape is the renderer's and what is missing is somebody's record of this checkout. And
-    `verify.py`'s `tokens` step reads the `[FAIL]` lines out of this program and leaves every other
-    line alone, so a note is printed where a reader asks the question and is not a red build on a
-    machine that has not recorded the optional half of its own record yet.
+    `verify.py`'s `tokens` step reads the `[FAIL]` lines out of this program as findings and carries
+    every note into its own report, so these lines reach a session that never runs `--check` - and
+    still fail nothing, because a fresh `--init` opens every section it cannot fill.
     """
     missing = [section for section in SECTIONS if nothing(data.get(section))]
 
     if not missing:
         return []
 
-    lines = [
-        f"[NOTE] .agents/machine.local.json: {len(missing)} of the {len(SECTIONS)} sections the shape"
-        " declares are empty - the file is the shape it documents, and this machine has recorded"
-        " nothing in them"
-    ]
+    total = len(SECTIONS)
+    recorded = total - len(missing)
+    answered = [section for section in OWNED if section not in missing]
+
+    if recorded == 0:
+        lines = [
+            f"[NOTE] .agents/machine.local.json: none of the {total} sections the shape declares has"
+            " been recorded - the file is the shape it documents, and nothing in it is this machine's"
+            " yet"
+        ]
+    elif len(answered) == len(OWNED) and len(missing) == total - len(OWNED):
+        # The three `--init` was handed answers for are the three a fresh clone is guaranteed, and
+        # nothing else is recorded: the file `bin/bootstrap.php` leaves on a clone nobody has lived
+        # in yet. Saying so is the difference between "set up" and "recorded".
+        lines = [
+            f"[NOTE] .agents/machine.local.json: the {len(answered)} sections `--init` was handed"
+            f" answers for are here and the other {len(missing)} have recorded nothing - this is the"
+            " file a fresh clone gets, and the record beside those answers is what is left"
+        ]
+    else:
+        lines = [
+            f"[NOTE] .agents/machine.local.json: {recorded} of the {total} sections the shape declares"
+            f" are recorded; still empty: {', '.join(missing)}"
+        ]
 
     for section in missing:
         lines.append(
@@ -523,8 +553,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="report unresolved tokens, settings files that have drifted, and the declared sections "
-        "this machine has recorded nothing in; write nothing",
+        help="report unresolved tokens, settings files that have drifted, and how much of its own "
+        "record this machine has written; write nothing",
     )
     parser.add_argument("--value", nargs="?", const="", metavar="__TOKEN__", help="print a token's value, or every token")
     parser.add_argument("--php", help="the PHP binary, for --init without a terminal")
