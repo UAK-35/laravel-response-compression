@@ -84,6 +84,12 @@ use Uak35\ResponseCompression\Tests\Support\TestMap;
  * outside the roots the tree-wide pass covers is not checked here for the same reason it
  * is not checked there.
  *
+ * One line of that run is not a check: the ignored entries at the root are printed as a note. A
+ * file an ignore rule keeps out of a commit is the one kind of uncommitted work `git status` says
+ * nothing about - it is absent from the listing rather than marked - and the rules here are
+ * written for a session's leavings (`*.txt`, `/oc-session-*.md`, `/opencode*.jsonc`), so the
+ * moment somebody looks is the moment worth telling.
+ *
  * WHICH test a file is measured by is `tests/Support/TestMap.php`'s answer, not this file's.
  * The mapping used to be three lines here - markdown to the docs links and the config claims,
  * `config/response-compression.php` to the claims - and three lines are what a mapping looks
@@ -773,6 +779,23 @@ if ($notesFile !== false) {
     @unlink($notesFile);
 }
 
+// What this commit will not carry, which is the one question `git status` cannot answer: an ignored
+// file is missing from its listing rather than marked in it. The tree's own rules are written for a
+// session's leavings - `*.txt`, `/oc-session-*.md`, `/opencode*.jsonc` - and a rule doing its job
+// looks exactly like a rule hiding the file somebody meant to commit, so the names are repeated at
+// the moment the commit is made rather than left to whoever thinks to ask.
+//
+// Every entry at the root, `vendor/` and `composer.phar` beside a scratch copy: the plainest reading
+// of what the commit does not carry is the whole of it, and a curated half would be a second
+// .gitignore - a list of which ignored names count - kept in step by hand.
+if ($stagedMode) {
+    $ignored = ignoredAtRoot($root);
+
+    if ($ignored !== []) {
+        $notes[$notesMarker.' checks: ignored at the root, so no commit carries them: '.implode(', ', $ignored)] = true;
+    }
+}
+
 if ($notes !== []) {
     echo PHP_EOL;
 
@@ -1381,6 +1404,48 @@ function stagedFiles(string $root): array
     sort($paths);
 
     return $paths;
+}
+
+/**
+ * The ignored entries at the tree's root: what no commit will carry, however it is staged.
+ *
+ * `--directory` is what keeps this a reading of names rather than a walk: an ignored subtree arrives
+ * as one entry (`vendor/`), where a tree with its dependencies installed would otherwise print
+ * thousands of lines about a directory nobody is going to commit either way.
+ *
+ * Restricted to the root because that is where a session's own files land - a scratch copy beside
+ * `composer.json`, a log from the editor's agent - and because a name at the root is one a reader can
+ * go and look at. A tree with no repository around it answers with nothing: there is no commit for
+ * this to be about.
+ *
+ * @return list<string>
+ */
+function ignoredAtRoot(string $root): array
+{
+    $result = runCommand(
+        ['git', 'ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z'],
+        $root,
+    );
+
+    if ($result['exit'] !== 0) {
+        return [];
+    }
+
+    $names = [];
+
+    foreach (explode("\0", $result['output']) as $path) {
+        // A separator means somewhere below the root: this answers what is sitting beside
+        // `composer.json`, not what is inside a directory beside it.
+        if ($path === '' || str_contains(rtrim($path, '/'), '/')) {
+            continue;
+        }
+
+        $names[] = $path;
+    }
+
+    sort($names);
+
+    return $names;
 }
 
 /**

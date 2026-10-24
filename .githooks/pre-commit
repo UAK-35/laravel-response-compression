@@ -15,6 +15,11 @@
 #
 # Bypass one commit with `git commit --no-verify`.
 #
+# The staged run also prints one note that is not a check: the ignored entries at the root, by name.
+# An ignored file is the one kind of uncommitted work `git status` says nothing about — absent from
+# its listing rather than marked in it — so the names are read here, where somebody is about to
+# decide that what they have left in the tree is nothing.
+#
 # Which interpreter, and what "which" means, is not decided here: `.agents/php-bin.sh`
 # is the one place in this checkout that answers it, and this hook asks like everything
 # else does. It used to climb the ladder itself - the environment, then the machine file

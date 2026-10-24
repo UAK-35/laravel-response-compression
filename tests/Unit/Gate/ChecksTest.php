@@ -344,3 +344,28 @@ it('checks only what a commit carries, and says so when that is nothing', functi
     expect($run->exitCode)->toBe(0)
         ->and($run->output)->toContain('no staged');
 });
+
+it('names what the commit does not carry, from the ignored entries at the root', function (): void {
+    // An ignored file is the one kind of uncommitted work `git status` says nothing about — it is
+    // absent from the listing rather than marked in it — and the rules in this repository are
+    // written for a session's leavings: a scratch copy, an editor's export, a log. So the staged run,
+    // which is the moment a commit is made, repeats the names sitting at the root.
+    $repo = gateRepo();
+    $repo->write('.gitignore', "*.scratch\n");
+    $repo->write('left-behind.scratch', "a session's scratch copy\n");
+    $repo->write('second.scratch', "another one\n");
+
+    $run = gate($repo, '--staged');
+
+    expect($run->exitCode)->toBe(0)
+        ->and($run->output)->toContain(
+            Notes::MARKER.' checks: ignored at the root, so no commit carries them: left-behind.scratch, second.scratch'
+        );
+
+    // And a tree where nothing is ignored gets no line at all: the note says something because
+    // something is sitting outside the commit, not because a run happened.
+    $clean = gateRepo();
+    $clean->write('.gitignore', "*.scratch\n");
+
+    expect(gate($clean, '--staged')->output)->not->toContain('ignored at the root');
+});

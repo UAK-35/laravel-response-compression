@@ -317,6 +317,12 @@ when there is no PHP at all: a machine without PHP must not become a machine tha
 skip-when-absent rule — the layer subset, because the commit is already running the staged half of
 the gate and the full run would ask the same questions again.
 
+And the staged run prints one note that is not a check: the ignored entries at the root, by name. A
+file an ignore rule keeps out of a commit is the one kind of uncommitted work `git status` says
+nothing about — it is absent from the listing rather than marked in it — and the rules here are
+written for a session's leavings (`*.txt`, `/oc-session-*.md`, `/opencode*.jsonc`), so the names are
+read at the moment a commit is made rather than left to whoever thinks to ask.
+
 ---
 
 ## 6. Testing
