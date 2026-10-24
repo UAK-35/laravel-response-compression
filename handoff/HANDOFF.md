@@ -136,7 +136,33 @@ has changed is marked as changed, and what has not is left alone.
   ending: it joins the bullet with the ending the heading it matched carries, so a file that arrives
   CRLF gains a CRLF bullet (§7 item 3, done 2026-10-11).
 
-### 3.2 The suite, measured twice on 2026-10-07
+### 3.2 The suite, measured on 2026-10-07, and again on 2026-10-25
+
+**Green, measured twice on 2026-10-25, and the two runs are two different questions.** With one
+interpreter and no pool the whole suite reads **484 passed (1,564 assertions, 781s)** and nothing
+failed — against the **4 failed, 423 passed** recorded below — and the same tree under `--parallel`
+on 16 processes reads **42 failed, 442 passed (1,432 assertions, 304s)**. The pool's 42 are one
+failure said 42 times: `proc_open(): CreateProcess failed: The parameter is incorrect`, raised at
+`tests/Support/ReleaseRepo.php:793` while a worker started a `git` child, and not one of them is an
+assertion. Those are the files that pass when they are asked at all, which is what the serial run
+is — so the pool's tally is a reading of the machine and the serial run's duration is a reading of
+one core. Neither is the suite's colour and neither is the suite's cost; taken together they are
+both.
+
+**Why the duration moved, in the terms the two figures can bear.** The 201s and 651.7s this section
+recorded a day apart were the same tree on the same 16 workers, which is why the sentence below
+attributes the difference to the machine's load rather than to the suite, and that attribution is
+right: no test arrived between those two runs to pay for a 3×. What has arrived since is real and
+smaller — 484 tests against 421, 1,564 assertions against 1,311 — and it is slower per test than
+the count suggests, because the additions are the kind that spawn children: a mutation hold plants a
+break in a copy of this checkout and runs its reading over it, the inversions control runs a guard's
+own file in another Pest process (its child run is the one that came back `1 failed, 116 passed`
+under the pool and `1 passed` alone), and the `bin/` programs build release fixtures with real
+`git`. A pool splits its work by *file*, so a file that spawns a dozen children is one worker's
+whole cost with nothing able to take half of it, and tonight's serial run adds every file's own time
+up with no overlap at all. That is the whole of the arithmetic: 201s is the pool on a quiet
+machine, 651.7s the pool on a busy one, 304s tonight's pool, 781s tonight's serial run — and the
+figure a reader should compare with 201s is 304s, not 781s.
 
 **Fixed, then half-cleared.** After the §7 item 1 fix a full run read **6 failed, 421 passed
 (1,311 assertions, 201s, 16 parallel workers)** — against the predecessor's **15 failed, 406

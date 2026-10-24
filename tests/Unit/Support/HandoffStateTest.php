@@ -79,14 +79,27 @@ it('names a count that says what it measured and not when', function (): void {
     // `HEAD` and how far ahead the branch is move with every commit, so a bullet that states them
     // has to say which moment it read: a number with no date is a claim about now, and now belongs
     // to the script. Planted back in the shape the document used to write it in.
-    $tree = handoffStateTree(static fn (string $text): string => str_replace(
-        "measured 2026-10-07,\n  this was `ac96830`, **45 ahead and 0 behind**, with nothing pushed;",
-        'HEAD `ac96830`, **45 commits ahead of `origin/development` and 0 behind**, nothing pushed;',
+    //
+    // The hash and the distance are read out of the section rather than written here: today's `HEAD`
+    // is exactly the drift this reading exists to name, and a literal would stop planting the break
+    // the first time the branch moved — a fixture that stops editing the document reads as a
+    // reading that found nothing.
+    $document = (string) file_get_contents(ReleaseRepo::package().'/'.HandoffState::DOCUMENT);
+
+    preg_match('/this was `([0-9a-f]{7,40})`/', $document, $head);
+
+    $hash = $head[1] ?? '';
+
+    expect($hash)->not->toBe('');
+
+    $tree = handoffStateTree(static fn (string $text): string => (string) preg_replace(
+        '/measured \d{4}-\d{2}-\d{2},[ \t\r]*\n[ \t]*this was `([0-9a-f]{7,40})`, \*\*(\d+) ahead and 0 behind\*\*, with nothing pushed;/',
+        'HEAD `$1`, **$2 commits ahead of `origin/development` and 0 behind**, nothing pushed;',
         $text,
     ));
 
     expect(implode(PHP_EOL, HandoffState::stale($tree->path, handoffStateMeasured())))
-        ->toContain('HEAD ac96830')
+        ->toContain('HEAD '.$hash)
         ->toContain('with no date');
 });
 
@@ -106,9 +119,12 @@ it('dates a tally by the heading it sits under, and refuses one that no heading 
 
     // The same sentence under §3.2, whose heading carries the day it was measured on: the claim is
     // dated, so the reading has nothing to say about it.
-    $dated = handoffStateTree(static fn (string $text): string => str_replace(
-        "### 3.2 The suite, measured twice on 2026-10-07\n",
-        "### 3.2 The suite, measured twice on 2026-10-07\n\n- the suite reads **466 passed**, so the colour is green;\n",
+    // The heading is matched rather than quoted, so the plant survives the day it is re-measured:
+    // the test is that a dated heading covers the tally beneath it, and which day it names is the
+    // document's business.
+    $dated = handoffStateTree(static fn (string $text): string => (string) preg_replace(
+        '/^### 3\.2 The suite, measured [^\r\n]*/m',
+        "$0\n\n- the suite reads **466 passed**, so the colour is green;",
         $text,
     ));
 
@@ -128,9 +144,9 @@ it('names a section that has stopped saying the script outranks it, and one that
     // The colour this section carries is a tally from a run of the suite, which no script measures:
     // a heading without a date presents it as the tree's colour today, which is the claim that goes
     // stale in silence.
-    $dated = handoffStateTree(static fn (string $text): string => str_replace(
-        '## 3. State, as measured on 2026-10-07',
-        '## 3. State',
+    $dated = handoffStateTree(static fn (string $text): string => (string) preg_replace(
+        '/^'.preg_quote(HandoffState::STATE, '/').'[^\r\n]*/m',
+        HandoffState::STATE,
         $text,
     ));
 
@@ -163,8 +179,8 @@ it('answers nothing where the folder has gone, and refuses a document it cannot 
 
     // A document with the section taken out, and one with no script beside it: both are refusals
     // rather than empty answers, because neither can be compared with anything.
-    $headless = handoffStateTree(static fn (string $text): string => str_replace(
-        '## 3. State, as measured on 2026-10-07',
+    $headless = handoffStateTree(static fn (string $text): string => (string) preg_replace(
+        '/^'.preg_quote(HandoffState::STATE, '/').'[^\r\n]*/m',
         '## 3. The state that was measured',
         $text,
     ));

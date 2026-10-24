@@ -791,13 +791,22 @@ final class MutationHarness
                     // `HEAD` and how far ahead the branch is, written down the way the section used
                     // to: a measurement of a moment with nothing saying which, which reads as a
                     // claim about now the moment the next commit lands.
-                    self::replace($root, HandoffState::DOCUMENT, static fn (string $text): string => str_replace(
-                        "measured 2026-10-07,\n  this was `ac96830`, **45 ahead and 0 behind**, with nothing pushed;",
-                        'HEAD `ac96830`, **45 commits ahead of `origin/development` and 0 behind**, nothing pushed;',
+                    //
+                    // The bullet is matched rather than quoted, and the hash the marker carries is
+                    // read out of the file being broken: a literal `HEAD` here is a fixture that
+                    // stops planting the break the first time the branch moves, which the harness
+                    // reports as a mutation that left the tree as it found it.
+                    $document = (string) file_get_contents($root.'/'.HandoffState::DOCUMENT);
+
+                    self::replace($root, HandoffState::DOCUMENT, static fn (string $text): string => (string) preg_replace(
+                        '/measured \d{4}-\d{2}-\d{2},[ \t\r]*\n[ \t]*this was `([0-9a-f]{7,40})`, \*\*(\d+) ahead and 0 behind\*\*, with nothing pushed;/',
+                        'HEAD `$1`, **$2 commits ahead of `origin/development` and 0 behind**, nothing pushed;',
                         $text,
                     ));
 
-                    return 'HEAD ac96830';
+                    preg_match('/`([0-9a-f]{7,40})`/', $document, $hash);
+
+                    return 'HEAD '.($hash[1] ?? '');
                 },
                 'read' => static fn (string $root): array => HandoffState::stale($root, HandoffState::measured(self::package())),
             ],

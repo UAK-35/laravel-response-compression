@@ -558,7 +558,8 @@ final class HandoffState
      * would, which is why the two are not one condition — a section can end a claim without ending.
      *
      * Each bullet carries the date of the heading it sits under, because that is the other place a
-     * measurement may be written down: `### 3.2 The suite, measured twice on 2026-10-07` dates every
+     * measurement may be written down: `### 3.2 The suite, measured on 2026-10-07, and again on
+     * 2026-10-25` dates every
      * tally beneath it, and a tally under a heading that says nothing is the one this reading refuses.
      *
      * Written as a loop rather than a closure so that nothing here rewrites itself into an empty
