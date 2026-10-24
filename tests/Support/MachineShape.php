@@ -98,6 +98,22 @@ final class MachineShape
     private const string OWNED_KEY = '/"([^"]+)"/';
 
     /**
+     * The words a placeholder falls back to when nobody has said what belongs under the key.
+     *
+     * Each one fits every key in the file, which is what makes it useless to the reader it is written
+     * for: the example is copied and filled in, so a value left as `value` or `path` records an
+     * instruction as a fact. They are listed rather than inferred from the word count, because the
+     * failure is a word that is *about* a value rather than about this key, and a count cannot tell
+     * the two apart.
+     *
+     * @var list<string>
+     */
+    private const array STOCK = [
+        'value', 'string', 'number', 'path', 'list', 'object', 'array', 'boolean', 'true', 'false',
+        'null', 'none', 'todo', 'tbd', 'xxx', 'n/a', '?', '...',
+    ];
+
+    /**
      * The sections a machine file holds, as the renderer declares them: each one against the
      * sentence saying what it is for.
      *
@@ -338,6 +354,150 @@ final class MachineShape
         }
 
         return array_values(array_unique($findings));
+    }
+
+    /**
+     * The example's values that say nothing about the key they sit under: empty when every value
+     * tells a reader what belongs there.
+     *
+     * The example is the shape a reader copies, so the text of a value is the only instruction its
+     * key gets. Three ways it stops being one, and each is a different failure rather than a
+     * spelling of the same one: a value written as an angle-bracket token, which is a string that
+     * copies and stays — the brackets are the value, and a machine file built from it records an
+     * instruction where a path belongs; a stock word that would fit under any key, which is the
+     * token with its brackets taken off; and one text written under two keys, which cannot be about
+     * either, because a sentence that answers both is a sentence about neither. An empty value is
+     * the fourth: a key shown with nothing to put in it.
+     *
+     * What this does not hold is whether a sentence is *true*: a value that names the wrong fact in
+     * good prose reads the same here as the right one. That is a claim about this machine, and this
+     * file is a shape rather than a record.
+     *
+     * Each finding names the dotted path as well as the line, because two keys in the example are
+     * called `exe` and a line alone cannot tell one from the other; the text it quotes is the one a
+     * reader has to replace, which is what makes it findable.
+     *
+     * @return list<string>
+     */
+    public static function generic(string $root): array
+    {
+        $source = self::source(self::root($root), self::EXAMPLE);
+        $written = [];
+        $findings = [];
+
+        self::vague(self::seeded($root), '', $source, $written, $findings);
+
+        return $findings;
+    }
+
+    /**
+     * One node of the example, judged by the text a reader would copy out of it.
+     *
+     * Arrays are walked rather than judged, because a list's shape is how many entries it has and
+     * what one of them says — the element's own text is the placeholder. A key is judged only for
+     * the token it is written as: a key that names a tool or a nested section is a name, and two
+     * sections legitimately share one such as `exe`.
+     *
+     * @param  array<string, string>  $written  the text already used, against the path that used it
+     * @param  list<string>  $findings
+     */
+    private static function vague(mixed $node, string $path, string $source, array &$written, array &$findings): void
+    {
+        if (is_array($node)) {
+            foreach ($node as $key => $child) {
+                // A list's elements are numbered rather than named, and the index is not part of
+                // what a reader is told: one entry of `skills.dirs` is one skill's target.
+                if (is_int($key)) {
+                    self::vague($child, $path.'[]', $source, $written, $findings);
+
+                    continue;
+                }
+
+                $here = $path === '' ? $key : $path.'.'.$key;
+
+                if (str_contains($key, '<') || str_contains($key, '>')) {
+                    $findings[] = sprintf(
+                        '%s:%d: the key `%s` is written as an angle-bracket token, and a reader copying the file gets a key no tool looks for — name the thing it stands for.',
+                        self::EXAMPLE,
+                        self::lineOfText($source, '"'.$key.'"'),
+                        $here,
+                    );
+                }
+
+                self::vague($child, $here, $source, $written, $findings);
+            }
+
+            return;
+        }
+
+        if (! is_string($node)) {
+            return;
+        }
+
+        $text = trim($node);
+
+        if ($text === '') {
+            $findings[] = sprintf(
+                '%s: `%s` holds nothing, and a key with nothing under it is a heading rather than a value — say what belongs here.',
+                self::EXAMPLE,
+                $path,
+            );
+
+            return;
+        }
+
+        if (str_contains($text, '<') || str_contains($text, '>')) {
+            $findings[] = sprintf(
+                '%s:%d: `%s` is written as `%s`, an angle-bracket token that copies as it stands — the brackets become the value, so say what belongs there instead.',
+                self::EXAMPLE,
+                self::lineOfText($source, $text),
+                $path,
+                $text,
+            );
+        }
+
+        if (in_array(strtolower($text), self::STOCK, true)) {
+            $findings[] = sprintf(
+                '%s:%d: `%s` is `%s`, a word that fits any key in this file — it says what kind of value goes there rather than what this one records.',
+                self::EXAMPLE,
+                self::lineOfText($source, '"'.$text.'"'),
+                $path,
+                $text,
+            );
+        }
+
+        if (isset($written[$text])) {
+            $findings[] = sprintf(
+                '%s:%d: `%s` repeats the text written for `%s`, and a sentence that answers both keys is a sentence about neither — each one says what its own value is.',
+                self::EXAMPLE,
+                self::lineOfText($source, $text),
+                $path,
+                $written[$text],
+            );
+
+            return;
+        }
+
+        $written[$text] = $path;
+    }
+
+    /**
+     * The line a text is written on, for a finding that has to point at one.
+     *
+     * The first line holding it, which is enough here because a placeholder that is not unique is a
+     * finding of its own: the duplicate is named with both paths, and the line is the first of them.
+     * A text that is nowhere reads as line 1 rather than as a refusal — the finding is about a value
+     * the file does not hold, and pointing at where it would have been written is the useful answer.
+     */
+    private static function lineOfText(string $source, string $text): int
+    {
+        foreach (explode("\n", $source) as $index => $line) {
+            if (str_contains($line, $text)) {
+                return $index + 1;
+            }
+        }
+
+        return 1;
     }
 
     /**

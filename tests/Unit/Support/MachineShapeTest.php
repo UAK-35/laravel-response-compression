@@ -30,7 +30,7 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 /**
  * @guards-index guard the machine-file shape
  *
- * the shape a fresh clone is opened with — `.agents/machine.local.json.example`, the committed shape a reader copies, and the sections `python .agents/render_local.py --init` writes — held to each other: a section declared in one and missing from the other, a key `--init` writes that the example shows nowhere, a section the example shows that no fresh clone receives, a token whose value `--init` never writes, and the sections a machine file has recorded nothing in — which `--check` names rather than letting the file read as complete
+ * the shape a fresh clone is opened with — `.agents/machine.local.json.example`, the committed shape a reader copies, and the sections `python .agents/render_local.py --init` writes — held to each other: a section declared in one and missing from the other, a key `--init` writes that the example shows nowhere, a section the example shows that no fresh clone receives, a token whose value `--init` never writes, and the sections a machine file has recorded nothing in — which `--check` names rather than letting the file read as complete — and the placeholder text of the values themselves, held to the key each one sits under rather than left as a token that fits any key: an angle-bracket string, a stock word, and one sentence written under two keys
  */
 it('holds the committed example to the shape the renderer declares, and reports nothing where the two agree', function (): void {
     $root = str_replace('\\', '/', packageRoot());
@@ -47,7 +47,10 @@ it('holds the committed example to the shape the renderer declares, and reports 
         ->and(count($sections))->toBeGreaterThan(10)
         ->and($example)->toHaveKeys(array_keys($sections))
         ->and(MachineShape::tokens($root))->toHaveKeys(['__PHP_EXE__', '__PWSH_EXE__'])
-        ->and(MachineShape::stale($root))->toBe([]);
+        ->and(MachineShape::stale($root))->toBe([])
+        // And the text of the values: a reader copies this file, so every placeholder has to say what
+        // belongs under its own key rather than being a token that would fit under any of them.
+        ->and(MachineShape::generic($root))->toBe([]);
 });
 
 it('reads the shape out of the renderer rather than keeping a copy of it', function (): void {
@@ -205,6 +208,47 @@ it('leaves the record sections alone, because the renderer declares no keys for 
     $tree->write(MachineShape::EXAMPLE, machineShapeJson($thinned));
 
     expect(implode(PHP_EOL, MachineShape::stale($tree->path)))->not->toContain('origin');
+});
+
+it('names the placeholder text that says nothing about the key it sits under', function (): void {
+    // The example is copied and filled in, so a value's text is the only instruction its key gets.
+    // Three failures, planted one at a time: an angle-bracket token, which is a string a reader can
+    // copy and leave — the brackets become the value, and a machine file records an instruction as a
+    // fact; a stock word, which is the same token with the brackets taken off; and one sentence under
+    // two keys, which cannot be about either. Each is asked on its own tree, because a reading that
+    // caught only the first would still be green on the two beside it.
+    $bracketed = machineShapeTree();
+    $shape = MachineShape::seeded(packageRoot());
+    $php = is_array($shape['php'] ?? null) ? $shape['php'] : [];
+    $php['exe'] = '<absolute path to php.exe>';
+    $shape['php'] = $php;
+    $bracketed->write(MachineShape::EXAMPLE, machineShapeJson($shape));
+
+    expect(implode(PHP_EOL, MachineShape::generic($bracketed->path)))
+        ->toContain('`php.exe` is written as `<absolute path to php.exe>`');
+
+    $stocky = machineShapeTree();
+    $shape = MachineShape::seeded(packageRoot());
+    $checks = is_array($shape['checks'] ?? null) ? $shape['checks'] : [];
+    $checks['count'] = 'value';
+    $shape['checks'] = $checks;
+    $stocky->write(MachineShape::EXAMPLE, machineShapeJson($shape));
+
+    expect(implode(PHP_EOL, MachineShape::generic($stocky->path)))
+        ->toContain('`checks.count` is `value`');
+
+    $shared = machineShapeTree();
+    $shape = MachineShape::seeded(packageRoot());
+    $python = is_array($shape['python'] ?? null) ? $shape['python'] : [];
+    $composer = is_array($shape['composer'] ?? null) ? $shape['composer'] : [];
+    $python['version'] = 'the version it reports';
+    $composer['version'] = 'the version it reports';
+    $shape['python'] = $python;
+    $shape['composer'] = $composer;
+    $shared->write(MachineShape::EXAMPLE, machineShapeJson($shape));
+
+    expect(implode(PHP_EOL, MachineShape::generic($shared->path)))
+        ->toContain('`composer.version` repeats the text written for `python.version`');
 });
 
 it('refuses a tree it cannot read the shape or the program out of', function (): void {

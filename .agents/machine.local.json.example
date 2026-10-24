@@ -1,77 +1,78 @@
 {
     "php": {
-        "exe": "<absolute path to php.exe>",
-        "dir": "<the directory containing php.exe>"
+        "exe": "the absolute path to this machine's PHP binary, which `--init` writes from the answer it is handed",
+        "dir": "the directory holding that binary, which `__PHP_DIR__` resolves to when this key is absent"
     },
     "pwsh": {
-        "exe": "<absolute path to pwsh.exe>"
+        "exe": "the absolute path to PowerShell 7 on this machine, `pwsh.exe` on Windows"
     },
     "package": {
-        "dir": "<absolute path to this checkout - the repository root>"
+        "dir": "the absolute path to this checkout, which `__PACKAGE_DIR__` resolves to"
     },
     "python": {
-        "exe": "<absolute path to the python 3 the agentic checks run under>",
-        "version": "<the version it reports>",
-        "onPath": "<true when `python` resolves to it>"
+        "exe": "the absolute path to the Python 3 the agentic checks and the two generators beside them run under",
+        "version": "what that interpreter prints for `--version`, such as `3.12.4`",
+        "onPath": "`true` when `python` on PATH is that interpreter, `false` when it is another"
     },
     "composer": {
-        "phar": "<the path to composer.phar beside composer.json, when there is one>",
-        "version": "<the version it reports>",
-        "onPath": "<true when `composer` resolves on PATH>",
-        "gitignored": "<true when a commit would not carry it>"
+        "phar": "the path to `composer.phar` beside `composer.json`, when the package manager is that file",
+        "version": "what `composer --version` prints for that phar, such as `2.8.4`",
+        "onPath": "`true` when `composer` resolves on PATH, `false` when only the phar does",
+        "gitignored": "`true` when a commit would not carry that phar, which is what `composer.json` ignores"
     },
     "git": {
-        "origin": "<the URL this checkout pushes to>",
-        "commitGpgSign": "<true when every commit here is signed>",
-        "userSigningKey": "<the key commits are signed with>",
-        "hooksPath": "<the directory the hook runs from>",
-        "coreAutocrlf": "<true when this machine rewrites line endings on checkout>",
-        "coreEol": "<the line ending git writes, when it is pinned>",
-        "attributes": "<what .gitattributes says about line endings>",
+        "origin": "the URL this checkout pushes to, as `git remote get-url origin` prints it",
+        "commitGpgSign": "`true` when every commit here is signed, as `commit.gpgSign` records it",
+        "userSigningKey": "the key id those commits are signed with, as `user.signingkey` names it",
+        "hooksPath": "the directory the hook runs from, as `core.hooksPath` points at it",
+        "coreAutocrlf": "`true` when this machine rewrites line endings on checkout, as `core.autocrlf` records it",
+        "coreEol": "`lf` or `crlf` when `core.eol` pins the ending git writes, and empty when it does not",
+        "attributes": "what `.gitattributes` says about endings, such as `* text=auto eol=lf`",
         "lineEndings": {
-            "blobs": "<the ending every blob in the repository holds>",
-            "worktree": "<the ending this machine's files are written with>"
+            "blobs": "the ending every blob in the repository holds, after the attributes are applied",
+            "worktree": "the ending files are written with here, which is what Pint reads"
         }
     },
     "search": {
-        "rgExe": "<absolute path to ripgrep, which the rules name as the search utility>",
-        "rgVersion": "<the version it reports>",
-        "rgOnPath": "<true when `rg` resolves to it>"
+        "rgExe": "the absolute path to ripgrep, the search utility `AGENTS.md` names",
+        "rgVersion": "what `rg --version` prints for that binary, such as `14.1.1`",
+        "rgOnPath": "`true` when `rg` on PATH is that binary, `false` when it is another install"
     },
     "skills": {
         "index": ".agents/README.md",
-        "dirs": ["<each generated skill target under .agents/skills/>"]
+        "dirs": ["the path of one generated skill target, one entry per skill, such as `.agents/skills/package-dev`"]
     },
     "checks": {
-        "list": "<the command that prints them>",
-        "count": "<how many the gate runs>",
-        "names": ["<each check, in the order bin/checks.php declares them>"],
-        "gate": "<the command CI and a release use>",
-        "staged": "<the command the pre-commit hook runs>",
-        "coverageFloor": "<the command that holds the floors>"
+        "list": "the command that prints the checks, `bin/checks.php --list`",
+        "count": "an integer: how many checks one run starts, `11` on this repository",
+        "names": ["one check's name in the order `bin/checks.php` declares them, starting with `syntax`"],
+        "gate": "the command CI and a release run, `composer checks -- --require-all`",
+        "staged": "the command the pre-commit hook runs, `bin/checks.php --staged`",
+        "coverageFloor": "the command that holds the coverage floors, `composer test:unit`"
     },
     "tools": {
-        "<each tool bin/tool-paths.php pins>": "<the version it is pinned at>"
+        "phpstan": "the version `bin/tool-paths.php` pins it at, which is what `composer.lock` installs",
+        "pint": "the version `bin/tool-paths.php` pins it at, which is what the style pass runs"
     },
     "style": {
-        "config": "<the style configuration>",
-        "preset": "<the preset it applies>",
-        "command": "<the command that checks it>",
-        "notPath": ["<paths the style check leaves alone>"]
+        "config": "Pint's configuration, `pint.json` here",
+        "preset": "the preset those rules apply, `laravel` here",
+        "command": "the command that checks the style without writing, `composer test:lint`",
+        "notPath": ["one path the style check leaves alone, such as `vendor`"]
     },
     "staticAnalysis": {
-        "config": "<the analyser's configuration>",
-        "level": "<the level it analyses at>",
-        "paths": ["<what it analyses>"],
-        "phpVersion": "<the PHP floor it is held to>"
+        "config": "PHPStan's configuration, `phpstan.neon.dist` here",
+        "level": "the level it analyses at, `max` here",
+        "paths": ["one path the analyser reads, `src` among them"],
+        "phpVersion": "the PHP floor it is held to, written as `80400` for 8.4"
     },
     "tarball": {
-        "entries": "<how many paths an installed package receives>",
-        "carries": ["<what ships>"],
-        "leavesOut": ["<what is left out, the export-ignore list>"]
+        "entries": "an integer: how many paths an installed package receives",
+        "carries": ["one path that ships, such as `src`"],
+        "leavesOut": ["one path an export-ignore rule leaves out, such as `tests`"]
     },
     "envVars": {
-        "packageReads": ["<each variable the published config reads>"],
-        "toolingReads": ["<each variable this checkout's own tooling reads>"]
+        "packageReads": ["one variable the published config reads, such as `RESPONSE_COMPRESSION_ENABLED`"],
+        "toolingReads": ["one variable this checkout's own tooling reads, such as `RESPONSE_COMPRESSION_PHP`"]
     }
 }

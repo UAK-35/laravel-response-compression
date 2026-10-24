@@ -721,6 +721,28 @@ final class MutationHarness
                 'read' => MachineShape::stale(...),
             ],
             [
+                'guard' => 'the machine-file shape, on the text a reader copies',
+                'test' => 'tests/Unit/Support/MachineShapeTest.php',
+                'plant' => static function (string $root): string {
+                    // The convention every value in the example was written in before it was held to
+                    // the key above it: an angle-bracket token. It is the one break here that a
+                    // reader pays for twice — the file copies as it stands, and the value left in
+                    // place is an instruction the machine file then records as a fact.
+                    self::replace($root, MachineShape::EXAMPLE, static function (string $text): string {
+                        $shape = json_decode($text, true);
+                        $shape = is_array($shape) ? $shape : [];
+                        $php = is_array($shape['php'] ?? null) ? $shape['php'] : [];
+                        $php['exe'] = '<absolute path to php.exe>';
+                        $shape['php'] = $php;
+
+                        return json_encode($shape, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
+                    });
+
+                    return '`php.exe` is written as `<absolute path to php.exe>`';
+                },
+                'read' => MachineShape::generic(...),
+            ],
+            [
                 'guard' => "the handoff's state section, on the ending it says the writer cannot use",
                 'test' => 'tests/Unit/Support/HandoffStateTest.php',
                 'plant' => static function (string $root): string {
