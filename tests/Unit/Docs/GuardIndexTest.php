@@ -262,16 +262,21 @@ it('reads a checkout whose line endings are CRLF, which is what Windows writes',
     expect(GuardIndex::drift($root))->toBe([]);
 });
 
-it('names the file when a row and the directory stop agreeing', function (): void {
+it('names the file and the line when a row and the directory stop agreeing', function (): void {
     $tree = guardIndexTree();
     $root = $tree['root'];
+
+    // The findings below are asserted on `path:line`, and the line is the `@guards-index` one in
+    // the header `guardIndexHeader()` writes: `<?php`, a blank, the `declare`, a second blank, the
+    // opening `/**`, the sentence, the ` *`, and the tag — the eighth. A finding that named the
+    // file alone would send a reader to the top of a file instead of to the line that decides it.
 
     // A file the document has no row for: the guard that arrived unrecorded, which is the one
     // thing the index cannot do for itself.
     guardIndexWrite($root, 'tests/Support/Four.php', guardIndexHeader('A reading nobody listed', 'reading'));
 
     expect(implode(PHP_EOL, GuardIndex::drift($root)))
-        ->toContain('tests/Support/Four.php')
+        ->toContain('tests/Support/Four.php:8')
         ->toContain('is in neither list');
 
     unlink($root.'/tests/Support/Four.php');
@@ -281,19 +286,23 @@ it('names the file when a row and the directory stop agreeing', function (): voi
     guardIndexWrite($root, 'tests/Support/One.php', guardIndexHeader('A reading the guards are built from, reworded', 'reading'));
 
     expect(implode(PHP_EOL, GuardIndex::drift($root)))
-        ->toContain('tests/Support/One.php')
+        ->toContain('tests/Support/One.php:8')
         ->toContain('reworded');
 
     // The file that moved to the other list, which is membership rather than presence.
     guardIndexWrite($root, 'tests/Support/One.php', guardIndexHeader('A reading the guards are built from', 'support'));
 
     expect(implode(PHP_EOL, GuardIndex::drift($root)))
+        ->toContain('tests/Support/One.php:8')
         ->toContain('is listed under `## The readings the guards are built from`, and the file says it is a support');
 
-    // A row for a file the directory does not have: the other end of the same disagreement.
+    // A row for a file the directory does not have: the other end of the same disagreement, and
+    // the one finding with no line in it — there is no declaration left to point at.
     unlink($root.'/tests/Support/One.php');
 
-    expect(implode(PHP_EOL, GuardIndex::drift($root)))->toContain('the directory has no such file');
+    expect(implode(PHP_EOL, GuardIndex::drift($root)))
+        ->toContain('the directory has no such file')
+        ->toContain('the row naming tests/Support/One.php is');
 
     // And the same rows in the wrong order, which is the one difference a reading that compared
     // the two as sets would answer with nothing.
@@ -305,7 +314,39 @@ it('names the file when a row and the directory stop agreeing', function (): voi
         (string) file_get_contents($tree['document']),
     ));
 
-    expect(implode(PHP_EOL, GuardIndex::drift($root)))->toContain('are not in the order');
+    expect(implode(PHP_EOL, GuardIndex::drift($root)))
+        ->toContain('are not in the order')
+        ->toContain('tests/Support/One.php:8 first');
+});
+
+it('names the line a guard row has drifted from, and not only its file', function (): void {
+    $tree = guardIndexTree();
+    $root = $tree['root'];
+    $document = (string) file_get_contents($tree['document']);
+
+    // Line 6 of the test `guardIndexGuard()` writes: `<?php`, a blank, the `declare`, a second
+    // blank, the opening `/**`, and the tag. The row is still there and still links the file, so
+    // the line the declaration is on is the only thing that says where to look.
+    guardIndexWrite($root, 'docs/guards.md', str_replace(
+        'a break the planted guard catches',
+        'a break the document still carries',
+        $document,
+    ));
+
+    expect(implode(PHP_EOL, GuardIndex::drift($root)))
+        ->toContain('tests/Unit/OneTest.php:6')
+        ->toContain('a break the planted guard catches');
+
+    // And the link, which is the other half: the guard's name is unchanged, so the table has a row
+    // and the tree has a declaration, and the two have stopped agreeing about where it is.
+    guardIndexWrite($root, 'docs/guards.md', str_replace(
+        '[`../tests/Unit/OneTest.php`](../tests/Unit/OneTest.php)',
+        '[`../tests/Unit/MovedTest.php`](../tests/Unit/MovedTest.php)',
+        $document,
+    ));
+
+    expect(implode(PHP_EOL, GuardIndex::drift($root)))
+        ->toContain('the guard is declared in tests/Unit/OneTest.php:6');
 });
 
 it('writes the two tables back from the directory, and a second pass changes nothing', function (): void {
@@ -380,7 +421,7 @@ it('refuses a test that says nothing, and names a guard the table has no row for
     expect(implode(PHP_EOL, GuardIndex::drift($root)))
         ->toContain('no row declares the guard')
         ->toContain('a guard nobody recorded')
-        ->toContain('tests/Unit/LonelyTest.php');
+        ->toContain('tests/Unit/LonelyTest.php:6');
 
     // A test that declares itself a test of the code needs nothing more: the table is not about it.
     guardIndexWrite($root, 'tests/Unit/PlainTest.php', guardIndexTestFile('A test of the code', 'test'));
@@ -446,8 +487,10 @@ it('is the same reading as a command, and the command writes the document it rep
 
     $drifted = $repo->script('bin/index.php', '--check');
 
+    // The line, and not only the file: what `--check` prints is what a reader acts on, so the
+    // `path:line` the reading computes is what this asserts the command reported.
     expect($drifted->exitCode)->toBe(1)
-        ->and($drifted->error)->toContain('tests/Support/Four.php')
+        ->and($drifted->error)->toContain('tests/Support/Four.php:8')
         ->and($drifted->error)->toContain('bin/index.php')
         ->and($drifted->output)->toBe('')
         ->and($repo->read('docs/guards.md'))->toBe($before);

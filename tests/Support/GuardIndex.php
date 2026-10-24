@@ -454,18 +454,7 @@ final class GuardIndex
      */
     public static function rendered(string $root): array
     {
-        /** @var array<string, array<string, string>> $rows */
-        $rows = [];
-
-        foreach (array_keys(self::LISTS) as $section) {
-            $rows[$section] = [];
-        }
-
-        foreach (self::declared($root) as $file => $entry) {
-            $rows[$entry['section']][$file] = $entry['summary'];
-        }
-
-        return $rows;
+        return self::renderedDeclared(self::declared($root));
     }
 
     /**
@@ -651,13 +640,7 @@ final class GuardIndex
      */
     public static function guardRendered(string $root): array
     {
-        $rows = [];
-
-        foreach (self::guardRows($root) as $name => $row) {
-            $rows[$name] = ['catches' => $row['catches'], 'where' => self::linkTo($row['file'])];
-        }
-
-        return $rows;
+        return self::renderedRows(self::guardRows($root));
     }
 
     /**
@@ -693,7 +676,10 @@ final class GuardIndex
 
         self::guards($root);
 
-        $expected = self::guardRendered($root);
+        // The rows as the files declare them, read once: the document's half is compared through
+        // `renderedRows()` and every finding about a declaration points at the line it is on.
+        $rows = self::guardRows($root);
+        $expected = self::renderedRows($rows);
         $listed = self::guardListed($markdown);
         $findings = [];
 
@@ -703,7 +689,7 @@ final class GuardIndex
                     '%s: no row declares the guard `%s`, which %s declares. A guard is declared where it lives, so the table is a rendering of the files.',
                     self::DOCUMENT,
                     $name,
-                    $row['where'],
+                    self::at($rows[$name]['file'], $rows[$name]['line']),
                 );
             }
         }
@@ -725,10 +711,11 @@ final class GuardIndex
 
             if ($listed[$name]['catches'] !== $row['catches']) {
                 $findings[] = sprintf(
-                    '%s: the row for `%s` says "%s", and the file declares "%s".',
+                    '%s: the row for `%s` says "%s", and %s declares "%s".',
                     self::DOCUMENT,
                     $name,
                     $listed[$name]['catches'],
+                    self::at($rows[$name]['file'], $rows[$name]['line']),
                     $row['catches'],
                 );
             }
@@ -739,7 +726,7 @@ final class GuardIndex
                     self::DOCUMENT,
                     $name,
                     $listed[$name]['where'],
-                    $row['where'],
+                    self::at($rows[$name]['file'], $rows[$name]['line']),
                 );
             }
         }
@@ -754,10 +741,13 @@ final class GuardIndex
         sort($sortedListed);
 
         if ($sortedExpected === $sortedListed && $expectedNames !== $listedNames) {
+            $first = (string) ($expectedNames[0] ?? '');
+
             $findings[] = sprintf(
-                '%s: the guards are not in the order the files declare them in — `%s` first.',
+                '%s: the guards are not in the order the files declare them in — `%s` first, declared at %s.',
                 self::DOCUMENT,
-                (string) ($expectedNames[0] ?? ''),
+                $first,
+                isset($rows[$first]) ? self::at($rows[$first]['file'], $rows[$first]['line']) : $first,
             );
         }
 
@@ -770,7 +760,9 @@ final class GuardIndex
      * all of them agree.
      *
      * Every finding names the file it is about, or the table, so that a document which has stopped
-     * being a rendering of the tree cannot be read as an answer of "nothing is wrong".
+     * being a rendering of the tree cannot be read as an answer of "nothing is wrong". A finding
+     * about a declaration names the line it is on as well as the file: the line is what the reading
+     * already computes, and a path alone is a file to search in rather than a place to look.
      *
      * @return list<string>
      */
@@ -800,7 +792,16 @@ final class GuardIndex
      */
     public static function lists(string $root, string $markdown): array
     {
-        return self::compare(self::rendered($root), self::listed($root, $markdown));
+        $root = self::root($root);
+        $declared = self::declared($root);
+
+        // Read once for both halves of an answer: the words a row carries, and the line each file
+        // declares itself on, which is where a finding about that row points.
+        return self::compare(
+            self::renderedDeclared($declared),
+            self::listed($root, $markdown),
+            array_map(static fn (array $entry): int => $entry['line'], $declared),
+        );
     }
 
     /**
@@ -828,6 +829,53 @@ final class GuardIndex
         $rewritten = implode("\n", $lines);
 
         return $eol === "\n" ? $rewritten : str_replace("\n", "\r\n", $rewritten);
+    }
+
+    /**
+     * What the two tables in the document would say, from declarations already read.
+     *
+     * Split from the walk for the reader that needs both halves of one pass: `lists()` compares
+     * through this and points at the line each file declares itself on, and the declarations are
+     * the expensive part of either answer.
+     *
+     * @param  array<string, array{file: string, section: string, summary: string, line: int}>  $declarations
+     * @return array<string, array<string, string>> the section, then the file, then the words
+     */
+    private static function renderedDeclared(array $declarations): array
+    {
+        /** @var array<string, array<string, string>> $rows */
+        $rows = [];
+
+        foreach (array_keys(self::LISTS) as $section) {
+            $rows[$section] = [];
+        }
+
+        foreach ($declarations as $file => $entry) {
+            $rows[$entry['section']][$file] = $entry['summary'];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * The guards table's rows as the document writes them, from rows already declared.
+     *
+     * Split from the walk for the reading that needs both answers: `guardDrift()` compares through
+     * this and points at the line each row is declared on, and asking the tree twice for one pass
+     * would read every file a commit carries twice for the same bytes.
+     *
+     * @param  array<string, array{name: string, catches: string, file: string, line: int}>  $rows
+     * @return array<string, array{catches: string, where: string}>
+     */
+    private static function renderedRows(array $rows): array
+    {
+        $rendered = [];
+
+        foreach ($rows as $name => $row) {
+            $rendered[$name] = ['catches' => $row['catches'], 'where' => self::linkTo($row['file'])];
+        }
+
+        return $rendered;
     }
 
     /**
@@ -982,6 +1030,18 @@ final class GuardIndex
     }
 
     /**
+     * A file a declaration is in, and the line the declaration is on — `path:line`.
+     *
+     * The form a terminal prints and an editor opens, which is the whole reason the line travels
+     * with the path: a finding that names only the file leaves the reader to search a document of
+     * several hundred rows for the row that is wrong.
+     */
+    private static function at(string $file, int $line): string
+    {
+        return $file.':'.$line;
+    }
+
+    /**
      * The table under one heading, swapped for the rows a rendering produced.
      *
      * @param  list<string>  $lines
@@ -1040,9 +1100,10 @@ final class GuardIndex
      *
      * @param  array<string, array<string, string>>  $expected
      * @param  array<string, array{header: list<string>, rows: array<string, string>}>  $listed
+     * @param  array<string, int>  $lines  the line each file declares itself on, by path
      * @return list<string>
      */
-    private static function compare(array $expected, array $listed): array
+    private static function compare(array $expected, array $listed, array $lines): array
     {
         $findings = [];
 
@@ -1059,7 +1120,7 @@ final class GuardIndex
         }
 
         foreach (self::files($expected, $listed) as $file) {
-            $findings = [...$findings, ...self::about($file, $expected, $listed)];
+            $findings = [...$findings, ...self::about($file, $expected, $listed, $lines)];
         }
 
         foreach (self::LISTS as $section => $list) {
@@ -1067,11 +1128,13 @@ final class GuardIndex
             $want = array_keys($expected[$section]);
 
             if ($held !== $want && array_diff($held, $want) === [] && array_diff($want, $held) === []) {
+                $first = (string) ($want[0] ?? '');
+
                 $findings[] = sprintf(
-                    '%s: the rows under `%s` are not in the order the directory lists them in — `%s` first.',
+                    '%s: the rows under `%s` are not in the order the directory lists them in — %s first.',
                     self::DOCUMENT,
                     $list['heading'],
-                    (string) ($want[0] ?? ''),
+                    isset($lines[$first]) ? self::at($first, $lines[$first]) : $first,
                 );
             }
         }
@@ -1105,13 +1168,17 @@ final class GuardIndex
      *
      * @param  array<string, array<string, string>>  $expected
      * @param  array<string, array{header: list<string>, rows: array<string, string>}>  $listed
+     * @param  array<string, int>  $lines  the line each file declares itself on, by path
      * @return list<string>
      */
-    private static function about(string $file, array $expected, array $listed): array
+    private static function about(string $file, array $expected, array $listed, array $lines): array
     {
         $declares = array_key_exists($file, $expected['reading']) ? 'reading' : 'support';
         $wanted = $expected[$declares][$file] ?? null;
         $holds = [];
+        // The file and the line its declaration is on, for the findings that are about a file the
+        // tree has: a row is easy to find and the header it quotes is not.
+        $at = isset($lines[$file]) ? self::at($file, $lines[$file]) : $file;
 
         foreach (array_keys(self::LISTS) as $section) {
             if (array_key_exists($file, $listed[$section]['rows'])) {
@@ -1143,7 +1210,7 @@ final class GuardIndex
             return [sprintf(
                 '%s: %s declares itself a %s and is in neither list.',
                 self::DOCUMENT,
-                $file,
+                $at,
                 $declares,
             )];
         }
@@ -1152,7 +1219,7 @@ final class GuardIndex
             return [sprintf(
                 '%s: %s is listed under `%s`, and the file says it is a %s.',
                 self::DOCUMENT,
-                $file,
+                $at,
                 self::LISTS[$holds[0]]['heading'],
                 $declares,
             )];
@@ -1162,7 +1229,7 @@ final class GuardIndex
             return [sprintf(
                 '%s: the row for %s says "%s", and the file\'s own first sentence says "%s".',
                 self::DOCUMENT,
-                $file,
+                $at,
                 $listed[$declares]['rows'][$file],
                 $wanted,
             )];
