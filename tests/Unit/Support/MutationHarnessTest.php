@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Uak35\ResponseCompression\Tests\Support\MachinePaths;
 use Uak35\ResponseCompression\Tests\Support\MutationHarness;
 use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
+use Uak35\ResponseCompression\Tests\Support\RepoEscapes;
 
 /*
 |--------------------------------------------------------------------------
@@ -87,6 +88,42 @@ it('plants this package\'s own work, and leaves a spill from the checkout beside
         ->toContain('own-note.md')
         ->not->toContain('spill.machine.json')
         ->not->toContain('spill-script.md');
+});
+
+it('plants a clean tree from a checkout that carries a spill, and the checkout itself is still named', function (): void {
+    // The rule above answers with a listing. This is the end of it: a checkout that carries a spill
+    // is what the harness plants from when this folder has been spilled into, and the two answers
+    // that have to differ for a hold to be worth anything are taken on the trees themselves — the
+    // readings name the spill on the checkout that carries it, and the copy planted from it is
+    // whole. The first half is not decoration: an exclusion applied to every untracked file would
+    // satisfy the second by copying nothing the tree had not committed, and would take this
+    // package's own uncommitted work with it.
+    //
+    // A fixture checkout rather than this one, because a test that wrote a spill into this checkout
+    // to prove it would be the spill. The drive path and the climb are assembled for the reason the
+    // test above assembles them: this file is a file a commit would carry.
+    $drive = 'C:'.'/tools/php/php.exe';
+    $climb = '..'.'/'.'../sibling/notes.md';
+
+    $repo = ReleaseRepo::make();
+    $repo->write('own-note.md', "# A note this package wrote\n");
+    $repo->write('spill.machine.json', json_encode(['php' => $drive])."\n");
+    $repo->write('spill-script.md', 'See [the package next door]('.$climb.')'."\n");
+
+    expect(array_column(MachinePaths::scan($repo->path)['found'], 'file'))->toContain('spill.machine.json')
+        ->and(array_column(RepoEscapes::scan($repo->path)['found'], 'file'))->toContain('spill-script.md');
+
+    $planted = MutationHarness::tree($repo->path);
+    $files = MachinePaths::files($planted);
+
+    // The copy is checked for substance before its readings are believed, and the note this
+    // package wrote is checked for separately: it is untracked in the checkout being copied, so a
+    // listing that kept only what git had committed would satisfy every claim about the spill and
+    // still plant a tree short of the work the holds read.
+    expect($files)->toContain('composer.json')
+        ->toContain('own-note.md')
+        ->and(MachinePaths::scan($planted)['found'])->toBe([])
+        ->and(RepoEscapes::scan($planted)['found'])->toBe([]);
 });
 
 it('carries every guard it holds in a file of its own, one guard each', function (): void {

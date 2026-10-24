@@ -176,21 +176,30 @@ final class MutationHarness
 
     /**
      * The copy of this checkout every mutation is planted in, made once per process.
+     *
+     * The source is an argument so a test can ask the planting rule of a checkout it built — one
+     * that carries a spill, without writing one into this checkout — and read the copy the same way
+     * a hold does. A copy planted from anywhere else is not the tree the mutations go into, so it is
+     * not kept: `restore()` and every hold mean the one this package's own listing produced, and a
+     * second one cached under that name would be read by the next hold as if it were.
      */
-    public static function tree(): string
+    public static function tree(?string $from = null): string
     {
-        if (self::$tree !== null) {
+        $cached = $from === null;
+
+        if ($cached && self::$tree !== null) {
             return self::$tree;
         }
 
+        $from = rtrim(str_replace('\\', '/', $from ?? self::package()), '/');
         $root = sys_get_temp_dir().'/rc-mutation-'.bin2hex(random_bytes(6));
 
         self::makeDirectory($root);
 
-        foreach (self::carried() as $file) {
+        foreach (self::carried($from) as $file) {
             self::makeDirectory(dirname($root.'/'.$file));
 
-            if (! copy(self::package().'/'.$file, $root.'/'.$file)) {
+            if (! copy($from.'/'.$file, $root.'/'.$file)) {
                 throw new RuntimeException('Could not plant '.$file);
             }
         }
@@ -208,7 +217,7 @@ final class MutationHarness
             ReleaseRepo::remove($root);
         });
 
-        return self::$tree = $root;
+        return $cached ? self::$tree = $root : $root;
     }
 
     /**
