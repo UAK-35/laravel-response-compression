@@ -252,8 +252,9 @@ git config core.hooksPath .githooks   # once per clone: check what a commit carr
 ```
 
 A commit of a named set goes through `bin/commit.php`, which writes the changelog bullet, runs the
-staged checks and refuses an index that carries a path outside the set — the `package-commit` skill
-is the workflow around it.
+staged checks and refuses an index that carries a path outside the set — and a set whose paths all
+already hold what `HEAD` holds, which would otherwise commit a bullet describing work that is
+already in the history. The `package-commit` skill is the workflow around it.
 
 `composer checks` runs `bin/checks.php`, which is what CI runs and what to run before a
 release. It is eleven checks in one process: `php -l` over every PHP file, an independent

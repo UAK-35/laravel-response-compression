@@ -9,12 +9,13 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 | The commit path
 |--------------------------------------------------------------------------
 |
-| `bin/commit.php` is a named set with three promises: it carries exactly the paths it was told
-| about and nothing else, it writes the changelog bullet with the change, and it runs the staged
-| checks before it commits. Each test here puts the fixture in the state one of those promises is
-| about — a stray path in the index, a changelog with no Unreleased section, a failing gate — and
-| asserts the refusal, because a guard that only ever passes is a guard nobody can tell from one
-| that stopped looking.
+| `bin/commit.php` is a named set with four promises: it carries exactly the paths it was told
+| about and nothing else, it refuses a set that carries nothing of its own, it writes the changelog
+| bullet with the change, and it runs the staged checks before it commits. Each test here puts the
+| fixture in the state one of those promises is about — a stray path in the index, a set whose paths
+| are already what `HEAD` holds, a changelog with no Unreleased section, a failing gate — and asserts
+| the refusal, because a guard that only ever passes is a guard nobody can tell from one that
+| stopped looking.
 |
 | @guards-index test
 */
@@ -103,6 +104,81 @@ it('commits what is on disk rather than the copy that was staged', function (): 
     expect($run->exitCode)->toBe(0, $run->describe())
         ->and($committed)->toContain('// on disk')
         ->and($committed)->not->toContain('// staged');
+});
+
+it('refuses a named set whose paths already hold what HEAD has', function (): void {
+    $repo = commitFixture();
+    $head = trim($repo->git('rev-parse', 'HEAD'));
+    $before = $repo->read('CHANGELOG.md');
+
+    // The state this refusal exists for: the work is already committed, and the set names the files
+    // it left behind. Nothing in the tree is wrong, so every check the rest of this program runs
+    // would pass — and the one thing the commit would carry is the bullet it was asked to write,
+    // which is the changelog describing a change that is already in the history.
+    $run = $repo->script(
+        'bin/commit.php',
+        '-m', 'fix: a thing',
+        '--changelog', 'A thing.',
+        '--skip-checks',
+        '--', 'bin/commit.php',
+    );
+
+    expect($run->exitCode)->toBe(1)
+        ->and($run->refused('carries no change'))->toBeTrue()
+        ->and($run->refused('bin/commit.php'))->toBeTrue()
+        // A refusal that left the bullet behind would be worse than no guard: the changelog would
+        // hold an entry for a commit nobody made.
+        ->and($repo->read('CHANGELOG.md'))->toBe($before)
+        ->and(trim($repo->git('rev-parse', 'HEAD')))->toBe($head)
+        ->and(trim($repo->git('diff', '--cached', '--name-only')))->toBe('');
+
+    // And the set that names nothing but the changelog, which is the same state said the other way:
+    // the file is the one this program writes, so it cannot be the evidence that it should.
+    $alone = $repo->script(
+        'bin/commit.php',
+        '-m', 'fix: a thing',
+        '--changelog', 'A thing.',
+        '--skip-checks',
+        '--', 'CHANGELOG.md',
+    );
+
+    expect($alone->exitCode)->toBe(1)
+        ->and($alone->refused('CHANGELOG.md alone'))->toBeTrue()
+        ->and($repo->read('CHANGELOG.md'))->toBe($before);
+});
+
+it('commits a changelog edit of its own when no bullet is being written', function (): void {
+    $repo = commitFixture();
+    $before = $repo->read('CHANGELOG.md');
+
+    // `--no-changelog` is the caller saying the changelog is theirs this time, so an edit to it is
+    // evidence like any other path: a changelog fix is a commit, and a guard that refused it would
+    // be answering for more than the state it asks about.
+    $repo->write('CHANGELOG.md', $before."\n- A typo fixed.\n");
+
+    $run = $repo->script('bin/commit.php', '-m', 'docs: fix a typo', '--no-changelog', '--skip-checks', '--', 'CHANGELOG.md');
+
+    expect($run->exitCode)->toBe(0, $run->describe())
+        ->and($repo->git('show', 'HEAD:CHANGELOG.md'))->toContain('- A typo fixed.');
+});
+
+it('commits a set when one of its paths has moved', function (): void {
+    $repo = commitFixture();
+    $repo->write('src/Thing.php', "<?php\n\n// new\n");
+
+    // The guard asks whether *any* named path moved, not whether all of them did. `bin/commit.php`
+    // is named here and is untouched, and a file that stages nothing beside one that stages its
+    // content is an ordinary commit — the refusal is about a set that carries nothing at all.
+    $run = $repo->script(
+        'bin/commit.php',
+        '-m', 'feat: a thing',
+        '--changelog', 'A thing.',
+        '--skip-checks',
+        '--', 'bin/commit.php', 'src/Thing.php',
+    );
+
+    expect($run->exitCode)->toBe(0, $run->describe())
+        ->and($repo->git('show', '--name-only', '--format=', 'HEAD'))->toContain('src/Thing.php');
 });
 
 it('refuses a named set with no paths', function (): void {

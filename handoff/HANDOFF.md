@@ -445,11 +445,20 @@ git log --format='%h %G?' -5          # no `N` in the second column
    `file_put_contents` is reached, so a CRLF changelog is left exactly as it was found and nothing is
    staged. Four bullets were written into this checkout's LF changelog on 2026-10-11, one per commit
    of §5, and every one of them was written before its checks ran.
-4. **`bin/commit.php` will cut a commit whose named set stages nothing.** Today's eight groups would
-   have been eight such commits: paths named, zero lines, bullets describing work already recorded.
-   A guard is cheap and this exact confusion cost the thread real time: refuse when no named path's
-   staged blob differs from `HEAD`'s — the mechanism is already in the file (`git hash-object
-   --path`, or `git diff --cached --numstat`).
+4. ~~**`bin/commit.php` will cut a commit whose named set stages nothing.**~~ — **done, 2026-10-25**,
+   by the session that took this item. It was the eight groups that would have been eight such
+   commits: paths named, zero lines, bullets describing work already recorded. `carrying()` reads the
+   working tree against `HEAD` — `git diff --numstat HEAD` for a path the history has, `git ls-files
+   --others` for one it does not — **before** the bullet is written, so a refusal leaves the
+   changelog exactly as it found it, and a set that carries nothing exits 1 naming its paths. The
+   tree rather than the index, which is the one thing this item guessed differently: the program
+   stages from the filesystem, so a path staged and then restored to `HEAD`'s bytes stages nothing
+   while `git status` still calls it a change. `CommitTest` plants the state on a fixture whose work
+   is committed, and holds the other direction — an untouched path named beside a moved one still
+   commits — and a changelog edit named without a bullet, where the tool writes nothing to it, still
+   does. Measured: `CommitTest` 20 passed (67 assertions), `bin/commit.php` at 78.2% (197 of 252
+   lines) against its 70% floor under PCOV 1.0.12, and `bin/index.php --check` at exit 0 after the
+   guard's row was re-rendered.
 5. ~~**The root-cause decision, narrowed by item 1 and not settled by it.**~~ — **settled
    2026-10-10, on the third option: `eol=lf` pinned in `.gitattributes`.** The line is
    `* text=auto eol=lf` now, the guard row moved with it (`docs/guards.md` is rendered from the file

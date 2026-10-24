@@ -16,6 +16,12 @@ declare(strict_types=1);
  *     the whole index. So the first thing this does is read the index and refuse when it holds a
  *     path outside the named set — because a commit that quietly carries a stranger's work is the
  *     failure a named set is supposed to prevent.
+ *   - It refuses a set that **carries nothing**. A path whose content is what `HEAD` already holds
+ *     stages zero lines, and the one thing such a commit would publish is the changelog bullet this
+ *     program just wrote: work described a second time, in a commit with no change in it. That is
+ *     the state a set of paths reaches after the work has already been committed, which reads from
+ *     the outside exactly like a set that has not been committed yet — the files are there either
+ *     way, and only the history can say which.
  *   - It writes the **changelog bullet** with the change, under `## Unreleased`, in the section the
  *     change belongs to. A changelog entry written later is a changelog entry written from memory.
  *   - It runs the **staged checks** — `bin/checks.php --staged`, the same suite the pre-commit hook
@@ -32,14 +38,15 @@ declare(strict_types=1);
  * -----------
  *   0   the commit was made, or a `--dry-run`/`--list` reported a plan and wrote nothing
  *   1   nothing was committed: a named path was refused, the index carried a path outside the set,
- *       the changelog could not be written, or the staged checks failed
+ *       the named set carried no change, the changelog could not be written, or the staged checks
+ *       failed
  *   2   the command line itself was wrong
  */
 
 /**
  * @guards-index guard `bin/commit.php`
  *
- * a commit that carries a file it was not told about: the index is read before anything is staged and the commit refused when it holds a path outside the named set — and the changelog bullet is written and the staged checks run before the commit exists
+ * a commit that carries a file it was not told about, or carries nothing at all: the index is read before anything is staged and the commit refused when it holds a path outside the named set, a set whose every path already holds what HEAD holds is refused before the changelog bullet is written, and the bullet is written and the staged checks run before the commit exists
  */
 $root = dirname(__DIR__);
 
@@ -124,6 +131,55 @@ function staged(string $root): array
         explode("\0", $result['output']),
         static fn (string $path): bool => $path !== '',
     ));
+}
+
+/**
+ * The named paths whose content is not what `HEAD` holds, which is the set a commit of them would
+ * carry.
+ *
+ * The working tree is compared with `HEAD` rather than the index with it, because this program
+ * stages from the filesystem: a path whose staged copy moved and whose file was then put back to
+ * `HEAD`'s bytes stages nothing, and `git status` calls it a change. Two calls, because neither
+ * answers for both — `git diff` knows a tracked path that moved and says nothing about a file that
+ * is not in the history yet, and `git ls-files --others` is the list of exactly those.
+ * `--exclude-standard` is left off on purpose: a named path this repository's `.gitignore` holds is
+ * staged with `-f` a few lines below, so a rule about what a commit normally carries is not an
+ * answer to whether this one has anything in it.
+ *
+ * @param  list<string>  $paths
+ * @return list<string>
+ */
+function carrying(string $root, array $paths): array
+{
+    if ($paths === []) {
+        return [];
+    }
+
+    $carried = [];
+    $moved = git($root, 'diff', '--numstat', 'HEAD', '--', ...$paths);
+    $new = git($root, 'ls-files', '--others', '--', ...$paths);
+
+    // `numstat` is three tab-separated columns — added, deleted, path — and a binary file writes a
+    // dash in each count, so the path is the third column of every line.
+    if ($moved['exit'] === 0) {
+        foreach (preg_split('/\R/', $moved['output']) ?: [] as $line) {
+            $columns = explode("\t", $line, 3);
+
+            if (isset($columns[2]) && $columns[2] !== '') {
+                $carried[] = $columns[2];
+            }
+        }
+    }
+
+    if ($new['exit'] === 0) {
+        foreach (preg_split('/\R/', $new['output']) ?: [] as $line) {
+            if (trim($line) !== '') {
+                $carried[] = trim($line);
+            }
+        }
+    }
+
+    return array_values(array_unique($carried));
 }
 
 /**
@@ -222,7 +278,8 @@ Options:
       --list                  print the resolved paths and write nothing
   -h, --help                  this text
 
-The index must carry no path outside the named set, and the changelog bullet is written under
+The index must carry no path outside the named set, a set whose paths all already hold what HEAD
+holds is refused before anything is written, and the changelog bullet is written under
 `## Unreleased` before anything is committed.
 TEXT;
 }
@@ -359,6 +416,10 @@ if ($names === []) {
     exit(1);
 }
 
+// The set as the caller named it, before the changelog this program writes itself joins it: a bullet
+// is not evidence that the set carries a change, because this program is the one that writes it.
+$given = $names;
+
 // The changelog goes with the change, so it is part of the set rather than a path the caller has to
 // remember to add on every call - and the guard below knows it is expected.
 if (! $options['no-changelog']) {
@@ -397,6 +458,36 @@ if ($unexpected !== []) {
 if ($options['list']) {
     fwrite(STDOUT, implode(PHP_EOL, $names).PHP_EOL);
     exit(0);
+}
+
+// ---------------------------------------------------------------------------
+// the guard - a set that carries nothing is not a commit
+// ---------------------------------------------------------------------------
+
+// Read before anything is written, because the refusal has to leave the tree as it found it: a
+// bullet written for a commit this program then declines is a changelog entry for work nobody
+// committed, which is the failure the bullet exists to prevent.
+//
+// The changelog counts as evidence only when this program is not writing to it: with a bullet to
+// write, the file is this tool's own output and cannot be the reason to commit, and with
+// `--no-changelog` an edit to it is the caller's like any other - a changelog fix is a commit.
+$evidence = $options['no-changelog'] ? $given : array_values(array_diff($given, [CHANGELOG]));
+$changes = carrying($root, $evidence);
+
+if ($changes === []) {
+    if ($evidence === []) {
+        fwrite(STDERR, 'refusing: the named set is '.CHANGELOG.' alone, and that is the bullet this tool writes: a commit here would carry nothing else'.PHP_EOL);
+        exit(1);
+    }
+
+    fwrite(STDERR, 'refusing: the named set carries no change — every path in it already holds what HEAD has, so a commit here would carry only the changelog bullet this tool writes:'.PHP_EOL);
+
+    foreach ($evidence as $path) {
+        fwrite(STDERR, '  '.$path.PHP_EOL);
+    }
+
+    fwrite(STDERR, 'name a path whose content has moved, or commit nothing.'.PHP_EOL);
+    exit(1);
 }
 
 // ---------------------------------------------------------------------------
