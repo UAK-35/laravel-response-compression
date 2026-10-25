@@ -54,8 +54,8 @@ A standalone Composer package (`src/`, `config/response-compression.php`, a Pest
 of its own and no dependency on anything beside it.
 
 - branch `development`. `HEAD` and how far ahead of `origin/development` it is move with every
-  commit, so `bash handoff/state.sh` is where they are read rather than here: measured 2026-10-07,
-  this was `ac96830`, **45 ahead and 0 behind**, with nothing pushed;
+  commit, so `bash handoff/state.sh` is where they are read rather than here: measured 2026-10-25,
+  this was `ccdb8b5`, **90 ahead and 0 behind**, with nothing pushed;
 - gate wired: `core.hooksPath` is `.githooks`, so the hook at `.githooks/pre-commit` runs on every
   commit here;
 - its own tooling, all run from the package root: `bin/checks.php` (the gate), `bin/commit.php`
@@ -96,7 +96,7 @@ of its own and no dependency on anything beside it.
 
 ---
 
-## 3. State, as measured on 2026-10-07
+## 3. State, as measured on 2026-10-25
 
 `bash handoff/state.sh` prints all of the below as it is at the moment it runs, so it outranks this
 section the moment the two disagree.
@@ -111,8 +111,13 @@ has changed is marked as changed, and what has not is left alone.
 
 - **nothing staged:** `git diff --cached --name-only` is empty, `git diff --cached --quiet` exits 0,
   and the index is identical to `HEAD`.
-- **the modified list is empty again, as of 2026-10-10** — 0 listed, 0 untracked, 0 reports — because
-  the work it named has been committed (§5). **When this was written the list was not empty, and it
+- **the modified list is 9 as of 2026-10-25** — 7 with a real content diff and 2 untracked, 0 reports —
+  the seven are the mutation harness's fourth break and the records that follow it
+  (`tests/Support/MachineShape.php`, `tests/Support/MutationHarness.php`,
+  `tests/Unit/Support/MachineShapeTest.php`, `docs/guards.md`, `CHANGELOG.md`), `composer.json`'s
+  uncommitted `process-timeout` change (`0` → `1800`), and this document; the two untracked are the
+  `*.txt` scratch copies `AGENTS.md.txt` and `src/Middleware/CompressResponse.php.txt` a session left at
+  the root. **When this was written the list was not empty, and it
   was not §4's phantom either:** `state.sh` reported
   **21 listed — 12 with a real content diff and 9 untracked**, with **0 reports holding no content
   difference**. Eleven of the twelve are this package's own work (§5) and the twelfth is `AGENTS.md`,
@@ -138,16 +143,19 @@ has changed is marked as changed, and what has not is left alone.
 
 ### 3.2 The suite, measured on 2026-10-07, and again on 2026-10-25
 
-**Green, measured twice on 2026-10-25, and the two runs are two different questions.** With one
-interpreter and no pool the whole suite reads **484 passed (1,564 assertions, 781s)** and nothing
-failed — against the **4 failed, 423 passed** recorded below — and the same tree under `--parallel`
-on 16 processes reads **42 failed, 442 passed (1,432 assertions, 304s)**. The pool's 42 are one
-failure said 42 times: `proc_open(): CreateProcess failed: The parameter is incorrect`, raised at
-`tests/Support/ReleaseRepo.php:793` while a worker started a `git` child, and not one of them is an
-assertion. Those are the files that pass when they are asked at all, which is what the serial run
-is — so the pool's tally is a reading of the machine and the serial run's duration is a reading of
-one core. Neither is the suite's colour and neither is the suite's cost; taken together they are
-both.
+**Green, measured on 2026-10-25, and the two runs are two different questions.** With one interpreter
+and no pool the whole suite read **484 passed (1,564 assertions, 781s)** on the tree before the
+mutation harness gained its fourth break, and nothing failed — against the **4 failed, 423 passed**
+recorded below. The same tree, now carrying that break, under the gate's own `tests` check — the pool
+on 16 processes, with the files it cannot start asked again alone — reads **39 failed, 446 passed
+(1,442 assertions, 331.4s)**: the 39 are five files the pool could not start rather than 39
+assertions, each passing when asked alone, and the serial-equivalent total is **485 passed**. The
+pool's count is one failure said once per worker that started a `git` child:
+`proc_open(): CreateProcess failed: The parameter is incorrect`, raised at
+`tests/Support/ReleaseRepo.php:793`, and not one of them is an assertion. Those are the files that
+pass when they are asked at all, which is what the serial run is — so the pool's tally is a reading
+of the machine and the serial run's duration is a reading of one core. Neither is the suite's colour
+and neither is the suite's cost; taken together they are both.
 
 **Why the duration moved, in the terms the two figures can bear.** The 201s and 651.7s this section
 recorded a day apart were the same tree on the same 16 workers, which is why the sentence below
@@ -159,10 +167,10 @@ break in a copy of this checkout and runs its reading over it, the inversions co
 own file in another Pest process (its child run is the one that came back `1 failed, 116 passed`
 under the pool and `1 passed` alone), and the `bin/` programs build release fixtures with real
 `git`. A pool splits its work by *file*, so a file that spawns a dozen children is one worker's
-whole cost with nothing able to take half of it, and tonight's serial run adds every file's own time
+whole cost with nothing able to take half of it, and a serial run adds every file's own time
 up with no overlap at all. That is the whole of the arithmetic: 201s is the pool on a quiet
-machine, 651.7s the pool on a busy one, 304s tonight's pool, 781s tonight's serial run — and the
-figure a reader should compare with 201s is 304s, not 781s.
+machine, 651.7s the pool on a busy one, 304s and 331.4s the two pool runs recorded above, 781s the
+serial run — and the figure a reader should compare with 201s is the pool's, not 781s.
 
 **Fixed, then half-cleared.** After the §7 item 1 fix a full run read **6 failed, 421 passed
 (1,311 assertions, 201s, 16 parallel workers)** — against the predecessor's **15 failed, 406
