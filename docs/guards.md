@@ -98,12 +98,17 @@ Windows machine, and a credentials table and a `cd` line came out of it carrying
 machine's paths. Both were edited out by hand, which is a fix that lasts until the next
 runbook is written the same way. So the paths are read out of every file a commit would
 carry — the untracked ones included, because a file that has just been written is exactly
-where a path gets copied from a terminal — and the two shapes that name nobody are named in
+where a path gets copied from a terminal — and the three shapes that name nobody are named in
 the detector instead of left to the eye: `C:/Windows/…`, which is the same on every Windows
-install and is the deliberate evidence in one row of that same table, and `/home/runner/…`,
-which is the same on every CI runner. Each is tolerated in the mount spelling of itself too,
-because `/c/Windows/…` is that same directory written the way a shell that mounts drives
-writes it — one rule, so the two spellings cannot come to disagree about who they name.
+install and is the deliberate evidence in one row of that same table; `C:/Program Files/…`, a
+program's install root, which is the same on every Windows install for the same reason and is
+the one of the three whose directory name carries a space — the toleration only ever sees a
+path whose root arrived whole, so a reading that stopped at the space would answer the root's
+first word rather than the root and report a path nobody wrote, which is the two halves of
+that rule being one reading rather than two; and `/home/runner/…`, which is the same on every
+CI runner. Each is tolerated in the mount spelling of itself too, because `/c/Windows/…` is
+that same directory written the way a shell that mounts drives writes it — one rule, so the
+two spellings cannot come to disagree about who they name.
 
 The same drive is read in both spellings, and the mount one is the half a rule written around a
 drive letter cannot see: `/e/workspace` is the same directory as the drive-letter form of it,

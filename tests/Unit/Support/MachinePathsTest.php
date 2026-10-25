@@ -83,7 +83,7 @@ it('reports the paths that name a machine', function (string $text, array $expec
     'a macOS home directory' => ['cp /Users/alex/.gitconfig .', ['/Users/alex/.gitconfig']],
     'a network share' => ['cat \\\\fileserver\share\notes', ['\\\\fileserver\share\notes']],
     'the MSYS spelling of a drive letter' => ['cd /e/workspace/project', ['/e/workspace/project']],
-    'a mounted drive with a space in a segment' => ['cp /c/Program Files/OpenSSH/ssh.exe .', ['/c/Program Files/OpenSSH/ssh.exe']],
+    'a mounted drive with a space in a segment' => ['cp /d/My Games/saves/profile.sav .', ['/d/My Games/saves/profile.sav']],
     'the WSL spelling of the same location' => ['export DataDir=/mnt/e/workspace/project', ['/mnt/e/workspace/project']],
     'the Cygwin spelling of it' => ['cp /cygdrive/d/tools/sqlite3 /usr/local/bin', ['/cygdrive/d/tools/sqlite3']],
     // A directory whose name carries a space is one directory. Before this the reading stopped at
@@ -109,6 +109,15 @@ it('leaves the paths that name nobody alone', function (string $text): void {
     'a CI runner' => ['cd /home/runner/work/pkg/pkg'],
     'the Windows directory, in a shell that mounts drives as directories' => ['cp /c/Windows/System32/OpenSSH/ssh.exe .'],
     'the same, under the WSL prefix' => ['cp /mnt/c/Windows/System32/OpenSSH/ssh.exe .'],
+    // A program's install root is the second shape that is the same on every Windows machine, and
+    // it is the tolerated one whose directory name carries a space. One specimen holds both halves,
+    // because the toleration only ever sees a path whose root arrived whole: a reading that stopped
+    // at the space answers `C:/Program`, which is not this root, so it would be reported — this
+    // passing is the proof that the space is read through rather than cut off.
+    'a program install root' => ['core.sshCommand = C:/Program Files/OpenSSH/ssh.exe'],
+    // The mount spelling of that same root, which is tolerated by the same rule rather than by a
+    // second one — it is normalised into the drive spelling above and read by it.
+    'the same install root, in a shell that mounts drives as directories' => ['cp /c/Program Files/OpenSSH/ssh.exe .'],
     // A mount root and a name is a container, not a drive: the letter after `/mnt/` is what
     // makes a mount, and `laravel` is not one.
     'a container path' => ['docker run -v /mnt/laravel/html:/var/www image'],

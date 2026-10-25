@@ -39,12 +39,19 @@ use RuntimeException;
  *                               runbooks written in the shells this package is tested from
  *   \\fileserver\share          a network share, which resolves on one network
  *
- * and six things that look like them are not:
+ * and eight things that look like them are not:
  *
  *   C:/Windows/System32/...     the same on every Windows install and names nobody. The one
  *                               path of this shape in the repository is this one, in
  *                               PUSHING.md's evidence table, and it is deliberate: it is the
  *                               evidence for the row above it, not a way into someone's disk.
+ *   C:/Program Files/...        a program's install root, which is the same on every Windows
+ *                               install for the same reason — every one of them puts the same
+ *                               programs there. It is the tolerated shape whose directory name
+ *                               carries a space, which is why the reading has to carry that space
+ *                               too: a reading that ended at it would answer `C:/Program`, which
+ *                               is the prefix of a path rather than one, so a path that names
+ *                               nobody would be reported as a path nobody wrote.
  *   /home/runner/work/pkg       the same on every GitHub runner, for the same reason.
  *   /c/Windows/System32/...     the same directory as the row above it, written the way a shell
  *                               that mounts drives as directories writes it, and it names
@@ -360,7 +367,13 @@ final class MachinePaths
         // `c:/Windows/...` here, where the one pattern already knows what to do with it.
         $path = preg_replace('~^/(?:mnt/|cygdrive/)?([A-Za-z])/~', '$1:/', $path) ?? $path;
 
-        return preg_match('~^[A-Za-z]:/Windows(?:/|$)~i', $path) === 1
+        // The two install roots are one rule because they are one argument: every Windows install
+        // has the same directory in the same place, so neither the path nor the segment after it
+        // names a machine. `Program Files` is the one whose name carries a space — it reaches here
+        // whole only because a segment may carry one, and a reading that stopped at the space would
+        // hand this rule `C:/Program`, which matches nothing and is reported as a finding nobody
+        // wrote. The space is what makes the space rule and the toleration one reading rather than two.
+        return preg_match('~^[A-Za-z]:/(?:Windows|Program Files)(?:/|$)~i', $path) === 1
             || preg_match('~^/(?:Users|home)/runner(?:/|$)~i', $path) === 1;
     }
 }
