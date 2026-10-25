@@ -690,6 +690,15 @@ foreach ($checks as $key => $check) {
         continue;
     }
 
+    // A check's output is captured for the summary, so a check that runs for minutes prints nothing
+    // while it does - and the `tests` check is the whole suite when the staged set is a file the
+    // suite is built on. The hook is a commit waiting on that silence, so the title of the check
+    // that is running goes to the error stream as it starts. It is not `-v`, which streams the
+    // check's whole output as well; this is one line.
+    if (! $options['verbose']) {
+        fwrite(STDERR, '▶ '.$check['title'].PHP_EOL);
+    }
+
     $checkStartedAt = microtime(true);
     $result = $check['run']();
     $seconds = microtime(true) - $checkStartedAt;
@@ -900,9 +909,16 @@ function runCommand(array $command, string $cwd): array
         return ['exit' => 127, 'output' => 'nothing to run'];
     }
 
+    // Stdin is declared rather than inherited: a child handed this process's own stdin can wait on
+    // a prompt nobody sees in a commit's hook, and `NUL` / `/dev/null` is the EOF that ends that
+    // wait. Every descriptor is declared for the same reason the suite's own fixtures declare them.
     $process = @proc_open(
         $command,
-        [1 => ['pipe', 'w'], 2 => ['redirect', 1]],
+        [
+            0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['redirect', 1],
+        ],
         $pipes,
         $cwd,
     );
@@ -944,7 +960,11 @@ function runCommands(array $commands, string $cwd): array
     foreach ($commands as $command) {
         $process = @proc_open(
             $command,
-            [1 => ['pipe', 'w'], 2 => ['redirect', 1]],
+            [
+                0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'],
+                1 => ['pipe', 'w'],
+                2 => ['redirect', 1],
+            ],
             $pipes,
             $cwd,
         );

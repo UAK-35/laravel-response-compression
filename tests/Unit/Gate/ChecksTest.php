@@ -204,6 +204,22 @@ it('passes a tree that parses, and names the file that does not', function (): v
         ->and($broken->output)->toContain('src/Broken.php');
 });
 
+it('says which check is running on the error stream, so a commit is not waiting on silence', function (): void {
+    $repo = gateRepo();
+
+    // The summary captures each check's output, so a check that runs for minutes prints nothing
+    // while it does — and the staged set runs the whole suite when a file the suite is built on is
+    // part of the commit, which is a hook sitting in front of a prompt with no sign of life.
+    $run = gate($repo, '--only=syntax');
+
+    // The title, on stderr, before the check starts. `syntax` is the check a planted tree always
+    // answers, so the line is the gate's own and not something the check's output carried in: the
+    // summary prints the title too, on stdout, and that is the half a commit never sees.
+    expect($run->error)->toContain('▶ PHP syntax (php -l)')
+        ->and($run->output)->not->toContain('▶ PHP syntax (php -l)')
+        ->and($run->exitCode)->toBe(0);
+});
+
 it('skips a tool the tree does not have, and refuses to when it is told to', function (): void {
     $repo = gateRepo();
 
