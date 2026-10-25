@@ -111,11 +111,13 @@ has changed is marked as changed, and what has not is left alone.
 
 - **nothing staged:** `git diff --cached --name-only` is empty, `git diff --cached --quiet` exits 0,
   and the index is identical to `HEAD`.
-- **the modified list is 8 as of 2026-10-25** — measured before this document was saved — 8 with a
-  real content diff and none untracked, 0 reports: the note channel's scope
+- **the modified list is 8 as of 2026-10-25** — measured before this document was saved — 7 with a
+  real content diff and 1 untracked, 0 reports: the note channel's scope
   (`tests/Support/Notes.php`, `Handoff.php`, `PhpBinary.php`, `tests/Unit/Support/NotesTest.php`,
-  `IgnoredTest.php`, `CHANGELOG.md`), and this document. **None of it is §4's phantom:** every one
-  of the eight carries a content difference, and `state.sh` reports 0 files holding none.
+  `IgnoredTest.php`, `CHANGELOG.md`), this document, and the untracked
+  `docs/investigations/why-the-staged-check-runs-silent.md` the same thread filed. **None of it is
+  §4's phantom:** `state.sh` reports 0 files holding no content difference, which is the reading
+  that tells a real edit from a timestamp.
 - **what the predecessor saw was not a phantom either.** Its snapshot reported **21 listed — 12 with
   a real content diff and 9 untracked**, with **0 reports holding no content difference**. Eleven of
   the twelve are this package's own work (§5) and the twelfth is `AGENTS.md`, whose load order
