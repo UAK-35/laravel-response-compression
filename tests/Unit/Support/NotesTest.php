@@ -107,11 +107,14 @@ it('writes a note to the file a runner named, and keeps the terminal too', funct
     arrangeSink($file);
     Notes::clear();
 
-    // The half CI is run on. `paratest` drops what a passing test prints — both of its streams — so a
+    // The half CI is run on. `paratest` drops what a passing test prints - both of its streams - so a
     // note about a runner with no machine file would be lost on exactly the run it was made for, and
     // a file is what crosses a worker boundary. The line is the same one the terminal would have
     // been given, in one place, so the two readers cannot be reading two spellings.
-    Notes::add(Handoff::class, 'there is no machine file here');
+    //
+    // The root is this package's own: only a note about this checkout is written to the file, so a
+    // fixture's note stays on the terminal half and the gate's summary says nothing about it.
+    Notes::add(Handoff::class, 'there is no machine file here', packageRoot());
 
     // The line is the terminal's line, terminator and all: the file is written by the same method
     // that spells a printed note, so a sink and a terminal cannot disagree about the shape of one.
@@ -130,7 +133,7 @@ it('writes a note to the file a runner named, and keeps the terminal too', funct
     Notes::clear();
 
     foreach (range(1, 12) as $ignored) {
-        Notes::add(Handoff::class, 'the same sentence');
+        Notes::add(Handoff::class, 'the same sentence', packageRoot());
     }
 
     // Appended, not rewritten: the file accumulates one line per sentence, and twelve asks of the
@@ -144,6 +147,38 @@ it('writes a note to the file a runner named, and keeps the terminal too', funct
     @unlink($file);
 });
 
+it('keeps a note about a fixture off the file, so the gate speaks only for this checkout', function (): void {
+    $file = sys_get_temp_dir().'/rc-notes-'.bin2hex(random_bytes(6));
+    $fixture = sys_get_temp_dir().'/rc-tree-'.bin2hex(random_bytes(6));
+
+    arrangeSink($file);
+    Notes::clear();
+
+    // The readings are asked about fixtures as well as about this checkout - a test arranges a tree
+    // with no machine file and asserts the note the reading makes about it - and a note about that
+    // tree under the gate's summary says `there is no .agents/machine.local.json in this checkout`
+    // beside a checkout that has one. So the file is the package root's alone.
+    Notes::add(Handoff::class, 'there is no machine file here', $fixture);
+
+    // And a caller that names no tree at all has said nothing about this checkout either: the
+    // default has to fall on the quiet side, because the other one is a sentence about a tree that
+    // is not the one a reader is standing in.
+    Notes::add(PhpBinary::class, 'the ladder was not asked');
+
+    expect(is_file($file))->toBeFalse();
+
+    // The terminal half is not the narrowed one, and that is what makes the reading's skip
+    // assertable beside the reading: the test that arranged the fixture is handed the sentence it
+    // asked for, in the order the notes were made.
+    expect(Notes::all())->toBe([
+        Notes::MARKER.' Handoff: there is no machine file here',
+        Notes::MARKER.' PhpBinary: the ladder was not asked',
+    ])->and(Notes::take())->toBe([
+        Notes::MARKER.' Handoff: there is no machine file here',
+        Notes::MARKER.' PhpBinary: the ladder was not asked',
+    ]);
+});
+
 it('keeps a note for the terminal when the sink cannot be written', function (): void {
     // A path that cannot exist: the directory is not there, and nothing here creates one. A sink
     // that refuses a note costs nothing, because the note was never only for the sink — the run that
@@ -153,7 +188,7 @@ it('keeps a note for the terminal when the sink cannot be written', function ():
 
     arrangeSink($missing);
     Notes::clear();
-    Notes::add(Handoff::class, 'the file could not take this');
+    Notes::add(Handoff::class, 'the file could not take this', packageRoot());
 
     expect(Notes::all())->toBe([Notes::MARKER.' Handoff: the file could not take this'])
         ->and(Notes::take())->toBe([Notes::MARKER.' Handoff: the file could not take this'])

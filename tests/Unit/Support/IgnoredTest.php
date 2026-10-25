@@ -119,7 +119,7 @@ it('names what it finds in this checkout, in the channel a run prints', function
     $named = Ignored::foreign(packageRoot());
 
     foreach ($named as $sentence) {
-        Notes::add(Ignored::class, $sentence);
+        Notes::add(Ignored::class, $sentence, packageRoot());
     }
 
     // Every name it answered with has to be a file this checkout ignores: the reading's subject is

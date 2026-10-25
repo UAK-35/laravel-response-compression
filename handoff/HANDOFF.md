@@ -111,19 +111,17 @@ has changed is marked as changed, and what has not is left alone.
 
 - **nothing staged:** `git diff --cached --name-only` is empty, `git diff --cached --quiet` exits 0,
   and the index is identical to `HEAD`.
-- **the modified list is 9 as of 2026-10-25** — 7 with a real content diff and 2 untracked, 0 reports —
-  the seven are the mutation harness's fourth break and the records that follow it
-  (`tests/Support/MachineShape.php`, `tests/Support/MutationHarness.php`,
-  `tests/Unit/Support/MachineShapeTest.php`, `docs/guards.md`, `CHANGELOG.md`), `composer.json`'s
-  uncommitted `process-timeout` change (`0` → `1800`), and this document; the two untracked are the
-  `*.txt` scratch copies `AGENTS.md.txt` and `src/Middleware/CompressResponse.php.txt` a session left at
-  the root. **When this was written the list was not empty, and it
-  was not §4's phantom either:** `state.sh` reported
-  **21 listed — 12 with a real content diff and 9 untracked**, with **0 reports holding no content
-  difference**. Eleven of the twelve are this package's own work (§5) and the twelfth is `AGENTS.md`,
-  whose load order somebody's setup edit added a fifth entry to — pointing at this folder, which is
-  why this document was read at all. The predecessor's history is kept below, because it is still the shape
-  this list takes when nothing at all is wrong:
+- **the modified list is 8 as of 2026-10-25** — measured before this document was saved — 8 with a
+  real content diff and none untracked, 0 reports: the note channel's scope
+  (`tests/Support/Notes.php`, `Handoff.php`, `PhpBinary.php`, `tests/Unit/Support/NotesTest.php`,
+  `IgnoredTest.php`, `CHANGELOG.md`), and this document. **None of it is §4's phantom:** every one
+  of the eight carries a content difference, and `state.sh` reports 0 files holding none.
+- **what the predecessor saw was not a phantom either.** Its snapshot reported **21 listed — 12 with
+  a real content diff and 9 untracked**, with **0 reports holding no content difference**. Eleven of
+  the twelve are this package's own work (§5) and the twelfth is `AGENTS.md`, whose load order
+  somebody's setup edit added a fifth entry to — pointing at this folder, which is why this document
+  was read at all. The predecessor's history is kept below, because it is still the shape this list
+  takes when nothing at all is wrong:
 - **when the predecessor looked, the list was empty.** The thread watched 29 paths reported as modified,
   then 28, all of them holding nothing (§4), and something outside the thread cleared the rest at
   2026-10-07 00:50:58 — the index file's own timestamp. The working copies of the reported files now
@@ -137,6 +135,14 @@ has changed is marked as changed, and what has not is left alone.
 - `hs_err_pid6024.log` at the root is a JVM crash log nothing here explains. `.gitignore` has
   `/hs_err_pid*.log`, so it is on disk and invisible to git; it is named here only so it is not
   mistaken for your mess.
+- **The three `.txt` leavings are decided.** `AGENTS.md.txt` was an `AGENTS.md` from before the
+  canonical rules were rewritten (4,884 bytes against the current 37,195) and
+  `src/Middleware/CompressResponse.php.txt` an older middleware (11,196 against 13,666); both were
+  copies of files the repository already tracks, superseded by them, in no commit and in no object in
+  the database, so they were **deleted**. `tests/Unit/Middleware/test.txt` is four bytes, `test`,
+  tracked since `87339d8` and read by `CompressResponseTest` as its `BinaryFileResponse` fixture, so
+  it was **kept**. None was **adopted**: a copy that is not the file it copies is a second source of
+  truth, and neither copy held anything the tracked file does not.
 - `CHANGELOG.md` is **LF on disk** (0 CR bytes), and `bin/commit.php` can write a bullet into either
   ending: it joins the bullet with the ending the heading it matched carries, so a file that arrives
   CRLF gains a CRLF bullet (§7 item 3, done 2026-10-11).

@@ -46,7 +46,13 @@ namespace Uak35\ResponseCompression\Tests\Support;
  * written into it as well. Written *as well*, and not instead: the reading's voice is the same in
  * both places, the terminal keeps working for the run that has no sink, and no reader can be shown a
  * line twice, because every one of them collects sentences into a set. A sink that cannot be written
- * to costs nothing for the same reason — the note is already where it was going anyway.
+ * to costs nothing for the same reason - the note is already where it was going anyway.
+ *
+ * Only a note about this package's own checkout reaches the file. The readings are asked about
+ * fixtures too - a test arranges a tree with no machine file and asserts the note it makes - and a
+ * fixture's note printed under the gate's summary reads as a fact about the tree a commit is made
+ * in. So the file is written for the package root alone, and a fixture's note stays on the terminal
+ * half, where the test that arranged it reads it.
  *
  * A NOTE IS NOT A FINDING, AND NOT AN EXCUSE
  * ------------------------------------------
@@ -97,8 +103,13 @@ final class Notes
      * The reading names itself as its class, and the label a reader sees is the last piece of that
      * name: a reading that had to spell out a short name of its own would be a second name to keep
      * in step with the first.
+     *
+     * `$root` is the tree the reading was asked about. Only a note about this package's own checkout
+     * is written to the runner's file: a fixture is not this checkout, and its note under the gate's
+     * summary would read as a fact about the tree a commit is made in. The terminal half is not
+     * narrowed, so a test that arranged the fixture still sees the note it made.
      */
-    public static function add(string $reading, string $note): void
+    public static function add(string $reading, string $note, ?string $root = null): void
     {
         $label = self::label($reading);
 
@@ -114,6 +125,15 @@ final class Notes
         // allowed to decide anything about the terminal half: a note that a sink took is still a note
         // this process will hand its own harness, and a sink that refused it is not a special case to
         // be reported here — neither reader is the authority on the other.
+        // Only a note about this package's own checkout reaches the runner's file. A fixture is not
+        // this checkout, and a note about a fixture printed under the gate's summary reads as a fact
+        // about the tree a commit is made in - which is the one thing the file exists to say. The
+        // in-process channel above is not narrowed, so the test that arranged the fixture still sees
+        // the note it made.
+        if ($root === null || ! self::isPackage($root)) {
+            return;
+        }
+
         $sink = self::sink();
 
         if ($sink !== null) {
@@ -182,5 +202,23 @@ final class Notes
         $short = strrchr($reading, '\\');
 
         return $short === false ? $reading : substr($short, 1);
+    }
+
+    /** The tree this class was loaded from, which is the only tree whose notes a runner's file carries. */
+    private static function package(): string
+    {
+        return self::normalise(dirname(__DIR__, 2));
+    }
+
+    /** Whether a reading was asked about this package's own checkout rather than a fixture of it. */
+    private static function isPackage(string $root): bool
+    {
+        return self::normalise($root) === self::package();
+    }
+
+    /** One spelling of a path, so the two sides of the comparison name the same directory. */
+    private static function normalise(string $path): string
+    {
+        return rtrim(str_replace('\\', '/', $path), '/');
     }
 }

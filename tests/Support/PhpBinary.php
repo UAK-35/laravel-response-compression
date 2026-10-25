@@ -191,7 +191,7 @@ final readonly class PhpBinary
                 'no %s and no %s, so the resolver ladder was not asked and the answer is the fallback',
                 self::VARIABLE,
                 self::MACHINE,
-            ));
+            ), $root);
 
             return '';
         }

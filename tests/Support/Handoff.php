@@ -322,7 +322,7 @@ final class Handoff
             Notes::add(self::class, sprintf(
                 'there is no %s in this checkout, so the value half of the environment table was not asked - a runner and a checkout nobody has run `--init` in both look like this',
                 self::MACHINE,
-            ));
+            ), $root);
 
             return [];
         }
