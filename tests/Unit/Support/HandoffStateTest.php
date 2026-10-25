@@ -171,6 +171,43 @@ it('names a branch this checkout is not on, and a gate it is not wired through',
         ->toContain('`.husky`');
 });
 
+it('measures a linked worktree rather than declaring it unusable', function (): void {
+    // A worktree is a checkout of a commit whose `.git` is a file pointing at the repository's git
+    // dir, and a path written there by git for Windows is a drive-letter path the POSIX git cannot
+    // read - so the script used to answer "not a git repository" for a tree it could have measured.
+    // The fixture is a repository carrying this package's script, because the question is the script
+    // rather than the fixture.
+    $repo = ReleaseRepo::make();
+    $repo->write(HandoffState::SCRIPT, (string) file_get_contents(ReleaseRepo::package().'/'.HandoffState::SCRIPT));
+    $repo->commit('The state script');
+
+    // The hook that runs this suite exports `GIT_DIR` and its neighbours for this checkout, and a
+    // child that inherits them answers about this repository rather than the fixture - so the
+    // fixture's git is handed a process with none of them set, and the test gives back what it found.
+    $inherited = [];
+
+    foreach (['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR'] as $variable) {
+        $inherited[$variable] = getenv($variable);
+        putenv($variable);
+    }
+
+    $worktree = sys_get_temp_dir().'/rc-worktree-'.bin2hex(random_bytes(6));
+    $repo->git('worktree', 'add', $worktree, 'HEAD');
+
+    try {
+        $measured = HandoffState::measured($worktree);
+
+        expect($measured['branch'])->not->toBe('')
+            ->and($measured['staged'])->toBe(0)
+            ->and($measured['index'])->toBe('identical to HEAD');
+    } finally {
+        ReleaseRepo::remove($worktree);
+
+        foreach ($inherited as $variable => $value) {
+            putenv($value === false ? $variable : $variable.'='.$value);
+        }
+    }
+});
 it('answers nothing where the folder has gone, and refuses a document it cannot read', function (): void {
     // The folder is removable — `AGENTS.md` §3 has the line to delete with it — so a checkout
     // without one is a checkout with no snapshot, not a snapshot with something wrong in it.

@@ -53,6 +53,29 @@ esac
 here="$(cd "$(dirname "$0")" && pwd)" || exit 1
 root="$(cd "$here/.." && pwd)" || exit 1
 
+# A linked worktree keeps `.git` as a file pointing at the repository's git dir rather than as a
+# directory. The path it holds is written by whichever git made the worktree, and git for Windows
+# writes a drive-letter path - which the git this script runs under, a POSIX one, reads as
+# relative and refuses the tree for. Translate it with the shell's own translator and hand the
+# result back to git, so a throwaway checkout of a commit is measured rather than refused.
+if [ ! -d "$root/.git" ] && [ -f "$root/.git" ]; then
+    git_dir="$(sed -n 's/^gitdir: //p' "$root/.git" | head -1)"
+
+    case "$git_dir" in
+        [A-Za-z]:*)
+            if command -v wslpath >/dev/null 2>&1; then
+                git_dir="$(wslpath -u "$git_dir")"
+            elif command -v cygpath >/dev/null 2>&1; then
+                git_dir="$(cygpath -u "$git_dir")"
+            fi
+            ;;
+    esac
+
+    if [ -n "$git_dir" ]; then
+        export GIT_DIR="$git_dir"
+        export GIT_WORK_TREE="$root"
+    fi
+fi
 if ! git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then
     echo "handoff/state.sh: $root is not a git repository — nothing to report."
     exit 1
