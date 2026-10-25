@@ -319,6 +319,67 @@ final class MachineShape
     }
 
     /**
+     * What `--check` says about a record that has grown one section past the answers `--init` was
+     * handed: nothing when the report tells it apart from the clone that has none, and the sentence
+     * it answered instead when not.
+     *
+     * The second half of `state()`'s question, and the direction that one cannot see. `state()` reads
+     * the file `--init` has just written and needs the fresh clone's sentence to be there; this reads
+     * a file with one section beyond those answers and needs the sentence to be gone. A report that
+     * keeps printing the fresh clone's sentence once the record has grown sends its reader back to
+     * the three answers they already gave and hides the sections still empty.
+     *
+     * The tree is opened the way `bin/bootstrap.php` opens it and one section beyond the three is
+     * written, which is the smallest record that is no longer a fresh clone. It goes back as it was
+     * found, for the same reason `state()`'s does.
+     *
+     * @return list<string>
+     *
+     * @throws RuntimeException when there is no renderer to run, when `--init` answers non-zero, or
+     *                          when the file it wrote cannot be written again
+     */
+    public static function recorded(string $root): array
+    {
+        $root = self::root($root);
+        $written = [self::MACHINE, ...self::rendered()];
+        $before = array_values(array_filter(
+            $written,
+            static fn (string $file): bool => is_file($root.'/'.$file),
+        ));
+
+        try {
+            $data = self::opened($root);
+            $data['python'] = ['version' => 'the version this machine reports'];
+            $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+            if ($json === false) {
+                throw new RuntimeException(sprintf('%s could not be encoded in %s.', self::MACHINE, $root));
+            }
+
+            if (file_put_contents($root.'/'.self::MACHINE, $json."\n") === false) {
+                throw new RuntimeException(sprintf('%s could not be written again in %s.', self::MACHINE, $root));
+            }
+
+            $summary = self::summary($root);
+        } finally {
+            foreach ($written as $file) {
+                if (! in_array($file, $before, true) && is_file($root.'/'.$file)) {
+                    unlink($root.'/'.$file);
+                }
+            }
+        }
+
+        if (! str_contains($summary, '`--init` was handed')) {
+            return [];
+        }
+
+        return [sprintf(
+            'a record with one section past the answers `--init` was handed is reported as %s rather than as a record that has grown',
+            $summary === '' ? 'nothing at all' : '`'.$summary.'`',
+        )];
+    }
+
+    /**
      * What the example and the renderer disagree about: empty when the shape a reader is handed is
      * the shape a fresh clone is opened with.
      *

@@ -764,6 +764,24 @@ final class MutationHarness
                 'read' => MachineShape::state(...),
             ],
             [
+                'guard' => 'the machine-file shape, on a record that has grown past the fresh clone',
+                'test' => 'tests/Unit/Support/MachineShapeTest.php',
+                'plant' => static function (string $root): string {
+                    // The other half of the branch above: it also requires that nothing beyond the
+                    // three answers `--init` was handed is recorded. With that clause gone, a record
+                    // that has grown one section is printed with the fresh clone's sentence — the
+                    // collapse in the direction the branch above cannot see.
+                    self::replace($root, MachineShape::RENDERER, static fn (string $text): string => str_replace(
+                        '    elif len(answered) == len(OWNED) and len(missing) == total - len(OWNED):',
+                        '    elif len(answered) == len(OWNED):',
+                        $text,
+                    ));
+
+                    return '`--init` was handed answers for are here';
+                },
+                'read' => MachineShape::recorded(...),
+            ],
+            [
                 'guard' => "the handoff's state section, on the ending it says the writer cannot use",
                 'test' => 'tests/Unit/Support/HandoffStateTest.php',
                 'plant' => static function (string $root): string {

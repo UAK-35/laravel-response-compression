@@ -30,7 +30,7 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 /**
  * @guards-index guard the machine-file shape
  *
- * the shape a fresh clone is opened with — `.agents/machine.local.json.example`, the committed shape a reader copies, and the sections `python .agents/render_local.py --init` writes — held to each other: a section declared in one and missing from the other, a key `--init` writes that the example shows nowhere, a section the example shows that no fresh clone receives, a token whose value `--init` never writes, how much of its own record a machine file has written — `--check` telling a file nobody has lived in yet from one that has recorded almost all of itself rather than giving both the same line, and naming the sections left either way — and the placeholder text of the values themselves, held to the key each one sits under rather than left as a token that fits any key: an angle-bracket string, a stock word, and one sentence written under two keys
+ * the shape a fresh clone is opened with — `.agents/machine.local.json.example`, the committed shape a reader copies, and the sections `python .agents/render_local.py --init` writes — held to each other: a section declared in one and missing from the other, a key `--init` writes that the example shows nowhere, a section the example shows that no fresh clone receives, a token whose value `--init` never writes, how much of its own record a machine file has written — `--check` telling a file nobody has lived in yet from one that has recorded almost all of itself rather than giving both the same line, not keeping the fresh clone's line once a record has grown past the answers `--init` was handed, and naming the sections left either way — and the placeholder text of the values themselves, held to the key each one sits under rather than left as a token that fits any key: an angle-bracket string, a stock word, and one sentence written under two keys
  */
 it('holds the committed example to the shape the renderer declares, and reports nothing where the two agree', function (): void {
     $root = str_replace('\\', '/', packageRoot());
@@ -121,9 +121,15 @@ it('says which half of its own record the machine file has written, and says not
 
     // The same question as a reading of its own, on a tree nothing has opened yet. It answers with
     // nothing here, and its hold in `tests/Unit/Support/MutationHarness/MachineShapeTest.php` is what
-    // requires it to name the sentence when the renderer stops telling the two apart — which is the
+    // requires it to name the sentence when the renderer stops telling the two apart - which is the
     // difference between a reading and a test that asserts the reading returned an empty array.
     expect(MachineShape::state(machineShapeTree()->path))->toBe([]);
+
+    // And the other direction the report has to tell apart: a record that has grown one section past
+    // the answers `--init` was handed. This reading answers with nothing here, and its hold is what
+    // requires it to name the fresh clone's sentence when the renderer prints that sentence for a
+    // record that is no longer one.
+    expect(MachineShape::recorded(machineShapeTree()->path))->toBe([]);
 
     // The shape with every section opened and nothing under any of them: a file that was wiped, or
     // one written from the declaration alone. A machine that has not started, which is not the clone
