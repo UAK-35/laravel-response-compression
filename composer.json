@@ -54,7 +54,7 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true
         },
-        "process-timeout": 0
+        "process-timeout": 1800
     },
     "extra": {
         "laravel": {
