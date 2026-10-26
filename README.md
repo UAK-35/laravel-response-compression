@@ -213,6 +213,7 @@ rejected, and the evidence behind the answer:
 - [What does a value read from `.env` actually arrive as?](docs/env-types.md)
 - [What should a published config key that nothing reads do?](docs/unwired-config.md)
 - [What should happen to a configuration value that cannot be read?](docs/config-reading.md)
+- [Why does a commit here have three environment traps?](docs/commit-environment.md)
 - [Which guards does this package keep, and which did it refuse?](docs/guards.md)
 
 That last record is also the index a guard is added to, and the two lists of files under its table

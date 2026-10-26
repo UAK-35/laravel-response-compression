@@ -166,13 +166,20 @@ it('refuses a document that has stopped stating the number at all', function ():
 it('names the docs-record count when the reading beside it goes stale', function (): void {
     $root = indexNumbersRoot();
 
-    indexNumbersReplace($root, 'tests/Support/Docs.php', 'fifteen of them', 'nine of them');
+    // Both ends are read from the count the directory holds rather than typed, for the reason the
+    // test above gives: a typed needle goes stale the next time a record is added, and this one did
+    // the day a sixteenth record arrived — the fixture failed on its own quotation rather than on
+    // the reading. What it is about is a sentence that stopped matching, not how many records there
+    // are today.
+    $records = IndexNumbers::counts(packageRoot())['records'];
+
+    indexNumbersReplace($root, 'tests/Support/Docs.php', IndexNumbers::word($records).' of them', 'nine of them');
 
     $findings = implode(PHP_EOL, IndexNumbers::drift($root));
 
     expect($findings)->toContain('tests/Support/Docs.php')
         ->and($findings)->toContain('nine of them')
-        ->and($findings)->toContain('holds 15');
+        ->and($findings)->toContain('holds '.$records);
 });
 
 it('catches the gate\'s size said outside the index', function (): void {
