@@ -27,6 +27,11 @@ declare(strict_types=1);
  *     `CHANGELOG.md` and nothing else, which is a changelog fix rather than a description of one.
  *   - It writes the **changelog bullet** with the change, under `## Unreleased`, in the section the
  *     change belongs to. A changelog entry written later is a changelog entry written from memory.
+ *     And it stages that bullet and **nothing else of the file it went into**: the entry the index
+ *     is given is the copy the index already holds with this run's bullet added, rather than the
+ *     file taken from disk. The changelog is the one file two sessions write into at once, and a
+ *     note another session put there — for work this commit is not about — is not published under
+ *     this message by having arrived in the same file.
  *   - It runs the **staged checks** — `bin/checks.php --staged`, the same suite the pre-commit hook
  *     runs — and does not commit when they fail. So the verdict is attributed to a command rather
  *     than to a hook the committer may not have enabled.
@@ -55,7 +60,7 @@ declare(strict_types=1);
 /**
  * @guards-index guard `bin/commit.php`
  *
- * a commit that carries a file it was not told about, or carries nothing of its own, or leaves a changelog bullet behind: the index is read before anything is staged and the commit refused when it holds a path outside the named set, a set whose paths all already hold what HEAD holds is refused before the changelog bullet is written, so is a set whose only moved path is the changelog, the bullet is written and the staged checks run before the commit exists, and a run that stops after that point puts the changelog and the index back as it found them
+ * a commit that carries a file it was not told about, or carries nothing of its own, or stages a changelog note its set did not write, or leaves a changelog bullet behind: the index is read before anything is staged and the commit refused when it holds a path outside the named set, a set whose paths all already hold what HEAD holds is refused before the changelog bullet is written, so is a set whose only moved path is the changelog, the bullet the run writes is the only thing staged for CHANGELOG.md - added to the entry the index already holds rather than taken from the file, so a note another session wrote there is not published under this message - the staged checks run before the commit exists, and a run that stops after that point puts the changelog and the index back as it found them
  */
 $root = dirname(__DIR__);
 
@@ -218,6 +223,61 @@ function staged(string $root): array
 }
 
 /**
+ * The bytes the index holds for one path, or null when it holds none.
+ *
+ * That is the document a bullet is added to when the changelog is the one being committed, and the
+ * answer has to be the index's own bytes: the working copy is what the caller has been writing in,
+ * which is the half this program must not publish.
+ */
+function indexed(string $root, string $path): ?string
+{
+    $result = git($root, 'cat-file', 'blob', ':'.$path);
+
+    return $result['exit'] === 0 ? $result['output'] : null;
+}
+
+/**
+ * Put bytes into the index for one path, and answer '' or the reason it could not be done.
+ *
+ * `git add` cannot be asked for this: it stages a *file*, so everything the file holds goes in.
+ * These are the three calls that can. `hash-object -w` writes the bytes this program built — and
+ * `--no-filters`, because those bytes are the entry the index already holds with this run's bullet
+ * in it, so a clean filter would move lines the run did not write. `update-index --cacheinfo` is
+ * the write itself, into the index and nowhere else: the working copy is left as the caller left it.
+ */
+function stageBytes(string $root, string $path, string $contents): string
+{
+    $temporary = tempnam(sys_get_temp_dir(), 'response-compression-commit-');
+
+    if ($temporary === false) {
+        return 'no temporary file could be made to hash';
+    }
+
+    $written = file_put_contents($temporary, $contents);
+    $blob = $written === strlen($contents)
+        ? git($root, 'hash-object', '-w', '--no-filters', '--', $temporary)
+        : ['exit' => 1, 'output' => ''];
+
+    @unlink($temporary);
+
+    if ($blob['exit'] !== 0) {
+        $why = trim($blob['output']);
+
+        return 'git hash-object left no blob'.($why === '' ? '' : ': '.$why);
+    }
+
+    $sha = trim($blob['output']);
+
+    if (preg_match('/^[0-9a-f]{40,64}$/', $sha) !== 1) {
+        return 'git hash-object answered "'.$sha.'" rather than a blob';
+    }
+
+    $update = git($root, 'update-index', '--add', '--cacheinfo', '100644', $sha, $path);
+
+    return $update['exit'] === 0 ? '' : 'git update-index refused it: '.trim($update['output']);
+}
+
+/**
  * The named paths whose content is not what `HEAD` holds, which is the set a commit of them would
  * carry.
  *
@@ -364,9 +424,12 @@ Options:
 
 The index must carry no path outside the named set, a set whose paths all already hold what HEAD
 holds is refused before anything is written, and the changelog bullet is written under
-`## Unreleased` before anything is committed. A run that stops after that point - a staged check
-that fails, a rename that pulled a path in, a commit git would not make - puts the changelog and
-the index back as it found them.
+`## Unreleased` before anything is committed. Only the bullet this run writes is staged for
+CHANGELOG.md: it is added to the entry the index already holds rather than the file being staged,
+so a note another session left in that file is not carried by this commit, and a line is printed
+saying so when the file holds more than this run wrote. A run that stops after that point - a
+staged check that fails, a rename that pulled a path in, a commit git would not make - puts the
+changelog and the index back as it found them.
 TEXT;
 }
 
@@ -604,6 +667,7 @@ if ($changes === []) {
 $changelogPath = $root.'/'.CHANGELOG;
 $changelogAfter = null;
 $changelogBefore = null;
+$changelogIndex = null;
 
 if (! $options['no-changelog']) {
     $before = @file_get_contents($changelogPath);
@@ -617,6 +681,18 @@ if (! $options['no-changelog']) {
 
     if ($after === null) {
         fwrite(STDERR, 'refusing: '.CHANGELOG.' has no `## Unreleased` section to write into'.PHP_EOL);
+        exit(1);
+    }
+
+    // The bullet goes into two documents, and they are not the same one: the file the caller has
+    // been writing in, and the entry the index holds, which is what this commit will carry. The
+    // second is built from the index's own copy — or from the file when the index holds none,
+    // which is a changelog this tree has never carried — so what the commit moves is this run's
+    // bullet, and not whatever another writer put in the same document.
+    $changelogIndex = withBullet(indexed($root, CHANGELOG) ?? $before, $section, $options['changelog']);
+
+    if ($changelogIndex === null) {
+        fwrite(STDERR, 'refusing: the staged '.CHANGELOG.' has no `## Unreleased` section to write into'.PHP_EOL);
         exit(1);
     }
 
@@ -685,10 +761,45 @@ if ($changelogAfter !== null) {
     }
 }
 
-$add = runCommand(['git', '-C', $root, 'add', '-f', '--', ...$names], $root);
+// Every path but the changelog is taken from disk, which is what a named set means. The changelog
+// is not: what this run wrote into it is a bullet, and the rest of the file belongs to whoever
+// wrote it — so its entry is written into the index rather than the file being staged, and a note
+// another session left there stays exactly where it was, uncommitted and unstaged.
+$fromDisk = $changelogIndex === null ? $names : array_values(array_diff($names, [CHANGELOG]));
 
-if ($add['exit'] !== 0) {
-    $abandon('could not stage the named set:'.$add['output'].PHP_EOL);
+if ($fromDisk !== []) {
+    $add = runCommand(['git', '-C', $root, 'add', '-f', '--', ...$fromDisk], $root);
+
+    if ($add['exit'] !== 0) {
+        $abandon('could not stage the named set:'.$add['output'].PHP_EOL);
+    }
+}
+
+if ($changelogIndex !== null) {
+    $why = stageBytes($root, CHANGELOG, $changelogIndex);
+
+    if ($why !== '') {
+        $abandon('could not stage the changelog bullet: '.$why.PHP_EOL);
+    }
+
+    // Said rather than left to be discovered: after this run the changelog on disk and the
+    // changelog in the index are two different documents whenever the file held more than this run
+    // wrote, and a `git status` that still shows it modified is what that looks like. One line, and
+    // only when there is something to say.
+    $left = git($root, 'diff', '--numstat', '--', CHANGELOG);
+    $lines = 0;
+
+    foreach (preg_split('/\R/', $left['output']) ?: [] as $line) {
+        $columns = explode("\t", $line, 3);
+
+        if (isset($columns[0]) && is_numeric($columns[0])) {
+            $lines += (int) $columns[0];
+        }
+    }
+
+    if ($lines > 0) {
+        fwrite(STDOUT, '[NOTE] '.CHANGELOG.' holds '.$lines.' line(s) this run did not write, and they are not staged: the commit carries the bullet alone'.PHP_EOL);
+    }
 }
 
 // A rename pairs its two halves, so the index can gain a path the set did not name. Read it back

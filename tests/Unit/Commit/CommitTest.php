@@ -56,6 +56,73 @@ it('commits the named set and writes the changelog bullet', function (): void {
         ->and($changelog)->toContain('- A thing was fixed.');
 });
 
+it('leaves the notes another session wrote in the changelog out of the commit', function (): void {
+    $repo = commitFixture();
+    $repo->write('src/Thing.php', "<?php\n\n// changed\n");
+
+    // The state a shared checkout is in while work is being sorted into commits: the document holds
+    // a note for work this commit is not about, written by a session running beside this one. The
+    // changelog is the one file two sessions write into at once, so staging it whole publishes that
+    // note under this message — for work the other session has not committed yet.
+    $before = $repo->read('CHANGELOG.md');
+    $repo->write('CHANGELOG.md', str_replace("## Unreleased\n\n", "## Unreleased\n\n- Another session's note, for work this commit does not hold.\n", $before));
+
+    $run = $repo->script(
+        'bin/commit.php',
+        '-m', 'fix: a thing',
+        '--changelog', 'A thing this session fixed.',
+        '--type', 'fixed',
+        '--skip-checks',
+        '--', 'src/Thing.php',
+    );
+
+    $committed = $repo->git('show', 'HEAD:CHANGELOG.md');
+
+    expect($run->exitCode)->toBe(0, $run->describe())
+        // The commit carries the bullet this run wrote ...
+        ->and($committed)->toContain('- A thing this session fixed.')
+        // ... and not the note it did not: that session's commit is the one whose subject says what
+        // its work is about.
+        ->and($committed)->not->toContain("Another session's note")
+        // The note is still where it was written, and the working copy still holds it — the run
+        // leaves the file as it found it apart from the bullet it put there.
+        ->and($repo->read('CHANGELOG.md'))->toContain("Another session's note")
+        ->and($repo->git('diff', '--', 'CHANGELOG.md'))->toContain("Another session's note")
+        // Nothing is left staged either, so the next commit does not carry it by accident.
+        ->and(trim($repo->git('diff', '--cached', '--name-only')))->toBe('')
+        // And the run said so rather than leaving a still-modified changelog to be discovered.
+        ->and($run->said('this run did not write'))->toBeTrue();
+});
+
+it('adds its bullet to the changelog entry the index already holds', function (): void {
+    $repo = commitFixture();
+    $repo->write('src/Thing.php', "<?php\n\n// changed\n");
+
+    // An arrangement the caller has already made — one note staged — and a later note written after
+    // it, which is nobody's for this commit. The index's copy is the document the bullet joins, so
+    // what commits is the caller's arrangement plus the bullet, and the later note stays out.
+    $repo->write('CHANGELOG.md', str_replace("## Unreleased\n\n", "## Unreleased\n\n- A note the caller staged.\n", $repo->read('CHANGELOG.md')));
+    $repo->git('add', 'CHANGELOG.md');
+    $repo->write('CHANGELOG.md', str_replace("## Unreleased\n\n", "## Unreleased\n\n- A later note nobody staged.\n", $repo->read('CHANGELOG.md')));
+
+    $run = $repo->script(
+        'bin/commit.php',
+        '-m', 'fix: a thing',
+        '--changelog', 'A thing.',
+        '--type', 'fixed',
+        '--skip-checks',
+        '--', 'src/Thing.php',
+    );
+
+    $committed = $repo->git('show', 'HEAD:CHANGELOG.md');
+
+    expect($run->exitCode)->toBe(0, $run->describe())
+        ->and($committed)->toContain('- A note the caller staged.')
+        ->and($committed)->toContain('- A thing.')
+        ->and($committed)->not->toContain('A later note nobody staged')
+        ->and($repo->read('CHANGELOG.md'))->toContain('A later note nobody staged');
+});
+
 it('writes a section that is not there yet under the Unreleased heading', function (): void {
     $repo = commitFixture();
     $repo->write('src/Thing.php', "<?php\n\n// changed\n");
