@@ -146,6 +146,49 @@ it('refuses a named set whose paths already hold what HEAD has', function (): vo
         ->and($alone->refused('CHANGELOG.md alone'))->toBeTrue()
         ->and($repo->read('CHANGELOG.md'))->toBe($before);
 });
+
+it('refuses a set whose only change is the changelog an earlier group wrote', function (): void {
+    $repo = commitFixture();
+    $head = trim($repo->git('rev-parse', 'HEAD'));
+
+    // The shape the eight groups had: every named path holds what `HEAD` has, and the changelog is
+    // the one file that moved — because the group before this one put its bullet there and
+    // `--no-changelog` hands the file to the caller, which is exactly how a session cutting groups
+    // hands it over. A guard that read the changelog as evidence answered yes to a set with nothing
+    // of its own in it, and the commit it cut published the earlier group's bullet a second time,
+    // under a subject about work that was already in the history.
+    $edited = str_replace(
+        "## Unreleased\n\n",
+        "## Unreleased\n\n- **A bullet the group before this one wrote.**\n",
+        $repo->read('CHANGELOG.md'),
+    );
+    $repo->write('CHANGELOG.md', $edited);
+
+    $run = $repo->script(
+        'bin/commit.php',
+        '-m', 'fix: a group with nothing left in it',
+        '--no-changelog',
+        '--skip-checks',
+        '--', 'CHANGELOG.md', 'bin/commit.php', 'composer.json', 'src/Thing.php',
+    );
+
+    expect($run->exitCode)->toBe(1)
+        ->and($run->refused('carries no change of its own'))->toBeTrue()
+        ->and($run->refused('src/Thing.php'))->toBeTrue()
+        // A refusal leaves the entry where it found it: the commit that publishes it is the one whose
+        // paths say what it is about, which is the eight-group reading of the same rule.
+        ->and($repo->read('CHANGELOG.md'))->toBe($edited)
+        ->and(trim($repo->git('rev-parse', 'HEAD')))->toBe($head)
+        ->and(trim($repo->git('diff', '--cached', '--name-only')))->toBe('');
+
+    // And the one shape where a changelog edit *is* the commit still commits: named alone, with the
+    // bullet handed over rather than written, because there is nothing else the set could be about.
+    $alone = $repo->script('bin/commit.php', '-m', 'docs: the entry is the change', '--no-changelog', '--skip-checks', '--', 'CHANGELOG.md');
+
+    expect($alone->exitCode)->toBe(0, $alone->describe())
+        ->and(trim($repo->git('show', '--name-only', '--format=', 'HEAD')))->toBe('CHANGELOG.md');
+});
+
 it('commits a changelog edit of its own when no bullet is being written', function (): void {
     $repo = commitFixture();
     $before = $repo->read('CHANGELOG.md');

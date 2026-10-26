@@ -21,7 +21,10 @@ declare(strict_types=1);
  *     bullet this program just wrote: work described a second time, in a commit with no change in it.
  *     That is the state a set of paths reaches after the work has already been committed, which reads
  *     from the outside exactly like a set that has not been committed yet — the files are there
- *     either way, and only the history can say which.
+ *     either way, and only the history can say which. The changelog is never such a change: it is the
+ *     record of one, so a set whose only moved path is `CHANGELOG.md` is refused as well — and the one
+ *     shape where an entry *is* the commit is the entry named alone, `--no-changelog` with
+ *     `CHANGELOG.md` and nothing else, which is a changelog fix rather than a description of one.
  *   - It writes the **changelog bullet** with the change, under `## Unreleased`, in the section the
  *     change belongs to. A changelog entry written later is a changelog entry written from memory.
  *   - It runs the **staged checks** — `bin/checks.php --staged`, the same suite the pre-commit hook
@@ -52,7 +55,7 @@ declare(strict_types=1);
 /**
  * @guards-index guard `bin/commit.php`
  *
- * a commit that carries a file it was not told about, or carries nothing at all, or leaves a changelog bullet behind: the index is read before anything is staged and the commit refused when it holds a path outside the named set, a set whose every path already holds what HEAD holds is refused before the changelog bullet is written, the bullet is written and the staged checks run before the commit exists, and a run that stops after that point puts the changelog and the index back as it found them
+ * a commit that carries a file it was not told about, or carries nothing of its own, or leaves a changelog bullet behind: the index is read before anything is staged and the commit refused when it holds a path outside the named set, a set whose paths all already hold what HEAD holds is refused before the changelog bullet is written, so is a set whose only moved path is the changelog, the bullet is written and the staged checks run before the commit exists, and a run that stops after that point puts the changelog and the index back as it found them
  */
 $root = dirname(__DIR__);
 
@@ -551,15 +554,36 @@ if ($options['list']) {
 // bullet written for a commit this program then declines is a changelog entry for work nobody
 // committed, which is the failure the bullet exists to prevent.
 //
-// The changelog counts as evidence only when this program is not writing to it: with a bullet to
-// write, the file is this tool's own output and cannot be the reason to commit, and with
-// `--no-changelog` an edit to it is the caller's like any other - a changelog fix is a commit.
-$evidence = $options['no-changelog'] ? $given : array_values(array_diff($given, [CHANGELOG]));
+// The evidence is the set with the changelog taken out, and that is a rule about what a commit is
+// for rather than about how this program writes: a changelog entry is the *record* of a change, so
+// the change has to be somewhere else in the set. With a bullet to write the file is this tool's own
+// output; with `--no-changelog` it is the caller's, and a set that names it beside paths which hold
+// what HEAD holds is still a commit of changelog text alone — an entry published again, under a
+// subject about work that is already in the history.
+//
+// That is the shape the eight groups had, and it cost a session the run that found it: each group
+// named its own paths and let the changelog come along, the group before it had written the bullet
+// that was sitting in the file, and a guard that read the changelog as evidence answered yes to a
+// set with nothing of its own in it. So the one case a changelog edit *is* the commit is the one
+// where it is the whole set — `--no-changelog` with `CHANGELOG.md` named and nothing else.
+$others = array_values(array_diff($given, [CHANGELOG]));
+$evidence = $options['no-changelog'] && $others === [] ? $given : $others;
 $changes = carrying($root, $evidence);
 
 if ($changes === []) {
     if ($evidence === []) {
         fwrite(STDERR, 'refusing: the named set is '.CHANGELOG.' alone, and that is the bullet this tool writes: a commit here would carry nothing else'.PHP_EOL);
+        exit(1);
+    }
+
+    if (in_array(CHANGELOG, $given, true)) {
+        fwrite(STDERR, 'refusing: the named set carries no change of its own — '.CHANGELOG.' has moved, and it is the only path in the set that has, so a commit here would publish a changelog entry for work that is already in the history:'.PHP_EOL);
+
+        foreach ($evidence as $path) {
+            fwrite(STDERR, '  '.$path.PHP_EOL);
+        }
+
+        fwrite(STDERR, 'a changelog entry records a change; name a path whose content has moved, or name '.CHANGELOG.' alone with --no-changelog when the entry is the change.'.PHP_EOL);
         exit(1);
     }
 

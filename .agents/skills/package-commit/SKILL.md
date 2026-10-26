@@ -202,7 +202,11 @@ until it has **one** reason to have changed.
    says what changed and why, and a body that carries the evidence: what was measured, which command
    produced it, and what was deliberately left alone. When the bullet was already authored while the
    work was done, pass `--no-changelog`, **name `CHANGELOG.md` in the set by hand**, and let `-F`
-   carry the message — otherwise the tool writes a second bullet for the same change.
+   carry the message — otherwise the tool writes a second bullet for the same change. The set's own
+   paths still have to be the change: a changelog entry records one rather than being one, so a
+   group whose paths already hold what `HEAD` holds is refused (`carries no change of its own`)
+   instead of being committed for its entry. That refusal is the answer to the eight-group shape —
+   the work is already in the history, and there is no commit here to cut.
 9. **Read the set back**, because the work is not finished when the last commit exists:
    * each commit carries exactly its own paths — `git show --stat <commit>`;
    * each changelog entry sits under the commit whose change it describes — `git show <commit>:CHANGELOG.md`;

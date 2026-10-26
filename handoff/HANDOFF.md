@@ -506,6 +506,26 @@ git log --format='%h %G?' -5          # no `N` in the second column
    does. Measured: `CommitTest` 20 passed (67 assertions), `bin/commit.php` at 78.2% (197 of 252
    lines) against its 70% floor under PCOV 1.0.12, and `bin/index.php --check` at exit 0 after the
    guard's row was re-rendered.
+
+   **That guard had a hole, and the eight groups would have found it again — closed 2026-10-26.**
+   `--no-changelog` is how a session hands the changelog over while it cuts a set in parts, so the
+   evidence was the whole named set: a group that named its own paths *and* `CHANGELOG.md` — the
+   file holding the bullet the group before it wrote — had that bullet counted as the change,
+   `carrying()` answered yes to a set with nothing of its own in it, and the commit it cut
+   published the earlier group's entry under a subject about work already in the history. The
+   evidence is now the named set with the changelog taken out, because an entry records a change
+   rather than being one, and the one shape where it *is* the commit is the entry named alone —
+   `--no-changelog` with `CHANGELOG.md` and nothing else. `CommitTest`'s `it refuses a set whose only
+   change is the changelog an earlier group wrote` plants exactly that fixture and holds both
+   halves: the refusal exits 1 naming `carries no change of its own` and the untouched paths, the
+   entry is left where it was found, nothing is staged and `HEAD` has not moved — and the same set
+   with `CHANGELOG.md` alone still commits. The test is proven to fire rather than trusted: with the
+   previous rule put back (`$evidence = $options['no-changelog'] ? $given : …`, restored by copy,
+   never by `git checkout`) it fails on its first assertion — `Failed asserting that 0 is identical
+   to 1` at line 175, a commit cut where a refusal was required — and is green with this one.
+   Measured: `CommitTest` 23 passed (89 assertions), the whole suite under `bin/coverage.php` at 502
+   passed (1,632 assertions), `bin/commit.php` at 79.6% (226 of 284 lines) against its 70% floor
+   under PCOV 1.0.12, PHPStan at max and Pint in test mode, and `bin/index.php --check` at exit 0.
 5. ~~**The root-cause decision, narrowed by item 1 and not settled by it.**~~ — **settled
    2026-10-10, on the third option: `eol=lf` pinned in `.gitattributes`.** The line is
    `* text=auto eol=lf` now, the guard row moved with it (`docs/guards.md` is rendered from the file
