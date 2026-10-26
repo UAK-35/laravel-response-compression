@@ -68,8 +68,9 @@ A mapped set runs as one process per path, all started together rather than one 
 `--parallel` is paratest, which takes a single path and refuses several, and the narrowest
 mappings are the ones one process at a time costs the most — the harness's hold directory is
 fifteen process-spawning files, minutes on its own where the whole suite is one parallel run.
-A mapped path that is a directory carries `--parallel` itself, so it still splits across
-workers.
+A mapped path that is a directory carries `--parallel` itself, and the pool's size with it — the
+flags come from `tests/Support/Workers.php`, which is half the cores the machine has — so it still
+splits across workers without asking the machine for more of them than it can hold.
 Those are what a commit can break on its own; the rest of the gate is a tree-shaped
 question, because PHPStan and Rector read every file that references the ones you changed. It
 reuses `bin/checks.php` rather than being a script of its own for the same reason CI runs the
@@ -361,7 +362,7 @@ nothing, declares a list this page does not have, or has no sentence to quote is
 than left out, because "not in the list" and "in it and correct" are the two answers a rendering
 has to be able to tell apart.
 
-The two lists name 21 readings and 6 files that are not guards, 27 files in `tests/Support/` in
+The two lists name 21 readings and 7 files that are not guards, 28 files in `tests/Support/` in
 all.
 
 | Reading | What it reads |
@@ -404,6 +405,7 @@ the table at the top.
 | [`../tests/Support/ReleaseRepo.php`](../tests/Support/ReleaseRepo.php) | a throwaway git repository with a real tag and a real remote, holding this package's release script |
 | [`../tests/Support/ReleaseRun.php`](../tests/Support/ReleaseRun.php) | what one run of a `bin/` script did: its exit code and the two streams, kept apart on purpose |
 | [`../tests/Support/ResponseWithNoReadableContent.php`](../tests/Support/ResponseWithNoReadableContent.php) | a response that reports a body it will not hand over |
+| [`../tests/Support/Workers.php`](../tests/Support/Workers.php) | how many workers a parallel test run may start, and the flags that say so: half the cores the machine has, and never fewer than one |
 | [`../tests/Support/collect-coverage.php`](../tests/Support/collect-coverage.php) | the collector a spawned script runs under — an instrument rather than a reading |
 
 ## Refused, and why

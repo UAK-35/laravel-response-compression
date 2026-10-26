@@ -7,6 +7,7 @@ use PhpParser\Error;
 use PhpParser\ParserFactory;
 use Uak35\ResponseCompression\Tests\Support\Notes;
 use Uak35\ResponseCompression\Tests\Support\TestMap;
+use Uak35\ResponseCompression\Tests\Support\Workers;
 
 /**
  * bin/checks.php
@@ -302,7 +303,30 @@ $testsSkip = $stagedMode && $stagedTests === []
 // command below: the single one a staged set of one reduces to, and each of the one-per-path
 // commands a set of several becomes. A set of none stays `[]` and never runs — the empty case is
 // a pass, decided a few lines up.
-$pestParallel = ! $stagedMode || count($stagedTests) === 1 ? ['--parallel'] : [];
+//
+// The pool's SIZE is the machine's answer rather than paratest's, which is one worker per core: a
+// worker the machine cannot start is not a failing test, it is a test file the run reports as an
+// error, and `runPest()` then asks each of those again alone and notes that the machine was the
+// problem. That note is true and it is also the only place the machine was ever asked. `Workers`
+// is the reading — half the cores, because a worker is two or three processes once its test starts
+// a child, and because the other half of the machine is where the gate, those children and
+// anything else running on it have to fit. Measured on sixteen cores: a pool of fifteen held
+// thirty-three `php` processes, a pool of eight held eighteen, and the suite took 242 seconds
+// instead of 214 for the smaller one — thirteen per cent for a pool that cannot oversubscribe.
+//
+// What is NOT in the reading is memory, which was asked first and refused by the same measurement:
+// the suite passed all 499 tests on a pool of fifteen while the machine reported 286 MB available,
+// and the figure swings between 286 MB and 6 GB on an otherwise idle host, so a memory bound would
+// have cut this pool on a reading that predicted a failure that did not happen.
+//
+// A tree with no autoloader has no reading to ask, and that is every fixture in
+// `tests/Unit/Gate/ChecksTest.php`: the pool keeps paratest's default there, which is the same
+// command those tests were written against. The flags themselves — and why the number goes on the
+// option rather than after it — are `Workers::arguments()`, so that the coverage floor starts its
+// pool the same way this does.
+$pool = class_exists(Workers::class) ? Workers::arguments() : ['--parallel'];
+
+$pestParallel = ! $stagedMode || count($stagedTests) === 1 ? $pool : [];
 
 // What the pest check runs, as one command each. `paratest` takes ONE path and refuses several, so
 // a staged set of two or more used to be handed to a single sequential run — which made the
@@ -321,7 +345,7 @@ $pestCommands = count($stagedTests) > 1
         static fn (string $path): array => [
             PHP_BINARY,
             $tools['pest']['path'],
-            ...(is_dir($root.'/'.$path) ? ['--parallel'] : []),
+            ...(is_dir($root.'/'.$path) ? $pool : []),
             $path,
         ],
         $stagedTests,

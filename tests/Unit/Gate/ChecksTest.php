@@ -6,6 +6,7 @@ use Uak35\ResponseCompression\Tests\Support\Notes;
 use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 use Uak35\ResponseCompression\Tests\Support\ReleaseRun;
 use Uak35\ResponseCompression\Tests\Support\ToolPaths;
+use Uak35\ResponseCompression\Tests\Support\Workers;
 
 /*
 |--------------------------------------------------------------------------
@@ -419,6 +420,56 @@ it('calls a storm a machine under load, and says how many of the files it ran co
         // Every one of the five was asked, once, and alone: the count above is only worth printing if
         // the retry behind it actually happened.
         ->and(explode(PHP_EOL, trim($repo->read('asked-again.txt'))))->toHaveCount(5);
+});
+
+it('tells the pool how many workers the machine can hold, and leaves the default where it cannot ask', function (): void {
+    $repo = gateRepo();
+    $manifest = ToolPaths::manifest(ReleaseRepo::package().'/'.ToolPaths::MANIFEST);
+
+    // A pest that answers green and writes down the command it was handed, so the run can be read
+    // for what the gate told it rather than for what it printed.
+    $repo->write($manifest['pest']['path'], <<<'STUB'
+<?php
+
+file_put_contents('pest-argv.txt', implode(PHP_EOL, array_slice($argv, 1)).PHP_EOL);
+
+echo 'Tests: 1 passed (1 assertions)'.PHP_EOL;
+STUB);
+
+    // A tree with no autoloader is a tree with no reading to ask, which is every other fixture here:
+    // the pool keeps paratest's own default, so nothing those tests assert has moved.
+    $without = gate($repo, '--only=tests');
+
+    expect($without->exitCode)->toBe(0)
+        ->and($repo->read('pest-argv.txt'))->toContain('--parallel')
+        ->and(str_contains($repo->read('pest-argv.txt'), '--processes'))->toBeFalse();
+
+    // Handed this checkout's autoloader, the fixture is a tree where the reading is reachable — the
+    // arrangement a real run has — and the same command has to carry the size.
+    $repo->write('vendor/autoload.php', sprintf("<?php\n\nrequire %s;\n", var_export(ReleaseRepo::package().'/vendor/autoload.php', true)));
+    $repo->write('pest-argv.txt', '');
+
+    $with = gate($repo, '--only=tests');
+    $arguments = explode(PHP_EOL, trim($repo->read('pest-argv.txt')));
+
+    // The number goes in on the option itself, and that is the half of this a stub can hold: pest
+    // rebuilds the arguments before paratest sees them, so `--processes 7` arrives as an option with
+    // nothing after it and the run stops on "requires a value" — measured, along with `-p 7`, which
+    // is refused as a second path. `--processes=7` is the form that survives the rebuild.
+    $sized = array_values(array_filter(
+        $arguments,
+        static fn (string $argument): bool => str_starts_with($argument, '--processes'),
+    ));
+
+    // The number is the machine's core count halved at that instant, so what is asserted is its shape
+    // and its bound rather than its value: a worker count is a positive whole number, and it is never
+    // more than half the cores the machine has — the reading's own arithmetic is held beside this file.
+    expect($with->exitCode)->toBe(0)
+        ->and($sized)->toHaveCount(1)
+        ->and($arguments)->toContain('--parallel')
+        ->and(ctype_digit(substr($sized[0], strlen('--processes='))))->toBeTrue()
+        ->and((int) substr($sized[0], strlen('--processes=')))->toBeGreaterThan(0)
+        ->and((int) substr($sized[0], strlen('--processes=')))->toBeLessThanOrEqual(Workers::bound(Workers::cores()));
 });
 
 it('does not ask again for a file that failed an assertion', function (): void {

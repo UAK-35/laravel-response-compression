@@ -6,6 +6,7 @@ declare(strict_types=1);
 use Uak35\ResponseCompression\Tests\Support\CoverageEnvironment;
 use Uak35\ResponseCompression\Tests\Support\PhpBinary;
 use Uak35\ResponseCompression\Tests\Support\ScriptCoverage;
+use Uak35\ResponseCompression\Tests\Support\Workers;
 
 /*
 |--------------------------------------------------------------------------
@@ -229,6 +230,15 @@ if (! mkdir($collected, 0o777, true)) {
 // grandchildren of this process: `pest` starts the workers, and a test starts the script.
 putenv('RC_SCRIPT_COVERAGE_DIR='.$collected);
 
+// The pool's size is the gate's, from the same reading: `--parallel` is paratest, whose default is
+// one worker per core, and the storm that default returns — `proc_open(): CreateProcess failed: The
+// parameter is incorrect` from the fixtures a release test spawns — is measured here rather than
+// described. It is not a slow run, it is a wrong one: a test that could not start its child never
+// reaches the script it was measuring, so `bin/commit.php` reads 0.0% and a floor fails on a
+// machine that has done nothing wrong. A tree with no autoloader — the fixtures that run a copy of
+// this script — keeps paratest's default.
+$pool = class_exists(Workers::class) ? Workers::arguments() : ['--parallel'];
+
 // The parent is asked for `src/` and only `src/`. It never executes anything in `bin/`, so
 // collecting there would buy memory and nothing else — those files' denominators come from
 // PHPUnit's own static analysis of the source list, and their lines from the children.
@@ -237,7 +247,7 @@ $status = run([
     '-d', 'pcov.directory='.$root.'/src',
     $pest,
     '--colors=always',
-    '--parallel',
+    ...$pool,
     '--coverage-clover='.$clover,
     ...array_slice($argv, 1),
 ]);
