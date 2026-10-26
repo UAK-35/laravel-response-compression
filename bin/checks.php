@@ -44,12 +44,13 @@ use Uak35\ResponseCompression\Tests\Support\Workers;
  * is a machine under a load nothing else here creates, and on Windows `proc_open` fails
  * sporadically under it for a command that passes when it is the only thing running. That arrives
  * as an *error* — a test that could not start a process, rather than one that asserted something
- * — so the files a parallel run erred on are asked again, one at a time and without the pool: the
- * check is green only for a run whose every failure was the pool's, and red for a file that fails
- * twice or for anything that asserted. `runPest()` below is where that happens, and it says what it
- * measured: how many of the test files the run started could not be started at all, against how many
- * it ran — because more than one of those at once is a machine under load rather than a finding, and
- * a list of names is a number the reader would have to count for themselves.
+ * — so the files a parallel run erred on are asked again without the pool, each in a run of its own
+ * and all of them started together: the check is green only for a run whose every failure was the
+ * pool's, and red for a file that fails twice or for anything that asserted. `runPest()` below is
+ * where that happens, and it says what it measured: how many of the test files the run started
+ * could not be started at all, against how many it ran — because more than one of those at once is a
+ * machine under load rather than a finding, and a list of names is a number the reader would have to
+ * count for themselves.
  *
  * USAGE
  * -----
@@ -974,8 +975,13 @@ function runCommand(array $command, string $cwd): array
  * order given, and the exit code is the first non-zero one — the check that runs this reports one
  * verdict for the set, and the set failed if any of its runs did.
  *
+ * `results` is that same reading kept apart, one entry per command in the order given: a set's
+ * verdict is not enough for a caller that has to act on a single member of it, and the retry of the
+ * files a pool could not start is exactly that caller — a lone run that came back green is what
+ * heals one file, and the aggregate can only say that one of the runs failed.
+ *
  * @param  list<list<string>>  $commands
- * @return array{exit: int, output: string}
+ * @return array{exit: int, output: string, results: list<array{exit: int, output: string}>}
  */
 function runCommands(array $commands, string $cwd): array
 {
@@ -1002,6 +1008,7 @@ function runCommands(array $commands, string $cwd): array
 
     $exit = 0;
     $output = '';
+    $results = [];
 
     foreach ($running as $entry) {
         $label = implode(' ', $entry['command']);
@@ -1009,6 +1016,7 @@ function runCommands(array $commands, string $cwd): array
         if ($entry['process'] === null) {
             $output .= 'could not start: '.$label.PHP_EOL;
             $exit = $exit === 0 ? 127 : $exit;
+            $results[] = ['exit' => 127, 'output' => 'could not start: '.$label];
 
             continue;
         }
@@ -1021,18 +1029,19 @@ function runCommands(array $commands, string $cwd): array
         $code = proc_close($entry['process']);
 
         $output .= $answer;
+        $results[] = ['exit' => $code, 'output' => $answer];
 
         if ($exit === 0 && $code !== 0) {
             $exit = $code;
         }
     }
 
-    return ['exit' => $exit, 'output' => $output];
+    return ['exit' => $exit, 'output' => $output, 'results' => $results];
 }
 
 /**
- * Run the pest commands for the tests check, and ask again — one file at a time, and without the
- * pool — for the files a parallel run reported as errors.
+ * Run the pest commands for the tests check, and ask again — each file in a run of its own, without
+ * the pool, all of them started together — for the files a parallel run reported as errors.
  *
  * WHY A PARALLEL FAILURE IS READ BEFORE IT IS BELIEVED
  * ----------------------------------------------------
@@ -1051,7 +1060,18 @@ function runCommands(array $commands, string $cwd): array
  * usually come from. The files that erred are asked again — the failing file alone, the same
  * binary, no `--parallel` — which is exactly the condition the flake needs to disappear, and it is
  * the file rather than the whole set because a second full run would spend minutes answering a
- * question about three files.
+ * question about three files. Alone, but not one after another: they go to a fan-out, because a
+ * second lone run per file is a second full boot of pest — start the framework, read the manifest,
+ * collect the suite — and a storm of files the pool could not start used to pay that once per file,
+ * which is a second suite's wall time for a run whose only real finding may be one file. The files
+ * were never a sequence: each is a run of its own, and the shape the original failure had was one
+ * file per worker. What they are handed in is the width the pool itself was given, read from this
+ * tree's own answer about this machine — that number is already this package's reading of how many
+ * test files this machine holds at once, and a retry that started thirty of them together would be
+ * the load that refused the first start, arriving again, with the difference that a retry refused a
+ * start is read as a file that failed alone. A tree with no autoloader has no reading of that number
+ * here, and there every file is asked at once: it is the fixtures beside this check that are that
+ * tree, and there is no machine to size them by.
  *
  * Two things it deliberately does not do. A file that fails alone too is not asked a third time: the
  * check keeps the non-zero exit the first run gave and names the file, because a file that fails
@@ -1132,12 +1152,29 @@ function runPest(array $commands, string $pest, string $root, string $marker): a
 
     $healed = [];
     $again = [];
-    $output = $result['output'].PHP_EOL.'▶ the pool errored on '.count($erred).' file(s), and each was asked again, alone'.PHP_EOL;
 
-    foreach ($erred as $file) {
-        $retry = runCommand([PHP_BINARY, $pest, $file], $root);
+    // Asked again in one fan-out rather than one after another, and in waves as wide as the pool
+    // this tree was given. Every file is started before any is read — the shape of the staged
+    // fan-out above, and for the same reason: starting each one as the one before it finished is
+    // the sequence this exists to avoid. The width is this tree's own answer about this machine
+    // when the tree can be asked at all, and every file at once when it cannot: a tree whose
+    // autoloader does not load `Workers` is a fixture, and a fixture is not a machine to size.
+    $width = max(1, min(class_exists(Workers::class) ? Workers::count() : count($erred), count($erred)));
+    $answers = [];
 
-        if ($retry['exit'] === 0) {
+    foreach (array_chunk($erred, $width) as $wave) {
+        $answers = [...$answers, ...runCommands(
+            array_map(static fn (string $file): array => [PHP_BINARY, $pest, $file], $wave),
+            $root,
+        )['results']];
+    }
+
+    $output = $result['output'].PHP_EOL.'▶ the pool errored on '.count($erred).' file(s), and each was asked again, alone, '.$width.' at a time'.PHP_EOL;
+
+    foreach ($erred as $index => $file) {
+        // A run that could not be started at all is not a file that passed: it is asked for its
+        // answer, and a missing one is read as the failure it is.
+        if (($answers[$index]['exit'] ?? 127) === 0) {
             $healed[] = $file;
             $output .= '  '.$file.' — passed alone'.PHP_EOL;
 

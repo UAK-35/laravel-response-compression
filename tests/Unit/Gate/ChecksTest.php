@@ -67,6 +67,10 @@ function gate(ReleaseRepo $repo, string ...$arguments): ReleaseRun
  * it appends what it was asked about to `asked-again.txt` at the tree's root, so a test can see
  * whether the gate asked at all and about what, and exits with the code it was told to.
  *
+ * The record is appended under a lock, because the retry asks the files together and an unlocked
+ * `FILE_APPEND` finds the end of the file before it writes — which is how one line of a record can
+ * disappear into another. `plantStormPest()` below measures what that costs.
+ *
  * @param  string  $counts  what the file's `<testsuite>` reports — `errors="1" failures="0"` for the
  *                          pool's own noise, `failures="1"` for a run that asserted something
  * @param  int  $alone  the exit code a lone run answers with: 0 heals, 1 does not
@@ -102,7 +106,7 @@ if ($pooled) {
 
 $asked = array_values(array_filter($arguments, static fn (string $argument): bool => ! str_starts_with($argument, '-')));
 
-file_put_contents('asked-again.txt', implode(PHP_EOL, $asked).PHP_EOL, FILE_APPEND);
+file_put_contents('asked-again.txt', implode(PHP_EOL, $asked).PHP_EOL, FILE_APPEND | LOCK_EX);
 
 exit(%d);
 STUB, $file, $counts, $second, $alone));
@@ -116,6 +120,11 @@ STUB, $file, $counts, $second, $alone));
  * what it could not start against what it ran. A lone run is the retry, and it does what
  * `plantFlakyPest()`'s does — records the file it was asked about, then exits with the code it was
  * told, so the same stub serves a storm that heals and one that does not.
+ *
+ * The record is appended under a lock, because the retry asks these files together: an unlocked
+ * `FILE_APPEND` finds the end of the file and then writes, so two runs can find the same end, and a
+ * line of the record can be lost into another. One run of ten files recorded nineteen lines before
+ * this was locked.
  */
 function plantStormPest(ReleaseRepo $repo, int $erred, int $clean, int $alone): void
 {
@@ -150,10 +159,90 @@ if ($pooled) {
 
 $asked = array_values(array_filter($arguments, static fn (string $argument): bool => ! str_starts_with($argument, '-')));
 
-file_put_contents('asked-again.txt', implode(PHP_EOL, $asked).PHP_EOL, FILE_APPEND);
+file_put_contents('asked-again.txt', implode(PHP_EOL, $asked).PHP_EOL, FILE_APPEND | LOCK_EX);
 
 exit(%d);
 STUB, $suites, $clean, $erred, ($clean + $erred) * 10, $alone));
+}
+
+/**
+ * Plant a `pest` whose lone runs write down when they started and when they stopped.
+ *
+ * The retry's own shape, and the one reading of it a clock cannot give: the files the pool could not
+ * start are asked again together, and what says so is the order of the record rather than a duration.
+ * Each lone run appends `start <file>`, then waits until `$expected` of those lines are in the file —
+ * which is what makes the record an order instead of a race, because every run stops waiting once the
+ * last of them has arrived, so an `end` can only be written after every `start` — and then appends
+ * `end <file>`. Asked one after another, the first `end` arrives while the others have not started at
+ * all, and the deadline is what keeps that a failure rather than a hang.
+ *
+ * `$expected` is how many lone runs have to arrive before any of them may finish: the whole set on a
+ * tree with no autoloader to read a width from, and that width on a tree that has one — the number the
+ * gate takes from `Workers`, which is why one of the tests below hands the fixture this checkout's
+ * autoloader.
+ *
+ * The two appends are locked, and that is not decoration: the runs writing them are concurrent by
+ * construction, and a `FILE_APPEND` that is not locked seeks to the end of the file and then writes,
+ * so two of them can both find the same end and one line can disappear into the other. Measured
+ * before it was locked: one run of ten files recorded nineteen lines.
+ *
+ * @param  list<string>  $files  the files the pooled run reports as errors, in the order the log names them
+ * @param  int  $expected  how many lone runs a wave has, before any of them may stop
+ */
+function plantTogetherPest(ReleaseRepo $repo, array $files, int $expected): void
+{
+    $manifest = ToolPaths::manifest(ReleaseRepo::package().'/'.ToolPaths::MANIFEST);
+
+    $suites = '';
+
+    foreach ($files as $file) {
+        $suites .= sprintf('<testsuite name="erred" file="%s" errors="1" failures="0"></testsuite>', $file);
+    }
+
+    // The label is `STUB` for the reason the other two stubs give: a label whose name appears in the
+    // body — `PHP_EOL` does — is one Rector rewrites into a heredoc.
+    $repo->write($manifest['pest']['path'], sprintf(<<<'STUB'
+<?php
+
+$arguments = array_slice($argv, 1);
+
+if (in_array('--parallel', $arguments, true)) {
+    $log = $arguments[array_search('--log-junit', $arguments, true) + 1];
+
+    file_put_contents($log, '<testsuites>%s</testsuites>');
+    echo 'Tests: 0 passed, %d failed (0 assertions)'.PHP_EOL;
+
+    exit(1);
+}
+
+$asked = array_values(array_filter($arguments, static fn (string $argument): bool => ! str_starts_with($argument, '-')))[0];
+
+file_put_contents('retry-order.txt', 'start '.$asked.PHP_EOL, FILE_APPEND | LOCK_EX);
+
+$deadline = microtime(true) + 10;
+
+while (microtime(true) < $deadline) {
+    if (substr_count((string) file_get_contents('retry-order.txt'), 'start ') >= %d) {
+        break;
+    }
+
+    usleep(20000);
+}
+
+file_put_contents('retry-order.txt', 'end '.$asked.PHP_EOL, FILE_APPEND | LOCK_EX);
+
+exit(0);
+STUB, $suites, count($files), $expected));
+}
+
+/**
+ * The lines a stub wrote, in the order it wrote them.
+ *
+ * @return list<string>
+ */
+function retryRecord(ReleaseRepo $repo): array
+{
+    return explode(PHP_EOL, trim($repo->read('retry-order.txt')));
 }
 
 it('lists what it would run, and the tools it would run them with', function (): void {
@@ -470,6 +559,79 @@ STUB);
         ->and(ctype_digit(substr($sized[0], strlen('--processes='))))->toBeTrue()
         ->and((int) substr($sized[0], strlen('--processes=')))->toBeGreaterThan(0)
         ->and((int) substr($sized[0], strlen('--processes=')))->toBeLessThanOrEqual(Workers::bound(Workers::cores()));
+});
+
+it('asks the files the pool could not start again together rather than one after another', function (): void {
+    $repo = gateRepo();
+    $files = [
+        'tests/Unit/Heavy/Heavy01Test.php',
+        'tests/Unit/Heavy/Heavy02Test.php',
+        'tests/Unit/Heavy/Heavy03Test.php',
+    ];
+
+    // A storm is not three files waiting their turn: each is a run of its own, and what asking them
+    // one after another costs is a second boot of pest per file — a second suite's wall time for a run
+    // whose only real finding may be one file. A tree with no autoloader is a tree with no width to
+    // read, so every one of them is asked at once here.
+    plantTogetherPest($repo, $files, count($files));
+
+    // Verbose, because the retry's own lines belong to the check's captured output and a check that
+    // passed prints none of it: this is the flag that shows a green run what it did.
+    $run = gate($repo, '--only=tests', '--verbose');
+
+    $record = retryRecord($repo);
+
+    // The record is an order rather than a list. Six lines, three of them starts and the first three
+    // at that: every run wrote its own start before it waited for the others, so an end written
+    // before the last start is a run that never had a peer — which is what one after another looks
+    // like from inside the tree.
+    expect($run->exitCode)->toBe(0)
+        ->and($record)->toHaveCount(count($files) * 2)
+        ->and(array_slice($record, 0, count($files)))->toEqualCanonicalizing(
+            array_map(static fn (string $file): string => 'start '.$file, $files),
+        )
+        ->and(array_slice($record, count($files)))->toEqualCanonicalizing(
+            array_map(static fn (string $file): string => 'end '.$file, $files),
+        )
+        ->and($run->output)->toContain('▶ the pool errored on 3 file(s), and each was asked again, alone, 3 at a time');
+});
+
+it('asks no more of them at once than the pool itself was given', function (): void {
+    $repo = gateRepo();
+    $width = Workers::count();
+    $files = [];
+
+    for ($index = 1; $index <= $width + 2; $index++) {
+        $files[] = sprintf('tests/Unit/Heavy/Heavy%02dTest.php', $index);
+    }
+
+    // The width is this package's own answer about this machine, and the retry is held to it: more
+    // lone runs at once than the pool was given would be the load that refused the first start,
+    // arriving a second time with a worse failure — a retry that could not start reads as a file that
+    // failed alone. Handed this checkout's autoloader, the fixture is a tree where that number can be
+    // read, which is the arrangement a real run has.
+    $repo->write('vendor/autoload.php', sprintf("<?php\n\nrequire %s;\n", var_export(ReleaseRepo::package().'/vendor/autoload.php', true)));
+    plantTogetherPest($repo, $files, $width);
+
+    $run = gate($repo, '--only=tests', '--verbose');
+
+    $record = retryRecord($repo);
+    $first = array_slice($files, 0, $width);
+    $second = array_slice($files, $width);
+
+    // Two waves and a boundary between them: the first `width` files all started before any of them
+    // stopped, and the rest started only after those had.
+    expect($run->exitCode)->toBe(0)
+        ->and($record)->toHaveCount(count($files) * 2)
+        ->and(array_slice($record, 0, $width))->toEqualCanonicalizing(
+            array_map(static fn (string $file): string => 'start '.$file, $first),
+        )
+        ->and(array_slice($record, $width))->toEqualCanonicalizing([
+            ...array_map(static fn (string $file): string => 'end '.$file, $first),
+            ...array_map(static fn (string $file): string => 'start '.$file, $second),
+            ...array_map(static fn (string $file): string => 'end '.$file, $second),
+        ])
+        ->and($run->output)->toContain('alone, '.$width.' at a time');
 });
 
 it('does not ask again for a file that failed an assertion', function (): void {
