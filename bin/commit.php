@@ -16,17 +16,22 @@ declare(strict_types=1);
  *     the whole index. So the first thing this does is read the index and refuse when it holds a
  *     path outside the named set — because a commit that quietly carries a stranger's work is the
  *     failure a named set is supposed to prevent.
- *   - It refuses a set that **carries nothing**. A path whose content is what `HEAD` already holds
- *     stages zero lines, and the one thing such a commit would publish is the changelog bullet this
- *     program just wrote: work described a second time, in a commit with no change in it. That is
- *     the state a set of paths reaches after the work has already been committed, which reads from
- *     the outside exactly like a set that has not been committed yet — the files are there either
- *     way, and only the history can say which.
+ *   - It refuses a set that **carries nothing of its own**. A path whose content is what `HEAD`
+ *     already holds stages zero lines, and the one thing such a commit would publish is the changelog
+ *     bullet this program just wrote: work described a second time, in a commit with no change in it.
+ *     That is the state a set of paths reaches after the work has already been committed, which reads
+ *     from the outside exactly like a set that has not been committed yet — the files are there
+ *     either way, and only the history can say which.
  *   - It writes the **changelog bullet** with the change, under `## Unreleased`, in the section the
  *     change belongs to. A changelog entry written later is a changelog entry written from memory.
  *   - It runs the **staged checks** — `bin/checks.php --staged`, the same suite the pre-commit hook
  *     runs — and does not commit when they fail. So the verdict is attributed to a command rather
  *     than to a hook the committer may not have enabled.
+ *   - It is **all or nothing**. The bullet is written and the set is staged before the checks run,
+ *     so every way this program can stop after that point — a failed `git add`, a rename that pulled
+ *     a path in, a red gate — has to put the changelog and the index back. A run that abandons a
+ *     bullet is a changelog entry for work nobody committed, and a run that abandons a staged path
+ *     is one the next commit would carry without anybody deciding it.
  *
  * TAKING THE WORKING-TREE CONTENT
  * -------------------------------
@@ -39,14 +44,15 @@ declare(strict_types=1);
  *   0   the commit was made, or a `--dry-run`/`--list` reported a plan and wrote nothing
  *   1   nothing was committed: a named path was refused, the index carried a path outside the set,
  *       the named set carried no change, the changelog could not be written, or the staged checks
- *       failed
+ *       failed - and when the run got as far as writing the bullet, the changelog and the index
+ *       were put back as it found them
  *   2   the command line itself was wrong
  */
 
 /**
  * @guards-index guard `bin/commit.php`
  *
- * a commit that carries a file it was not told about, or carries nothing at all: the index is read before anything is staged and the commit refused when it holds a path outside the named set, a set whose every path already holds what HEAD holds is refused before the changelog bullet is written, and the bullet is written and the staged checks run before the commit exists
+ * a commit that carries a file it was not told about, or carries nothing at all, or leaves a changelog bullet behind: the index is read before anything is staged and the commit refused when it holds a path outside the named set, a set whose every path already holds what HEAD holds is refused before the changelog bullet is written, the bullet is written and the staged checks run before the commit exists, and a run that stops after that point puts the changelog and the index back as it found them
  */
 $root = dirname(__DIR__);
 
@@ -112,6 +118,81 @@ function git(string $root, string ...$arguments): array
     }
 
     return runCommand($command, $root);
+}
+
+/**
+ * The bytes of the index file and the path they came from, so a refused run can put them back.
+ *
+ * The index is the one piece of state this program writes that nothing else undoes: a path staged
+ * for a commit it then abandons is work the next commit would carry without anybody deciding it,
+ * and re-staging the named set is not the same thing as restoring it — the index it found may have
+ * carried paths of its own, which the guard above allows as long as they are in the set.
+ *
+ * The file is read rather than the state asked of `git status`, because what a refusal has to answer
+ * is "what did it look like before", and only the bytes hold that. `--git-path` rather than
+ * `.git/index`: a worktree and a repository whose directory was moved spell the index somewhere
+ * else, and this program should not hold a second opinion about where git keeps its own state.
+ *
+ * `bytes` of null with a path means there was no index file to take — a repository whose first
+ * `git add` this run would be — and restoring that state is deleting the one it created.
+ *
+ * @return array{path: string|null, bytes: string|null}
+ */
+function indexSnapshot(string $root): array
+{
+    $result = git($root, 'rev-parse', '--git-path', 'index');
+
+    if ($result['exit'] !== 0) {
+        return ['path' => null, 'bytes' => null];
+    }
+
+    $path = trim($result['output']);
+
+    if ($path === '') {
+        return ['path' => null, 'bytes' => null];
+    }
+
+    $absolute = str_starts_with($path, '/') || preg_match('#^[A-Za-z]:[\\\\/]#', $path) === 1;
+
+    if (! $absolute) {
+        $path = $root.'/'.$path;
+    }
+
+    $bytes = is_file($path) ? @file_get_contents($path) : null;
+
+    return ['path' => $path, 'bytes' => is_string($bytes) ? $bytes : null];
+}
+
+/**
+ * Put the two things a run can change back as it found them.
+ *
+ * The changelog is restored only when this run wrote a bullet — `null` is "no bullet was written",
+ * which is the state `--no-changelog` starts in and the one a run that stopped before the write is
+ * already in.
+ *
+ * A restore that cannot be done is not allowed to hide the refusal that caused it: the caller is
+ * about to exit 1 with the reason it found, and a second failure on the way out would replace that
+ * reason with this one.
+ *
+ * @param  array{path: string|null, bytes: string|null}  $index
+ */
+function restoreTree(array $index, string $changelogPath, ?string $changelogBefore): void
+{
+    if ($changelogBefore !== null) {
+        @file_put_contents($changelogPath, $changelogBefore);
+    }
+
+    if ($index['path'] === null) {
+        return;
+    }
+
+    if ($index['bytes'] === null) {
+        @unlink($index['path']);
+
+        return;
+    }
+
+    @file_put_contents($index['path'], $index['bytes']);
 }
 
 /**
@@ -280,7 +361,9 @@ Options:
 
 The index must carry no path outside the named set, a set whose paths all already hold what HEAD
 holds is refused before anything is written, and the changelog bullet is written under
-`## Unreleased` before anything is committed.
+`## Unreleased` before anything is committed. A run that stops after that point - a staged check
+that fails, a rename that pulled a path in, a commit git would not make - puts the changelog and
+the index back as it found them.
 TEXT;
 }
 
@@ -496,6 +579,7 @@ if ($changes === []) {
 
 $changelogPath = $root.'/'.CHANGELOG;
 $changelogAfter = null;
+$changelogBefore = null;
 
 if (! $options['no-changelog']) {
     $before = @file_get_contents($changelogPath);
@@ -513,6 +597,7 @@ if (! $options['no-changelog']) {
     }
 
     $changelogAfter = $after;
+    $changelogBefore = $before;
 }
 
 // ---------------------------------------------------------------------------
@@ -555,21 +640,31 @@ if ($options['dry-run']) {
 }
 
 // ---------------------------------------------------------------------------
-// stage, check, commit
+// stage, check, commit — or put everything back
 // ---------------------------------------------------------------------------
+
+// The state every refusal below has to leave behind, taken before the first thing is written. From
+// here on this run has two ways to change the tree — the changelog's bytes and the index — and the
+// only place either is safe to write is a run that ends in a commit.
+$index = indexSnapshot($root);
+
+$abandon = static function (string $message) use ($index, $changelogPath, $changelogBefore): never {
+    restoreTree($index, $changelogPath, $changelogBefore);
+    fwrite(STDERR, $message);
+    fwrite(STDERR, 'the changelog and the index were put back as this run found them.'.PHP_EOL);
+    exit(1);
+};
 
 if ($changelogAfter !== null) {
     if (file_put_contents($changelogPath, $changelogAfter) === false) {
-        fwrite(STDERR, 'refusing: could not write '.CHANGELOG.PHP_EOL);
-        exit(1);
+        $abandon('refusing: could not write '.CHANGELOG.PHP_EOL);
     }
 }
 
 $add = runCommand(['git', '-C', $root, 'add', '-f', '--', ...$names], $root);
 
 if ($add['exit'] !== 0) {
-    fwrite(STDERR, 'could not stage the named set:'.$add['output'].PHP_EOL);
-    exit(1);
+    $abandon('could not stage the named set:'.$add['output'].PHP_EOL);
 }
 
 // A rename pairs its two halves, so the index can gain a path the set did not name. Read it back
@@ -577,21 +672,20 @@ if ($add['exit'] !== 0) {
 $unexpected = array_values(array_diff(staged($root), $allowed));
 
 if ($unexpected !== []) {
-    fwrite(STDERR, 'refusing: staging the set pulled in '.count($unexpected).' path(s) it was not told about:'.PHP_EOL);
+    $message = 'refusing: staging the set pulled in '.count($unexpected).' path(s) it was not told about:'.PHP_EOL;
 
     foreach ($unexpected as $path) {
-        fwrite(STDERR, '  '.$path.PHP_EOL);
+        $message .= '  '.$path.PHP_EOL;
     }
 
-    exit(1);
+    $abandon($message);
 }
 
 if (! $options['skip-checks']) {
     $checks = runCommand([PHP_BINARY, $root.'/bin/checks.php', '--staged'], $root);
 
     if ($checks['exit'] !== 0) {
-        fwrite(STDERR, 'the staged checks failed, so nothing was committed:'.PHP_EOL.$checks['output']);
-        exit(1);
+        $abandon('the staged checks failed, so nothing was committed:'.PHP_EOL.$checks['output']);
     }
 }
 
@@ -599,8 +693,11 @@ $committed = runCommand(['git', '-C', $root, 'commit', ...$messageArguments], $r
 
 fwrite(STDOUT, $committed['output']);
 
+// A `git commit` that exits nonzero did not make one — the branch moves only once everything it
+// needs has succeeded — so a failed commit is an abandoned run like any other, and the bullet and
+// the staged set go back with it.
 if ($committed['exit'] !== 0) {
-    exit(1);
+    $abandon('');
 }
 
 exit(0);

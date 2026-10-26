@@ -601,8 +601,10 @@ git log --format='%h %G?' -5          # no `N` in the second column
 - **A commit is slow:** `bin/commit.php` runs the staged gate itself, and then the `pre-commit` hook
   runs it again. Run it in the background and poll; its stdout stays empty until it finishes because
   both gates capture their children.
-- **A failed `bin/commit.php` leaves its changelog bullet on disk *and* staged.** Recover with
-  `git restore --staged -- CHANGELOG.md`, then restore the blob with
+- **A `bin/commit.php` run that is *killed* still leaves its changelog bullet on disk and its set
+  staged.** The tool now puts both back itself on every refusal it can answer (`restoreTree()`), so
+  this is the case where the process never reached that code — a SIGKILL, a closed terminal, a
+  machine that stopped. Recover with `git restore --staged -- CHANGELOG.md`, then restore the blob with
   `git show HEAD:CHANGELOG.md > CHANGELOG.md`. The reason that is `git show` rather than
   `git checkout --` is that a checkout writes the working tree through the attributes, so what the
   file comes back as depends on them: before the `eol=lf` pin (§7 item 5) it came back CRLF, which is

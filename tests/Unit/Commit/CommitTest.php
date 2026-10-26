@@ -146,7 +146,6 @@ it('refuses a named set whose paths already hold what HEAD has', function (): vo
         ->and($alone->refused('CHANGELOG.md alone'))->toBeTrue()
         ->and($repo->read('CHANGELOG.md'))->toBe($before);
 });
-
 it('commits a changelog edit of its own when no bullet is being written', function (): void {
     $repo = commitFixture();
     $before = $repo->read('CHANGELOG.md');
@@ -338,6 +337,65 @@ it('runs the staged checks and refuses a commit they fail', function (): void {
     expect($refused->exitCode)->toBe(1)
         ->and($refused->refused('the staged checks failed'))->toBeTrue()
         ->and(trim($broken->git('rev-parse', 'HEAD')))->toBe($brokenHead);
+});
+
+it('leaves no bullet behind when the staged checks abandon the run', function (): void {
+    $repo = commitFixture();
+    $repo->write('bin/checks.php', "#!/usr/bin/env php\n<?php\n\nexit(1);\n");
+    $repo->commit('chore: break the gate');
+    $repo->write('src/Thing.php', "<?php\n\n// changed\n");
+
+    $head = trim($repo->git('rev-parse', 'HEAD'));
+    $before = $repo->read('CHANGELOG.md');
+
+    $run = $repo->script('bin/commit.php', '-m', 'fix: a thing', '--changelog', 'A thing.', '--', 'src/Thing.php');
+
+    // The bullet is written before the checks run, so a red gate is the one state where the
+    // changelog already says something the commit does not: an entry for work nobody committed, in
+    // the file everybody reads to find out what was. Both halves are asserted, because either one
+    // alone leaves a tree that reads as if the commit happened.
+    expect($run->exitCode)->toBe(1)
+        ->and($run->refused('the staged checks failed'))->toBeTrue()
+        ->and($run->refused('put back as this run found them'))->toBeTrue()
+        ->and($repo->read('CHANGELOG.md'))->toBe($before)
+        ->and($repo->read('CHANGELOG.md'))->not->toContain('A thing.')
+        // And the index is where it was: nothing staged, because this run staged and then stopped.
+        ->and(trim($repo->git('diff', '--cached', '--name-only')))->toBe('')
+        ->and(trim($repo->git('rev-parse', 'HEAD')))->toBe($head)
+        // The edit itself is still the caller's to commit — an abandoned run is not a revert.
+        ->and($repo->read('src/Thing.php'))->toContain('// changed');
+});
+
+it('puts the index back with exactly what it found staged', function (): void {
+    $repo = commitFixture();
+    $repo->write('bin/checks.php', "#!/usr/bin/env php\n<?php\n\nexit(1);\n");
+    $repo->commit('chore: break the gate');
+
+    // A set the guard allows to be half staged already — a path in the set, staged before the run
+    // — beside one that is only in the working tree. Restoring the index by emptying it would pass
+    // the test above and be wrong here: what this run found is one staged path, not none.
+    $repo->write('src/Thing.php', "<?php\n\n// staged before the run\n");
+    $repo->git('add', 'src/Thing.php');
+    $repo->write('src/Other.php', "<?php\n\n// only on disk\n");
+    $before = $repo->read('CHANGELOG.md');
+
+    $run = $repo->script(
+        'bin/commit.php',
+        '-m', 'fix: two things',
+        '--changelog', 'Two things.',
+        '--', 'src/Other.php', 'src/Thing.php',
+    );
+
+    expect($run->exitCode)->toBe(1)
+        ->and($run->refused('the staged checks failed'))->toBeTrue()
+        // The index holds the one path it held, and the other is back to a working-tree edit the
+        // caller can still see in `git status` rather than a staged change nobody made.
+        ->and(trim($repo->git('diff', '--cached', '--name-only')))->toBe('src/Thing.php')
+        // `src/Other.php` is a file git has never held, so what it has to be back to is untracked:
+        // `git diff` does not name one of those, and only the status can say it is still there.
+        ->and($repo->git('status', '--porcelain'))->toContain('src/Other.php')
+        ->and($repo->read('src/Other.php'))->toContain('// only on disk')
+        ->and($repo->read('CHANGELOG.md'))->toBe($before);
 });
 
 it('refuses a command line it does not understand', function (): void {
