@@ -288,10 +288,16 @@ and forty seconds of test time on one worker, while the other fifteen ran out of
 under a tenth of that — which is what most of the suite's wall clock was. The directory is what keeps the split from becoming a second list of
 names to keep in step — a hold file asks the harness for the guard it carries, and the harness reads
 that name back out of the file itself, so a guard that arrived with no file fails the harness's own
-test and a file asking for a guard nobody holds is refused rather than run. The two controls sit in
+test and a file asking for a guard nobody holds is refused rather than run. The three controls sit in
 `Controls/` beside the holds rather than inside one of them, because they are about the machinery
 rather than about a guard — and because they are the slowest runs of the three directions, so each
-of them gets a worker of its own rather than the file that carries the hold waiting on it.
+of them gets a worker of its own rather than the file that carries the hold waiting on it. Each
+control is the green half of a direction: the overlay copied in verbatim, the program copied in
+verbatim, and — for the exclusion of a spill nobody can see from a green run — a copy of this
+checkout with one planted in it, read twice. The two path readings have to name the spill on the
+copy, which is the colour a checkout that carries one is supposed to have, and every hold's own
+reading has to answer nothing on the tree planted from that same copy, which is the listing being
+this package's own work rather than whatever else has landed in the folder.
 
 One reading a guard asserts on is not mutated, and the reason is the tree rather than the reading:
 `ToolPaths::pinDrift()` holds a pin to what `composer.json` requires and to what Composer recorded
