@@ -379,13 +379,45 @@ bullet, and a staged check that ran before it existed — `6346b2f` (the text fi
 named in the load order). The predecessor's half of this section was right for
 its own moment — the 28/29 reports were stat-cache reports rather than work (§4), and the eight
 groups below are **areas of the tree**, not batches of work, each already committed with the
-changelog entry its own commit wrote. The table above is history as well now, and the list is not
-empty again — this row is re-taken rather than left as it was: the export-ignore line `BEHAVE.mdc`
-did not carry is in the worktree with the `CHANGELOG.md` bullet that records it, both unstaged and
-neither committed, and this document is the third path once it is saved, which is the reading
-`handoff/state.sh` prints against a `HEAD` at `e73e190` — `3 listed — 3 with a real content diff, 0
-untracked`, where the list it counted held nothing before. Everything the table below describes is
-otherwise at that `HEAD`:
+changelog entry its own commit wrote. The table above is history as well now. The three paths that
+row re-took at `e73e190` were cut as **one** commit rather than left standing — `6e4a566` (the
+`export-ignore` line `BEHAVE.mdc` did not carry, the `CHANGELOG.md` bullet that records it, and this
+document itself) — and it is that `HEAD` the table below describes.
+
+**What accumulated after it is the burst this section is now about, and it is six commits**, one
+reason each, every one cut through `bin/commit.php` with its own paths, its own bullet and a staged
+check that ran before it existed: `469b6fd` (one place a fixture starts a child, and the wait a
+refused `CreateProcess` is retried through — `tests/Support/Processes.php`, with the readings that
+called `proc_open()` themselves moved onto it), `6dd976e` (the hold that reads a spill around the harness's
+exclusion, `tests/Unit/Support/MutationHarness/Controls/SpillTest.php`), `7df2de4` (the gate's pool
+sized from this machine — `tests/Support/Workers.php`, `bin/checks.php` and `bin/coverage.php`),
+`20e49f6` (the three environment traps as a record of their own, `docs/commit-environment.md`),
+`0b548ef` (the changelog and the index put back when a run stops, so an abandoned run leaves no
+entry for work nobody committed) and `afdc56c` (a named set whose only moved path is the changelog
+refused, with the `package-commit` skill's own text and this document beside it). **Four more
+followed in this thread's next sitting, from work of its own** — `f357f20` (the files a pool could
+not start asked together rather than one after another), `c35e016` (`bin/workbench.sh`, a throwaway
+copy of this checkout with a vendor of its own), `b1247ef` (the bullet staged into the changelog
+entry the index already holds rather than the file, so a note another session wrote in the same
+document cannot be swept into a commit) and `bb49cb5` (a directory name's parenthesised suffix read
+as part of the name). No hunk of the four was lost to the six before them: the shared documents were
+materialised once per commit, each state being `HEAD`'s copy with only the bullet that commit
+earned, and that is measured rather than assumed — `git show <commit>:CHANGELOG.md` against
+`<commit>^` is one added line and no removal for each of the four, and the four documents at `HEAD`
+are byte-identical to the state this thread authored.
+
+**The list is not empty as this is written — `handoff/state.sh` reads four paths against a `HEAD` at
+`bb49cb5` on 2026-10-27 — and not one of the four is either sitting's**: `pint.json` (an `exclude`
+list for `external`, `ext`, `build` and `vendor`, plus a final newline) and
+`.agents/skills/package-dev/_meta.json` (a date and a timestamp), both written at 17:57:20 on
+2026-10-26, two minutes after the sixth of those commits; this document, whose §5 and §7 are this
+re-taking, and which is therefore the one path a commit here would have to name by hand; and
+`.idea/vcs.xml`, which the IDE rewrote at 00:34:46 on 2026-10-27 to register two nested repositories
+under the ignored `build/rc/` — a mapping nobody wrote deliberately, and the reason a count taken
+today is four rather than three. None of the four is recorded under `## Unreleased`, and none of them
+is a later session's to commit or discard.
+
+Everything the table below describes is otherwise at that `HEAD`:
 
 | Area | Files | What it is |
 | --- | --- | --- |
@@ -546,15 +578,19 @@ git log --format='%h %G?' -5          # no `N` in the second column
    `git checkout`-writes-CRLF trap is the other place this changes what a successor should do.
 6. **Only `docs/guards.md` describes the new fan-out** ("one process per mapped path"). The rows in
    `docs/scripts.md`, `docs/tool-registry.md` and `README.md` still describe the same commands
-   without it, so the inventories a reader trusts and the behaviour a reader gets have drifted.
-7. **Push, when asked.** 58 commits ahead of `origin/development` and 0 behind as measured on
-   2026-10-11 — and the commit that carries this document is one more. `handoff/state.sh` prints that
+   without it, so the inventories a reader trusts and the behaviour a reader gets have drifted. The
+   two behaviours §5's burst added are in the same position: the pool's width, read from this machine
+   through `tests/Support/Workers.php`, is named on the guard page and on no row of the three, and the
+   retry that asks the files a pool could not start *together* rather than one after another
+   (`f357f20`) is named on none of the four pages at all.
+7. **Push, when asked.** 109 commits ahead of `origin/development` and 0 behind as measured on
+   2026-10-27 — and the commit that carries this document is one more. `handoff/state.sh` prints that
    range and is the reading to trust, because a commit under this document moves it. A plain push suffices; never a force. `bin/push.php` / `composer
    push` is this package's own path, and a Windows push goes through PowerShell 7 over HTTPS, never
-   from MSYS. **The work below this line is committed and unpushed** — §5's four commits included, which is what
-   moved the count from 54 to 58: nothing here is waiting for a
-   commit, so a push sends the local range and no more — and what a push *is* decided by §3.4's
-   signature check, not by this list.
+   from MSYS. **The work below this line is committed and unpushed**: §5's six of the burst and the
+   four that followed are the last ten of that range, and one path is still uncommitted — this
+   document — so a push sends the local range and no more, leaving the working copy as §5 describes
+   it. What a push *is* is decided by §3.4's signature check, not by this list.
 8. ~~**The CRLF fix has no test of its own**~~ — **written and committed as `427a1cb`.** Two tests
    plant the condition rather than inherit it, so the cover fires on an LF checkout as well as on this
    one: `tests/Unit/Docs/GuardIndexTest.php` writes every declaring file of its fixture with CRLF
@@ -591,6 +627,28 @@ git log --format='%h %G?' -5          # no `N` in the second column
     neither has a reading behind it, so a script added to `bin/` and forgotten on both pages is a
     silence rather than a finding. The nearest thing to a guard is `TestMapTest`, and it is about
     `.php` files only.
+13. **`bin/workbench.sh` has no test of its own** — new, from §5's `c35e016`. It sits where item
+    11's two scripts sit and for the same reason: `TestMap` names markdown and the `.php` files under
+    `src/` and `bin/`, and `ScriptCoverage` reads `bin/*.php`, so a commit carrying a `.sh` is
+    measured by syntax and style — which skip it — and by nothing else. What holds it today is the
+    two path readings and the interpreter rule in `verify.py`; the refusals it promises were
+    exercised by hand, and the commit that added it measured a copy of 13,626 vendor files resolving
+    inside the copy, no remote and no object hardlinked to this checkout's store, and a junction
+    refused by name with nothing created — which is evidence, not cover.
+14. **§5's two leftovers are uncommitted and unrecorded** — new, from the burst. `pint.json`'s
+    `exclude` list and `.agents/skills/package-dev/_meta.json`'s date hold what `HEAD` does not,
+    carry no bullet under `## Unreleased`, and have been left exactly as they were found. The first
+    is the one that changes behaviour, since it decides which directories the style check skips.
+    Deciding them is one commit with a bullet, or a deliberate leave with the reason written beside
+    it; until then `handoff/state.sh` reports them on every run. The fourth path §5 names is neither
+    of those and no work at all — `.idea/vcs.xml` is the IDE's own mapping, added for the nested
+    repositories under the ignored `build/rc/` scratch, and stands where §4's phantom reports stand:
+    a reading, not an edit, and nothing to stage, commit or revert.
+15. **A path whose directory carries a space after a mount root is still read to the space** — new,
+    named by §5's `bb49cb5` rather than half-fixed by it. `MachinePaths` reads a parenthesised mark as
+    part of a name now, but the mount pattern still ends a path at a space, a rule that spelling
+    never had; it is a silence rather than a truncation, which is why the reading that made the
+    parenthesis work wrote the edge down instead of guessing at it.
 
 ---
 
