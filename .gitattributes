@@ -65,6 +65,11 @@
 /bin/composer-ca.ps1   export-ignore
 /bin/composer-link.cmd export-ignore
 
+# A copy of this checkout with a vendor of its own, for a reading that has to belong to the tree it
+# was taken on: a maintainer's experiment, started by hand, and neither reachable from `src/` nor
+# anything an installer has a checkout to run it against.
+/bin/workbench.sh      export-ignore
+
 # The agentic layer: the rules an agent reads, the skills it loads, the checks that keep the two
 # honest, and a pointer file for each of the ten tools that expect one. A consumer installs the
 # middleware and the config; none of this is anything they run. It is left in the repository rather

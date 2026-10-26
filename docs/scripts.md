@@ -80,9 +80,11 @@ the platform makes it necessary.
 | [`../bin/composer-ca.ps1`](../bin/composer-ca.ps1) | runs Composer on Windows through a CA bundle rebuilt from Git's own plus every intercepting root in the Windows trust store, for a machine where a local TLS scanner makes PHP's curl fail where Git succeeds | `pwsh -File bin/composer-ca.ps1 <composer args>` — `install`, `update`, `test`, `release -- --weigh`; `COMPOSER_CAFILE` is set for the run, and `COMPOSER_CA_COMPOSER` overrides the Composer it runs |
 | [`../bin/composer-link.cmd`](../bin/composer-link.cmd) | links a package that lives on this machine into a Laravel application and requires it at its dev version, so the application runs the working copy on disk — the CMD port of a published `composer-link` shell function, guard for guard | `bin\composer-link.cmd <path-to-package-directory> [composer require args]`, run **from the application**; `COMPOSER_LINK_PHP`, `COMPOSER_LINK_COMPOSER` and `COMPOSER_LINK_JQ` override what it detects |
 
-The last two rows are not reached by a composer name: they are Windows conveniences a maintainer starts
-by hand, `.gitattributes` `export-ignore`s both, and each asks this checkout for the interpreter and
-the Composer it runs before falling back to `PATH`.
+| [`../bin/workbench.sh`](../bin/workbench.sh) | a throwaway copy of this checkout with a vendor of its own, so a reading taken on it belongs to the tree it was taken on: the files a commit would carry and never `vendor/`, the clone's `origin` removed, a link among the carried paths refused by name, and the installed vendor read back to prove it resolves inside the copy | `bash bin/workbench.sh [--into DIR] [-- composer install args…]` — `--into` names an empty directory outside this checkout, and the copy's path is the last line it prints |
+
+The last three rows are not reached by a composer name: they are conveniences a maintainer starts
+by hand, `.gitattributes` `export-ignore`s all three, and each asks this checkout for the interpreter
+and the Composer it runs before falling back to `PATH`.
 
 ## The gate, the hook and the runner
 
