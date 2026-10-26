@@ -677,16 +677,23 @@ final class MachineShape
             ));
         }
 
-        $process = @proc_open(
+        // The start is `Processes`', so a refusal under a pool is waited out rather than reported as
+        // a machine whose settings could not be rendered.
+        $started = Processes::attempt(
             ['python', $renderer, ...$arguments],
             [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-            $pipes,
             $root,
         );
 
-        if (! is_resource($process)) {
-            throw new RuntimeException('Could not start python in '.$root);
+        if ($started === null) {
+            throw new RuntimeException(sprintf(
+                'Could not start python in %s: %s',
+                $root,
+                Processes::reason(),
+            ));
         }
+
+        [$process, $pipes] = $started;
 
         $output = (string) stream_get_contents($pipes[1]);
         $error = (string) stream_get_contents($pipes[2]);

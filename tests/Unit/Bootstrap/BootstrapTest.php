@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Uak35\ResponseCompression\Tests\Support\PhpBinary;
+use Uak35\ResponseCompression\Tests\Support\Processes;
 use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 use Uak35\ResponseCompression\Tests\Support\ReleaseRun;
 
@@ -144,16 +145,13 @@ function bootstrapRenderer(ReleaseRepo $checkout, string ...$arguments): Release
 {
     $command = ['python', $checkout->path('.agents/render_local.py'), ...$arguments];
 
-    $process = proc_open(
+    // `Processes` rather than `proc_open()`: under a pool this machine refuses a start outright, and
+    // a fixture tree that never got its child is a test that reports the machine instead of the gate.
+    [$process, $pipes] = Processes::start(
         $command,
         [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-        $pipes,
         $checkout->path,
     );
-
-    if (! is_resource($process)) {
-        throw new RuntimeException('Could not run '.implode(' ', $command));
-    }
 
     fclose($pipes[0]);
     $output = (string) stream_get_contents($pipes[1]);
@@ -416,16 +414,11 @@ it('runs this package\'s own program as a program, which is the half a fixture c
     // checkout that is running the suite.
     $command = [PHP_BINARY, ReleaseRepo::package().'/bin/bootstrap.php', '--dry-run'];
 
-    $process = proc_open(
+    [$process, $pipes] = Processes::start(
         $command,
         [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-        $pipes,
         ReleaseRepo::package(),
     );
-
-    if (! is_resource($process)) {
-        throw new RuntimeException('Could not run '.implode(' ', $command));
-    }
 
     fclose($pipes[0]);
     $output = (string) stream_get_contents($pipes[1]);

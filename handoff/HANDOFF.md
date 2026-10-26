@@ -578,10 +578,26 @@ git log --format='%h %G?' -5          # no `N` in the second column
 
 - **paratest takes exactly one path** (`--parallel` refuses two), so a mapped set has to be split by
   file — which is exactly what the fan-out commit did.
-- **`proc_open` fails sporadically on Windows** (`CreateProcess failed: The parameter is incorrect`)
-  when a chain's stdout is a *pipe* under the 16-worker pool — seen at `tests/Support/ReleaseRepo.php`
-  in both its `git` and its PHP spawns, never as an assertion failure. Redirecting the whole chain's
-  output to a file made the same command pass. Keep that workaround.
+- **`proc_open` fails sporadically on Windows under the pool** (`CreateProcess failed: The
+  parameter is incorrect`), at a child a worker starts, never as an assertion failure. **Measured
+  2026-10-26:** at 16 workers, 42 failed tests on the run that raised it, then 29, then 26 — every
+  one of them a file whose first test was refused while building its fixture tree, so one refused
+  start reddens every test after it in that file; at 8 workers, which is what the gate asks for,
+  none. Redirecting the streams to files, which this trap used to prescribe, is **not** the answer:
+  the run with every stream on a file failed 26 tests too, because it is not the pipe at all. What
+  is: the start was refused, so no child ever existed and a second attempt cannot repeat an effect.
+  `tests/Support/Processes.php` is now the one place any fixture starts a child, and nothing else
+  under `tests/` calls `proc_open()` at all — the calls left in `bin/` are a different case, a
+  program starting its children for a single run, which no pool widens. The ladder is
+  50 ms, then three times that each pause up to 4 s,
+  for as long as 30 seconds, paid only by a refusal. Two shorter ladders were beaten by measurement —
+  three attempts with 60 ms of pauses lost a run of 29 failed tests, and five attempts with just
+  over 2 s lost a run of 41, every failure reporting `no reason was given`, which is what `error_get_last()` holds when
+  Windows refuses a start without a message. The fault is bursty: the next run at the same width recorded
+  948 starts and not one refusal, and passed 502 tests in 236 s, so read the ceiling off a failing
+  run and not off a green one. Proven to fire with every first attempt refused on purpose
+  (`BranchAliasTest` + `ReleaseApplyTest` 7 passed, file restored by copy). `pest --parallel` with no
+  `--processes` is one worker per core, so this is the bare command and not the gate's 8-worker pool.
 - **A commit is slow:** `bin/commit.php` runs the staged gate itself, and then the `pre-commit` hook
   runs it again. Run it in the background and poll; its stdout stays empty until it finishes because
   both gates capture their children.

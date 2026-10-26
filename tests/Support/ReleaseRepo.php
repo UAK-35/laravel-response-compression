@@ -417,17 +417,10 @@ final class ReleaseRepo
     {
         $command = [PHP_BINARY, ...$this->coverage(), $this->path($script), ...$arguments];
 
-        $process = proc_open(
+        [$process, $pipes] = $this->start(
             $command,
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-            $pipes,
-            $this->path,
-            $this->environment(),
         );
-
-        if (! is_resource($process)) {
-            throw new RuntimeException('Could not run '.implode(' ', $command));
-        }
 
         fclose($pipes[0]);
         $output = (string) stream_get_contents($pipes[1]);
@@ -782,6 +775,22 @@ PHP;
     }
 
     /**
+     * Start one child in this fixture's tree and with its environment, waiting out a refused start.
+     *
+     * The waiting itself is `Processes`', because it is a fact about this machine rather than about
+     * the release rails: the reading that could not start `git` and the one that could not start
+     * `bash` fail the same way, and both are answered in one place.
+     *
+     * @param  list<string>  $command
+     * @param  array<int, array<int, string>|resource>  $descriptors
+     * @return array{0: resource, 1: array<int, resource>}
+     */
+    private function start(array $command, array $descriptors): array
+    {
+        return Processes::start($command, $descriptors, $this->path, $this->environment());
+    }
+
+    /**
      * @param  list<string>  $arguments
      */
     private function run(array $arguments): string
@@ -790,17 +799,10 @@ PHP;
         // descriptor 0 the child is handed whatever handle the runner gave this process, and a
         // parallel runner spawns its workers with pipes of its own. No child here reads stdin, so
         // the write end of its pipe is closed as soon as the process exists.
-        $process = proc_open(
+        [$process, $pipes] = $this->start(
             ['git', ...$arguments],
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]],
-            $pipes,
-            $this->path,
-            $this->environment(),
         );
-
-        if (! is_resource($process)) {
-            throw new RuntimeException('Could not run git '.implode(' ', $arguments));
-        }
 
         fclose($pipes[0]);
         $output = (string) stream_get_contents($pipes[1]);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Uak35\ResponseCompression\Tests\Support\Docs;
 use Uak35\ResponseCompression\Tests\Support\GuardIndex;
+use Uak35\ResponseCompression\Tests\Support\Processes;
 use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 use Uak35\ResponseCompression\Tests\Support\ReleaseRun;
 
@@ -771,16 +772,13 @@ function indexRun(string ...$arguments): ReleaseRun
 {
     $command = [PHP_BINARY, packageRoot().'/bin/index.php', ...$arguments];
 
-    $process = proc_open(
+    // `Processes` rather than `proc_open()`: a start this machine refused under a pool would read
+    // as an index that could not be rendered.
+    [$process, $pipes] = Processes::start(
         $command,
         [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-        $pipes,
         packageRoot(),
     );
-
-    if (! is_resource($process)) {
-        throw new RuntimeException('Could not run '.implode(' ', $command));
-    }
 
     $output = (string) stream_get_contents($pipes[1]);
     $error = (string) stream_get_contents($pipes[2]);

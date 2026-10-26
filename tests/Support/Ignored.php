@@ -182,15 +182,22 @@ final class Ignored
      */
     private static function listing(string $root): array
     {
-        $process = proc_open(
+        // The start is `Processes`', so a refusal under a pool is waited out rather than reported as
+        // a checkout whose ignore rules could not be read.
+        $started = Processes::attempt(
             ['git', '-C', $root, 'ls-files', '--others', '--ignored', '--exclude-standard', '-z'],
             [1 => ['pipe', 'w'], 2 => ['redirect', 1]],
-            $pipes,
         );
 
-        if (! is_resource($process)) {
-            throw new RuntimeException('Could not ask git for the files this checkout ignores in '.$root);
+        if ($started === null) {
+            throw new RuntimeException(sprintf(
+                'Could not ask git for the files this checkout ignores in %s: %s',
+                $root,
+                Processes::reason(),
+            ));
         }
+
+        [$process, $pipes] = $started;
 
         $output = (string) stream_get_contents($pipes[1]);
         fclose($pipes[1]);

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Uak35\ResponseCompression\Tests\Support\Processes;
 use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 use Uak35\ResponseCompression\Tests\Support\ReleaseRun;
 
@@ -63,16 +64,13 @@ function toolRun(string ...$arguments): ReleaseRun
 {
     $command = [PHP_BINARY, packageRoot().'/bin/tool.php', ...$arguments];
 
-    $process = proc_open(
+    // `Processes` rather than `proc_open()`: a start this machine refused under a pool is not a
+    // finding about the tool it was asked to run.
+    [$process, $pipes] = Processes::start(
         $command,
         [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-        $pipes,
         packageRoot(),
     );
-
-    if (! is_resource($process)) {
-        throw new RuntimeException('Could not run '.implode(' ', $command));
-    }
 
     fclose($pipes[0]);
     $output = (string) stream_get_contents($pipes[1]);

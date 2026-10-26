@@ -413,16 +413,20 @@ final class Handoff
             return null;
         }
 
-        $process = @proc_open(
+        // A refused start answers `null` here rather than being waited out into an exception: this
+        // reading treats "the renderer could not be asked" as an answer of its own. The waiting is
+        // `Processes`', because a refused start is a fact about this machine and not about tokens.
+        $started = Processes::attempt(
             ['python', $renderer, '--value', $token],
             [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'w']],
-            $pipes,
             $root,
         );
 
-        if (! is_resource($process)) {
+        if ($started === null) {
             return null;
         }
+
+        [$process, $pipes] = $started;
 
         $answer = trim((string) stream_get_contents($pipes[1]));
         fclose($pipes[1]);

@@ -1238,17 +1238,14 @@ final class MutationHarness
             $environment = array_replace(is_array($inherited) ? $inherited : [], $env);
         }
 
-        $process = proc_open(
+        // A refused start is waited out rather than read as a hold that did not run: the harness's own
+        // runs are children too, and a pool refusing one says nothing about the rewrite under test.
+        [$process, $pipes] = Processes::start(
             $command,
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]],
-            $pipes,
             self::package(),
             $environment,
         );
-
-        if (! is_resource($process)) {
-            throw new RuntimeException('Could not run '.implode(' ', $tests).' under the rewriting harness');
-        }
 
         fclose($pipes[0]);
         $output = (string) stream_get_contents($pipes[1]);
@@ -1583,11 +1580,7 @@ final class MutationHarness
 
         // The same descriptors `MachinePaths::files()` opens: a pipe for the output, the error
         // stream folded into it, and no stdin for a command that never reads one.
-        $process = proc_open($command, [1 => ['pipe', 'w'], 2 => ['redirect', 1]], $pipes);
-
-        if (! is_resource($process)) {
-            throw new RuntimeException('Could not run git in '.$root);
-        }
+        [$process, $pipes] = Processes::start($command, [1 => ['pipe', 'w'], 2 => ['redirect', 1]]);
 
         $output = (string) stream_get_contents($pipes[1]);
         fclose($pipes[1]);

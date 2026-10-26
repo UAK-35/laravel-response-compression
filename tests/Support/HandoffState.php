@@ -122,16 +122,26 @@ final class HandoffState
         // The path is relative to the tree it is run in rather than the one on disk: a POSIX shell on
         // Windows cannot open a drive-letter path, and the script derives everything it prints from
         // its own location, so the relative name is the whole of what it needs.
-        $process = @proc_open(
+        //
+        // A refused start is waited out, because under a pool Windows answers `CreateProcess failed`
+        // before the child exists — this reading is one of the places it was measured. The waiting is
+        // `Processes`', so this one and every other spawning fixture are answered in the same place.
+        $started = Processes::attempt(
             ['bash', self::SCRIPT],
             [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-            $pipes,
             $root,
         );
 
-        if (! is_resource($process)) {
-            throw new RuntimeException('Could not start bash for '.self::SCRIPT.' in '.$root);
+        if ($started === null) {
+            throw new RuntimeException(sprintf(
+                'Could not start bash for %s in %s: %s',
+                self::SCRIPT,
+                $root,
+                Processes::reason(),
+            ));
         }
+
+        [$process, $pipes] = $started;
 
         $output = (string) stream_get_contents($pipes[1]);
         $error = (string) stream_get_contents($pipes[2]);

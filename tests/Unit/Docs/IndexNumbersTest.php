@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Uak35\ResponseCompression\Tests\Support\IndexNumbers;
+use Uak35\ResponseCompression\Tests\Support\Processes;
 use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 
 /*
@@ -270,15 +271,12 @@ function indexNumbersReplace(string $root, string $file, string $needle, string 
  */
 function indexNumbersGit(string $root, array $arguments): void
 {
-    $process = proc_open(
+    // `Processes` rather than `proc_open()`: a refused start under a pool would read as a planted
+    // tree that could not be committed to.
+    [$process, $pipes] = Processes::start(
         ['git', '-C', $root, ...$arguments],
         [1 => ['pipe', 'w'], 2 => ['redirect', 1]],
-        $pipes,
     );
-
-    if (! is_resource($process)) {
-        throw new RuntimeException('Could not run git in '.$root);
-    }
 
     fclose($pipes[1]);
 

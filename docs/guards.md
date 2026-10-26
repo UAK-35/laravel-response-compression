@@ -355,7 +355,7 @@ nothing, declares a list this page does not have, or has no sentence to quote is
 than left out, because "not in the list" and "in it and correct" are the two answers a rendering
 has to be able to tell apart.
 
-The two lists name 21 readings and 5 files that are not guards, 26 files in `tests/Support/` in
+The two lists name 21 readings and 6 files that are not guards, 27 files in `tests/Support/` in
 all.
 
 | Reading | What it reads |
@@ -394,6 +394,7 @@ the table at the top.
 | File | What it is |
 |---|---|
 | [`../tests/Support/Notes.php`](../tests/Support/Notes.php) | the channel a reading writes to when it declines to ask a question, so that a skip is printed where a clean answer and a question nobody could ask would otherwise look the same |
+| [`../tests/Support/Processes.php`](../tests/Support/Processes.php) | one place a fixture starts a child: a start this machine refused is tried again, and the reason it gave is kept |
 | [`../tests/Support/ReleaseRepo.php`](../tests/Support/ReleaseRepo.php) | a throwaway git repository with a real tag and a real remote, holding this package's release script |
 | [`../tests/Support/ReleaseRun.php`](../tests/Support/ReleaseRun.php) | what one run of a `bin/` script did: its exit code and the two streams, kept apart on purpose |
 | [`../tests/Support/ResponseWithNoReadableContent.php`](../tests/Support/ResponseWithNoReadableContent.php) | a response that reports a body it will not hand over |

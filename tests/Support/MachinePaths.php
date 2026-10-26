@@ -294,15 +294,22 @@ final class MachinePaths
      */
     private static function listing(string $root, array $arguments): array
     {
-        $process = proc_open(
+        // The start is `Processes`', so a refusal under a pool is waited out rather than reported as
+        // a commit scope that could not be asked for.
+        $started = Processes::attempt(
             ['git', '-C', $root, 'ls-files', ...$arguments, '-z'],
             [1 => ['pipe', 'w'], 2 => ['redirect', 1]],
-            $pipes,
         );
 
-        if (! is_resource($process)) {
-            throw new RuntimeException('Could not ask git for the files a commit would carry in '.$root);
+        if ($started === null) {
+            throw new RuntimeException(sprintf(
+                'Could not ask git for the files a commit would carry in %s: %s',
+                $root,
+                Processes::reason(),
+            ));
         }
+
+        [$process, $pipes] = $started;
 
         $output = (string) stream_get_contents($pipes[1]);
         fclose($pipes[1]);
