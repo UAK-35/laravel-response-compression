@@ -95,6 +95,21 @@ it('reports the paths that name a machine', function (string $text, array $expec
     // sentence holding two paths stays two findings — the bound is one space per segment, and
     // this is the specimen that holds it.
     'two paths in a sentence stay two' => ['cp C:/Users/alex/a.txt and C:/Users/alex/b.txt .', ['C:/Users/alex/a.txt', 'C:/Users/alex/b.txt']],
+    // A directory whose name carries a parenthesis is one directory for the same reason a spaced one
+    // is — Windows names the 32-bit install root that way — and the reading used to stop at the mark
+    // and print what came before it: `C:/Users/alex/My`, the prefix of a path rather than one. The
+    // marker is the whole path, so a reading that stops at the mark answers with a prefix of it
+    // rather than with it.
+    'a parenthesis inside a directory name' => ['cd C:/Users/alex/My Tools (x86)/bin', ['C:/Users/alex/My Tools (x86)/bin']],
+    // The mark has to hold a name, and that is the whole difference between a directory and an aside:
+    // the class inside the parentheses is the class a segment is built from, so `(see above)` — the
+    // words a sentence writes beside a path — is never read as part of one.
+    'an aside in a sentence rather than a name in the path' => ['the copy at C:/Users/alex/pkg (see above) is stale', ['C:/Users/alex/pkg']],
+    // The same name in the spelling a POSIX shell reaches a drive by. Before this the whole path was
+    // missed here rather than misread — the mount pattern asks for a segment after the mount root,
+    // and the name it was given ended at the parenthesis — so the two spellings answered differently
+    // about one directory, which is the disagreement this file keeps one rule to prevent.
+    'the MSYS spelling of a path whose directory carries a parenthesis' => ['cd /c/a-reader (old)/project', ['/c/a-reader (old)/project']],
 ]);
 
 it('leaves the paths that name nobody alone', function (string $text): void {
@@ -115,6 +130,12 @@ it('leaves the paths that name nobody alone', function (string $text): void {
     // at the space answers `C:/Program`, which is not this root, so it would be reported — this
     // passing is the proof that the space is read through rather than cut off.
     'a program install root' => ['core.sshCommand = C:/Program Files/OpenSSH/ssh.exe'],
+    // The 32-bit sibling of that root, which is the same directory on every install and the reason
+    // the reading carries a parenthesis as well as a space. The proof is the specimen above it said
+    // the other way round: the toleration only ever sees a whole root, so a reading that stopped at
+    // the mark answers `C:/Program`, which no row of the list matches, and this passing is the proof
+    // that the mark is read through.
+    'a program install root under the name Windows gives the 32-bit one' => ['core.sshCommand = C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'],
     // The mount spelling of that same root, which is tolerated by the same rule rather than by a
     // second one — it is normalised into the drive spelling above and read by it.
     'the same install root, in a shell that mounts drives as directories' => ['cp /c/Program Files/OpenSSH/ssh.exe .'],

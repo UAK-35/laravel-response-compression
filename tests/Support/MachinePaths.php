@@ -51,7 +51,12 @@ use RuntimeException;
  *                               carries a space, which is why the reading has to carry that space
  *                               too: a reading that ended at it would answer `C:/Program`, which
  *                               is the prefix of a path rather than one, so a path that names
- *                               nobody would be reported as a path nobody wrote.
+ *                               nobody would be reported as a path nobody wrote. The 32-bit
+ *                               sibling of it — `C:/Program Files (x86)/...` — is the same
+ *                               directory on every install and names nobody for the same
+ *                               argument, and its name carries the other mark a sentence writes
+ *                               beside a path: a parenthesis is read as part of a name, by one
+ *                               rule, wherever a name is read.
  *   /home/runner/work/pkg       the same on every GitHub runner, for the same reason.
  *   /c/Windows/System32/...     the same directory as the row above it, written the way a shell
  *                               that mounts drives as directories writes it, and it names
@@ -105,12 +110,31 @@ final class MachinePaths
 
     /**
      * One segment of a path: what ends it is a character no segment of a path carries — a
-     * separator, a space, or one of the marks a sentence puts beside a path.
+     * separator, a space, or one of the marks a sentence puts beside a path. Two of those marks are
+     * read back as part of a name rather than as an end to one, one rule apiece: `MARKED` below is
+     * where a parenthesis does it, and `SPACED` where a space does.
      *
-     * Written once because the drive rule needs it twice, and a character added to one copy but
-     * not the other is exactly the drift this file exists to refuse.
+     * Written once because a name is read in more than one place, and a character added to one copy
+     * of it but not the other is exactly the drift this file exists to refuse.
      */
     private const string SEGMENT = "[^\s/\\\\\"'`()<>|*?,;%]+";
+
+    /**
+     * A name that may carry a parenthesised suffix — `Program Files (x86)`.
+     *
+     * Windows names one directory that way, and puts it in the same place on every install, so a
+     * reading that ended at the mark answered `C:/Program`: the prefix of a path rather than one, a
+     * path nobody wrote reported as a path somebody did — which is the same failure the space rule
+     * is written against, one mark further in.
+     *
+     * What makes the suffix a name is that the class inside the marks is the class a segment is
+     * built from: `(x86)` is read and `(see above)` is not, because an aside a sentence puts beside
+     * a path carries the words a name does not. That is also why a suffix may end a path where a
+     * space may not — a name in parentheses is one word, while the run of words a sentence writes
+     * after a path is what the space rule is held back by. The space that attaches the mark is how
+     * both a directory name and a sentence write one; what tells them apart is inside the marks.
+     */
+    private const string MARKED = self::SEGMENT.'(?: \\('.self::SEGMENT.'\\))?';
 
     /**
      * A segment that may carry a space — a directory whose name has one is still one directory, so
@@ -120,9 +144,11 @@ final class MachinePaths
      * written in rather than part of it: `a.txt and C:/...` is two paths in a sentence, and a rule
      * that read the run as one segment would report the sentence instead of the paths — which is
      * the whole job backwards. The cost is a directory whose name carries two spaces, a shape this
-     * tree does not have and a boundary this rule does not need.
+     * tree does not have and a boundary this rule does not need. Each half of it may carry the
+     * parenthesised suffix as well, so `Program Files (x86)` is one segment: the two marks compose,
+     * which is why this is written on `MARKED` rather than beside it.
      */
-    private const string SPACED = self::SEGMENT.'(?: '.self::SEGMENT.')?';
+    private const string SPACED = self::MARKED.'(?: '.self::MARKED.')?';
 
     /**
      * A drive letter and the path after it, as Windows writes it either way round.
@@ -135,13 +161,29 @@ final class MachinePaths
      * path is not written with a variable in the middle of it.
      *
      * The path after the letter runs to the first character a path cannot carry, so both
-     * separators are carried and a finding reads as the path that was written. The one exception is
-     * a space between name characters: a directory whose name carries one — a program's install
-     * root, say — is still one segment rather than the end of the path, which is why the rule is
-     * written as a segment and a run of separators rather than as a run of characters. A segment
-     * that carries a space is never the last one, and no segment carries two.
+     * separators are carried and a finding reads as the path that was written. The exceptions are
+     * the two marks a name carries: a directory whose name holds a space — a program's install
+     * root, say — is still one segment rather than the end of the path, and one whose name holds a
+     * parenthesis — the 32-bit sibling of that same root — is one too, which is why the rule is
+     * written as a name and a run of separators rather than as a run of characters. A name that
+     * carries a space is never the last segment and no name carries two of them; one that carries a
+     * parenthesis may end a path, because what is inside the marks is a name rather than the run of
+     * words a sentence writes after one.
      */
-    private const string DRIVE = '~(?<![A-Za-z0-9%])([A-Za-z]:[\\\\/]{1,2}(?:'.self::SPACED.'[\\\\/]{1,2})*'.self::SEGMENT.')~';
+    private const string DRIVE = '~(?<![A-Za-z0-9%])([A-Za-z]:[\\\\/]{1,2}(?:'.self::SPACED.'[\\\\/]{1,2})*'.self::MARKED.')~';
+
+    /**
+     * A name in the mount pattern's own vocabulary, which is narrower than a segment's: what a shell
+     * writes after a mount is a name rather than a sentence, so the class carries none of the marks
+     * a sentence uses.
+     *
+     * The parenthesised suffix is read here for the reason the two spellings are one directory: a
+     * name the drive pattern reads and this one cannot is two rules answering differently about one
+     * location. A reading that stopped at the mark here did not answer with a prefix of the path as
+     * the drive rule did; it answered with nothing at all, because the segment after the mount root
+     * is what makes it a path — a silence rather than a truncated finding, and the worse of the two.
+     */
+    private const string MOUNTED = '[A-Za-z0-9_.-]+(?: \\([A-Za-z0-9_.-]+\\))?';
 
     /**
      * The same drive, spelled the way a POSIX shell reaches it.
@@ -159,7 +201,7 @@ final class MachinePaths
      * are not a path. A container path is excluded by the same rule: `/mnt/laravel/html` has a
      * name after `/mnt/` rather than a letter.
      */
-    private const string MOUNT = '~(?<![A-Za-z0-9_.:/-])((?:/mnt|/cygdrive)?/[A-Za-z]/[A-Za-z0-9_.-]+(?: [A-Za-z0-9_.-]+)*(?:/[A-Za-z0-9_.-]+)+)~';
+    private const string MOUNT = '~(?<![A-Za-z0-9_.:/-])((?:/mnt|/cygdrive)?/[A-Za-z]/'.self::MOUNTED.'(?: '.self::MOUNTED.')*(?:/'.self::MOUNTED.')+)~';
 
     /**
      * An absolute home directory, with the name it belongs to.
@@ -377,10 +419,14 @@ final class MachinePaths
         // The two install roots are one rule because they are one argument: every Windows install
         // has the same directory in the same place, so neither the path nor the segment after it
         // names a machine. `Program Files` is the one whose name carries a space — it reaches here
-        // whole only because a segment may carry one, and a reading that stopped at the space would
+        // whole only because a name may carry one, and a reading that stopped at the space would
         // hand this rule `C:/Program`, which matches nothing and is reported as a finding nobody
         // wrote. The space is what makes the space rule and the toleration one reading rather than two.
-        return preg_match('~^[A-Za-z]:/(?:Windows|Program Files)(?:/|$)~i', $path) === 1
+        // The 32-bit sibling of that root is the second half of the same argument: `Program Files
+        // (x86)` is the same directory on every install, so its name may carry the parenthesis here
+        // too — and for the reason above it, since a root read to the mark arrives as the same
+        // `C:/Program` no row of this list matches.
+        return preg_match('~^[A-Za-z]:/(?:Windows|Program Files(?: \\('.self::SEGMENT.'\\))?)(?:/|$)~i', $path) === 1
             || preg_match('~^/(?:Users|home)/runner(?:/|$)~i', $path) === 1;
     }
 }

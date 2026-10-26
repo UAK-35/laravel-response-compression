@@ -331,6 +331,28 @@ final class MutationHarness
                 ),
             ],
             [
+                'guard' => 'the machine-path reading, on a path with a parenthesis in it',
+                'test' => 'tests/Unit/Support/MachinePathsTest.php',
+                'plant' => static function (string $root): string {
+                    // The leak once more, with a parenthesis in one of its directories: the shape the
+                    // drive rule read to the mark until the mark became part of a name. The marker is
+                    // the whole path, so a reading that still stops at the mark answers with a prefix
+                    // of it rather than with it — which is the truncated finding this holds against.
+                    // A fourth break rather than a rewrite of the three above it, because the mark and
+                    // the space are two halves of one rule and a reading that lost either is still red
+                    // on the other.
+                    $leak = self::markedLeak();
+
+                    self::add($root, self::SAMPLE, sprintf(self::SAMPLE_SOURCE, '// '.$leak));
+
+                    return self::sample($leak);
+                },
+                'read' => static fn (string $root): array => array_map(
+                    static fn (array $hit): string => sprintf('%s:%d  %s', $hit['file'], $hit['line'], $hit['path']),
+                    MachinePaths::scan($root)['found'],
+                ),
+            ],
+            [
                 'guard' => 'the repository-escape reading',
                 'test' => 'tests/Unit/Support/RepoEscapesTest.php',
                 'plant' => static function (string $root): string {
@@ -1453,6 +1475,21 @@ final class MutationHarness
     private static function spacedLeak(): string
     {
         return implode('', ['C:', '/a ', 'reader/', '.gitconfig']);
+    }
+
+    /**
+     * The same leak with a parenthesised suffix in one of its directories, assembled the same way
+     * and for the same reason.
+     *
+     * The parenthesis is split from the name it belongs to, so no line of this file holds a whole
+     * path — this file is not one of the two the guard may report — and the mark itself is what the
+     * mutation is about: the drive rule read a path to its first parenthesis the way it used to read
+     * one to its first space, so the marker is the path with a mark in it and a reading that still
+     * stops there answers with a prefix of the marker rather than with it.
+     */
+    private static function markedLeak(): string
+    {
+        return implode('', ['C:', '/a-reader (', 'old)/', '.gitconfig']);
     }
 
     /** A finding as the two path readings print it: the file, its line, and the path. */

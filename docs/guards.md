@@ -106,10 +106,20 @@ program's install root, which is the same on every Windows install for the same 
 the one of the three whose directory name carries a space — the toleration only ever sees a
 path whose root arrived whole, so a reading that stopped at the space would answer the root's
 first word rather than the root and report a path nobody wrote, which is the two halves of
-that rule being one reading rather than two; and `/home/runner/…`, which is the same on every
-CI runner. Each is tolerated in the mount spelling of itself too, because `/c/Windows/…` is
-that same directory written the way a shell that mounts drives writes it — one rule, so the
-two spellings cannot come to disagree about who they name.
+that rule being one reading rather than two — and the 32-bit sibling of that root carries the
+other mark a sentence writes beside a path: `C:/Program Files (x86)/…` is one name, tolerated
+for the same argument, and read as one in the mount spelling as well, because a rule that
+carried the space and not the parenthesis would answer the root's first word again one mark
+further in. What tells a path's mark from a sentence's is inside it: the class within the
+parentheses is the class a segment is built from, so a sentence's `(see above)` is never joined
+to the path beside it. The mount spelling reads the mark too, and there the failure was the
+other one — a mount is a path because a segment follows the root, so a path whose directory
+carries a parenthesis was answered with nothing at all in that spelling rather than read to the
+mark. What is still read to its own edge there is a name carrying a *space* after the mount
+root, a boundary of that pattern rather than of this rule; and `/home/runner/…`, which is the
+same on every CI runner. Each is tolerated in the mount spelling of itself too, because
+`/c/Windows/…` is that same directory written the way a shell that mounts drives writes it — one
+rule, so the two spellings cannot come to disagree about who they name.
 
 The same drive is read in both spellings, and the mount one is the half a rule written around a
 drive letter cannot see: `/e/workspace` is the same directory as the drive-letter form of it,
