@@ -15,8 +15,14 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 | bullet into while it is LF" for five days after the writer started taking the ending from the
 | heading it matched, and the script contradicted it on every run. A snapshot cannot be held to the
 | tree it was taken from — the live `HEAD` moves with every commit — so what is held is the half that
-| does not move (the branch, the gate, the changelog's endings), and the half that does has to say
-| when it looked.
+| does not move (the branch, the hook this package ships and the setting a clone names for it, the
+| changelog's endings), and the half that does has to say when it looked.
+|
+| One fact moves with neither of those: the setting *this* clone has its gate wired through. That is
+| local configuration, in `.git/config` rather than in a commit, so a section carried by the tree can
+| state only the setting a clone has to set — and the value a checkout actually has is refused by
+| name. It is the sentence a runner was red on: CI has no hook wired, the section said the gate was
+| wired through `.githooks`, and the reading held the two together on an untouched tree.
 |
 | The planted breaks live with the rest of them, in `tests/Unit/Support/MutationHarness/`.
 |
@@ -25,18 +31,20 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 /**
  * @guards-index guard the handoff's state section
  *
- * the state section of the handoff, held to what `handoff/state.sh` measures: its branch, its gate wiring and its changelog endings, every count and colour it states dated to the moment it was measured, and a section that says the script outranks it — so the snapshot a reader is handed cannot go on saying what the checkout has stopped doing
+ * the state section of the handoff, held to what `handoff/state.sh` measures: its branch, the hook this package ships and the setting a clone names for it, its changelog endings, every count and colour it states dated to the moment it was measured, and a section that says the script outranks it — never the setting this checkout happens to have, which is local configuration no commit carries, so the snapshot a reader is handed cannot go on saying what the checkout has stopped doing
  */
 it('holds the state section to the script, and reports nothing where the two agree', function (): void {
     $root = str_replace('\\', '/', packageRoot());
 
     // A reading that parsed nothing agrees with a section that says nothing, so the measurement is
-    // checked before the empty answer is: the branch the script answered with, all thirteen rows of
-    // its file list, and the line it prints about the changelog are what the comparison needs to be
-    // a comparison at all.
+    // checked before the empty answer is: the branch the script answered with, the setting it says
+    // this package ships and the one this clone has, all thirteen rows of its file list, and the line
+    // it prints about the changelog are what the comparison needs to be a comparison at all.
     $measured = HandoffState::measured($root);
 
     expect($measured['branch'])->not->toBe('')
+        ->and($measured['gate'])->not->toBeNull()
+        ->and($measured['hooks'])->not->toBeNull()
         ->and($measured['files'])->toHaveCount(13)
         ->and($measured['changelog'])->toBeArray()
         ->and(HandoffState::stale($root))->toBe([]);
@@ -48,11 +56,15 @@ it('reads the three claims out of the document rather than keeping a copy of the
     $stated = HandoffState::stated($root);
     $measured = HandoffState::measured($root);
 
-    // The branch, the setting the hook runs from and the ending count are the document's own words:
-    // a copy of them kept here would pass whether or not the section still said them, which is the
-    // failure this reading exists to refuse rather than to repeat.
+    // The branch, the setting a clone runs the hook from and the ending count are the document's own
+    // words: a copy of them kept here would pass whether or not the section still said them, which is
+    // the failure this reading exists to refuse rather than to repeat.
+    //
+    // What the document may not say is what this checkout has wired, and that half is asserted the
+    // other way — `asserted` has to be null, or the section is stating local configuration.
     expect($stated['branch']['value'])->toBe($measured['branch'])
-        ->and($stated['hooks']['value'])->toBe($measured['hooks'])
+        ->and($stated['gate']['value'])->toBe($measured['gate'])
+        ->and($stated['asserted'])->toBeNull()
         ->and($stated['changelog']['cr'])->toBe($measured['changelog']['cr'])
         ->and($stated['dated'])->toBeTrue()
         ->and($stated['deference'])->toBeTrue()
@@ -109,8 +121,8 @@ it('dates a tally by the heading it sits under, and refuses one that no heading 
     // written in the bullet or in the heading above it. Planting the same sentence in both places
     // is what tells a reading that compares the two apart from one that merely matches words.
     $undated = handoffStateTree(static fn (string $text): string => str_replace(
-        '- gate wired: `core.hooksPath` is `.githooks`',
-        "- the suite reads **466 passed**, so the colour is green;\n- gate wired: `core.hooksPath` is `.githooks`",
+        '- gate: the hook this package ships is',
+        "- the suite reads **466 passed**, so the colour is green;\n- gate: the hook this package ships is",
         $text,
     ));
 
@@ -154,21 +166,66 @@ it('names a section that has stopped saying the script outranks it, and one that
         ->toContain('does not say when it was measured');
 });
 
-it('names a branch this checkout is not on, and a gate it is not wired through', function (): void {
+it('names a branch this checkout is not on, and a gate this package does not ship', function (): void {
+    // The section's own words are edited rather than the file's wrapping: the sentence is one
+    // statement and the line it is broken at is the editor's business, so a plant that quoted a
+    // whole wrapped sentence would stop editing anything the day the paragraph was reflowed.
     $tree = handoffStateTree(static fn (string $text): string => str_replace(
-        ['- branch `development`.', '`core.hooksPath` is `.githooks`'],
-        ['- branch `main`.', '`core.hooksPath` is `.husky`'],
+        ['- branch `development`.', '`.githooks` as its `core.hooksPath`'],
+        ['- branch `main`.', '`.husky` as its `core.hooksPath`'],
         $text,
     ));
 
     $findings = implode(PHP_EOL, HandoffState::stale($tree->path, handoffStateMeasured()));
 
-    // Both are facts a checkout can have stopped having — a branch renamed, a clone whose
-    // `core.hooksPath` was never set — and both make the section's sentence about the tree false
-    // without changing a word of it.
+    // Both are facts about the tree rather than about the moment — the branch it is on, and the
+    // setting a clone has to name for the hook it ships to run — and both make the section's
+    // sentence false without changing a word of it.
     expect($findings)->toContain('names the branch `main`')
-        ->toContain('answers `.githooks`')
-        ->toContain('`.husky`');
+        ->toContain('`.husky`')
+        ->toContain('ships it under `.githooks`');
+});
+
+it('holds the gate to the hook the tree ships, in a clone that has none wired', function (): void {
+    // The colour this reading was red with on a runner, taken without touching this clone's
+    // configuration: `core.hooksPath` is local, so a checkout nobody has run
+    // `git config core.hooksPath .githooks` in answers `unset` while the tree still ships the hook the
+    // section is about. The measurement is this checkout's with that one answer changed, and the
+    // section has to read the same under it — holding the two together is what reported an untouched
+    // handoff as stale on CI.
+    $runner = handoffStateMeasured();
+    $runner['hooks'] = 'unset';
+
+    // The fixture is checked before the empty answer is, because a measurement that could not have
+    // been a runner's would satisfy the claim without ever having been the case it is about.
+    expect($runner['hooks'])->toBe('unset')
+        ->and(HandoffState::stale(str_replace('\\', '/', packageRoot()), $runner))->toBe([]);
+
+    // And the reading has not simply stopped looking: a setting this package does not ship is named
+    // under that same measurement, so the empty answer above is the section agreeing with the tree
+    // rather than a comparison that was never made.
+    $wired = handoffStateTree(static fn (string $text): string => str_replace(
+        '`.githooks` as its `core.hooksPath`',
+        '`.husky` as its `core.hooksPath`',
+        $text,
+    ));
+
+    expect(implode(PHP_EOL, HandoffState::stale($wired->path, $runner)))->toContain('`.husky`');
+});
+
+it('refuses a section that states what this checkout has wired, as the one a runner was red on', function (): void {
+    // The sentence the reading was written against, planted back in the shape it stood in: the
+    // section saying what this clone's `core.hooksPath` is. That is local configuration, so the claim
+    // travels with the tree and is false wherever it lands — a runner wires no hook at all, and the
+    // document said the gate was wired through `.githooks`.
+    $tree = handoffStateTree(static fn (string $text): string => str_replace(
+        '- gate: the hook this package ships is',
+        "- gate wired: `core.hooksPath` is `.githooks`;\n- gate: the hook this package ships is",
+        $text,
+    ));
+
+    expect(implode(PHP_EOL, HandoffState::stale($tree->path, handoffStateMeasured())))
+        ->toContain('states `core.hooksPath` as `.githooks`');
 });
 
 it('measures a linked worktree rather than declaring it unusable', function (): void {

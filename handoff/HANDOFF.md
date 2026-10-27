@@ -56,8 +56,12 @@ of its own and no dependency on anything beside it.
 - branch `development`. `HEAD` and how far ahead of `origin/development` it is move with every
   commit, so `bash handoff/state.sh` is where they are read rather than here: measured 2026-10-25,
   this was `ccdb8b5`, **90 ahead and 0 behind**, with nothing pushed;
-- gate wired: `core.hooksPath` is `.githooks`, so the hook at `.githooks/pre-commit` runs on every
-  commit here;
+- gate: the hook this package ships is `.githooks/pre-commit`, and a clone runs it by naming
+  `.githooks` as its `core.hooksPath` — `git config core.hooksPath .githooks`, once per clone
+  (`AGENTS.md` §5). Which clones have that set is local configuration and is carried by no commit, so
+  the value is not stated here: `bash handoff/state.sh` prints the setting this package asks for
+  beside the answer this clone gives it, and a checkout nobody has run that command in has no hook
+  on a commit at all;
 - its own tooling, all run from the package root: `bin/checks.php` (the gate), `bin/commit.php`
   (the guarded commit path), `bin/index.php` (renders and checks `docs/guards.md`),
   `bin/coverage.php` (the floor), `bin/release.php`, `bin/push.php`, `bin/tool.php` with

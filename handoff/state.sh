@@ -156,11 +156,20 @@ for f in .agents/machine.local.json .agents/render_local.py .agents/php-bin.sh .
     fi
 done
 
+# The setting this clone has is local configuration — it lives in `.git/config`, no commit carries
+# it and a fresh clone has none — so it is printed as this clone's answer and as nothing else. What
+# HANDOFF.md section 1 is held to is the line below it, which is the same on every machine because
+# it is the directory the hook this package ships sits in rather than a setting somebody made here.
 hooks_path="$(git -C "$root" config core.hooksPath 2>/dev/null || true)"
 if [ -n "$hooks_path" ]; then
-    echo "   core.hooksPath: $hooks_path (this package's own gate is wired)"
+    echo "   core.hooksPath: $hooks_path (this clone's gate is wired through it)"
 else
-    echo "   core.hooksPath: unset — no hook runs on a commit in this repository"
+    echo "   core.hooksPath: unset — no hook runs on a commit in this clone"
+fi
+
+hook=".githooks/pre-commit"
+if [ -f "$root/$hook" ]; then
+    echo "   this package's gate: $hook — a clone runs it by naming ${hook%/*} as its core.hooksPath"
 fi
 
 if [ -f "$root/CHANGELOG.md" ]; then

@@ -850,6 +850,26 @@ final class MutationHarness
                 },
                 'read' => static fn (string $root): array => HandoffState::stale($root, HandoffState::measured(self::package())),
             ],
+            [
+                'guard' => "the handoff's state section, on the setting it says this checkout has",
+                'test' => 'tests/Unit/Support/HandoffStateTest.php',
+                'plant' => static function (string $root): string {
+                    // The sentence a runner was red on, planted back in the shape it stood in: the
+                    // section stating this checkout's `core.hooksPath`. The setting is local
+                    // configuration — no commit carries it — so the claim travels with the tree and is
+                    // false wherever it lands, and the reading has to refuse it on any machine. A
+                    // reading that only compared it with the clone's own answer did not, which is what
+                    // made CI report this repository's untouched handoff as stale.
+                    self::replace($root, HandoffState::DOCUMENT, static fn (string $text): string => str_replace(
+                        '- gate: the hook this package ships is',
+                        "- gate wired: `core.hooksPath` is `.githooks`;\n- gate: the hook this package ships is",
+                        $text,
+                    ));
+
+                    return 'states `core.hooksPath` as `.githooks`';
+                },
+                'read' => static fn (string $root): array => HandoffState::stale($root, HandoffState::measured(self::package())),
+            ],
         ];
 
         return self::held($mutations, $test, 'mutation');

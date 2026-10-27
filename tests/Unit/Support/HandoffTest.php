@@ -31,22 +31,24 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 /**
  * @guards-index guard the environment table
  *
- * the environment `AGENTS.md` §2 states — and the same section of the handoff beside it — held to `.agents/machine.local.json`: a name the renderer has never heard of, a token the machine file holds no value for, a recorded path that is not there, and a machine file naming another checkout while reading as a complete answer
+ * the environment `AGENTS.md` §2 states — and the same section of the handoff beside it — held to `.agents/machine.local.json`: a name the renderer has never heard of, a token the machine file holds no value for, a recorded path that is not there, a machine file naming another checkout while reading as a complete answer, and a checkout with no machine file at all, where the value half cannot be asked and the reading has to say so rather than answer that everything is in order
  */
-it('holds the environment table to this machine, and reports nothing where the two agree', function (): void {
+it('holds the environment table to the machine file where there is one, and reports nothing where the two agree', function (): void {
     $root = str_replace('\\', '/', packageRoot());
 
     $tokens = Handoff::tokens($root);
     $machine = Handoff::machine($root);
     $named = Handoff::named((string) file_get_contents($root.'/'.Handoff::RULES), Handoff::TABLE);
 
-    // A reading that found no tokens agrees with a table that names none, so the material is
-    // checked before the empty answer is: the renderer's own table, the machine file, and the
-    // names the document writes have all to be there for an empty reading to mean anything.
+    // A reading that found no tokens agrees with a table that names none, so the material is checked
+    // before the empty answer is: the renderer's own table and the names the document writes are the
+    // half every machine has. The machine file is the half a runner has not, and the value half is
+    // asked only where there is a file to hold a value — the test below is what that case answers
+    // with — so what is asserted of it here is that the two agree about whether it is there at all.
     expect($named)->toBeArray()
         ->and(array_keys($named ?? []))->toContain('__PHP_EXE__')
         ->and($tokens)->toHaveKeys(['__PHP_EXE__', '__PHP_DIR__', '__PWSH_EXE__', '__PACKAGE_DIR__'])
-        ->and($machine)->toBeArray()
+        ->and(is_array($machine))->toBe(is_file($root.'/'.Handoff::MACHINE))
         ->and(Handoff::stale($root))->toBe([]);
 });
 

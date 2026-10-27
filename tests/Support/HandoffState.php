@@ -7,7 +7,7 @@ namespace Uak35\ResponseCompression\Tests\Support;
 use RuntimeException;
 
 /**
- * the state section of the handoff, held to what `handoff/state.sh` measures: its branch, its gate wiring, its changelog endings, and the date every count and colour it states was measured on.
+ * the state section of the handoff, held to what `handoff/state.sh` measures: its branch, the hook this package ships and the setting a clone names for it, its changelog endings, and the date every count and colour it states was measured on.
  *
  * WHY THIS EXISTS
  * ---------------
@@ -24,9 +24,16 @@ use RuntimeException;
  * anything is committed, which is the ordinary state of this checkout. So the split is made where
  * the facts actually divide:
  *
- *   - the ones that do not move with work in progress are held to the script, now: the branch, the
- *     hook wiring, and `CHANGELOG.md`'s line endings, which is a fact about the tree rather than about
- *     the moment and the one `bin/commit.php` reads;
+ *   - the ones that do not move with work in progress are held to the script, now: the branch, the hook
+ *     this package ships and the setting a clone has to name for it to run, and `CHANGELOG.md`'s line
+ *     endings, which is a fact about the tree rather than about the moment and the one
+ *     `bin/commit.php` reads;
+ *   - the one that moves with the *clone* rather than with the work is the setting this checkout has
+ *     its gate wired through, and the script prints it and nothing is compared with it: `core.hooksPath`
+ *     is local configuration, in `.git/config` rather than in a commit, so a section carried by the
+ *     tree can state only the setting a clone has to set. A sentence that says what this checkout has
+ *     is refused by name, because it is the one that made a runner report its own untouched handoff as
+ *     stale — CI has no hook wired, and the section said it had;
  *   - the ones that do move — `HEAD`, how far ahead of the upstream it is, how many paths are listed
  *     — are the script's to print, and the section may state them only in a bullet that says when it
  *     measured them. A count with no date is a claim about now, and now is `state.sh`'s;
@@ -38,9 +45,10 @@ use RuntimeException;
  * -------------
  * `bash handoff/state.sh` is run — the program, in the tree it is asked about, so the parse is a
  * reading of what the script prints rather than a second implementation of the queries it runs. The
- * document is then read for the four claims above, each found by the words it is written with: the
- * `branch` bullet of §1, the `core.hooksPath` sentence beside it, the `CHANGELOG.md` bullet of §3.1,
- * and every bullet that states a `HEAD` or how far ahead it is. What comes back is one finding per
+ * document is then read for the five claims above, each found by the words it is written with: the
+ * `branch` bullet of §1, the `core.hooksPath` claim beside it and the sentence that would name this
+ * checkout's own setting, the `CHANGELOG.md` bullet of §3.1, and every bullet that states a `HEAD`
+ * or how far ahead it is. What comes back is one finding per
  * disagreement, naming the file and the line, which is the form the rest of this package's readings
  * answer in.
  *
@@ -99,6 +107,7 @@ final class HandoffState
      *     reports: int,
      *     stashes: int,
      *     hooks: string|null,
+     *     gate: string|null,
      *     changelog: array{cr: int, writable: bool}|null,
      *     files: array<string, string>
      * }
@@ -171,7 +180,9 @@ final class HandoffState
      *     dated: bool,
      *     deference: bool,
      *     branch: array{value: string, line: int}|null,
-     *     hooks: array{value: string, line: int}|null,
+     *     gate: array{value: string, line: int}|null,
+     *     asserted: array{value: string, line: int}|null,
+     *     gate_line: int|null,
      *     changelog: array{cr: int, writable: bool|null, line: int}|null,
      *     undated: list<array{line: int, claim: string}>
      * }|null
@@ -203,6 +214,7 @@ final class HandoffState
         $package = self::section($lines, self::PACKAGE);
         $text = implode("\n", $state['lines']);
         $heading = $state['heading'];
+        $gate = self::gate($package);
 
         return [
             'heading' => $heading,
@@ -210,7 +222,9 @@ final class HandoffState
             'dated' => preg_match(self::DATE, $heading) === 1,
             'deference' => str_contains($text, self::SCRIPT) && str_contains($text, 'outranks'),
             'branch' => self::claim($package, self::BRANCH),
-            'hooks' => self::hooks($package),
+            'gate' => $gate['claim'],
+            'asserted' => $gate['asserted'],
+            'gate_line' => $package === null ? null : $package['at'] + 1,
             'changelog' => self::changelog($state),
             'undated' => self::undated($state, $package),
         ];
@@ -273,17 +287,45 @@ final class HandoffState
             );
         }
 
-        $hooks = $stated['hooks'];
-        $wired = $measured['hooks'];
+        // The gate is held to the hook this package ships and not to what this clone has wired:
+        // `core.hooksPath` is local configuration, so the answer for the clone the suite happens to be
+        // running in says nothing about whether the section is right, and holding the two together
+        // reported a runner's own untouched handoff as stale.
+        $gate = $stated['gate'];
+        $setting = $measured['gate'];
 
-        if ($hooks !== null && $wired !== null && $hooks['value'] !== $wired) {
+        if ($gate === null) {
+            if ($stated['gate_line'] !== null) {
+                $findings[] = sprintf(
+                    '%s:%d: does not say which hook this package ships and which setting a clone runs it by, so the gate this section was written against is stated nowhere in it.',
+                    self::DOCUMENT,
+                    $stated['gate_line'],
+                );
+            }
+        } elseif ($setting !== null && $gate['value'] !== $setting) {
             $findings[] = sprintf(
-                '%s:%d: says the gate is wired through `%s`, and %s answers `%s` — a commit in a clone where that is unset runs no hook at all.',
+                '%s:%d: says a clone runs the hook this package ships by naming `%s` as its `core.hooksPath`, and %s ships it under `%s` — a clone naming `%s` runs no hook at all.',
                 self::DOCUMENT,
-                $hooks['line'],
-                $hooks['value'],
+                $gate['line'],
+                $gate['value'],
                 self::SCRIPT,
-                $wired,
+                $setting,
+                $gate['value'],
+            );
+        }
+
+        // What this checkout has is the clone's fact and not the document's: a section carried by the
+        // tree cannot state local configuration, because the sentence holds in the clone it was
+        // measured in and reads as a wired gate in the clone where no hook runs at all.
+        $asserted = $stated['asserted'];
+
+        if ($asserted !== null) {
+            $findings[] = sprintf(
+                '%s:%d: states `core.hooksPath` as `%s`, which is this checkout\'s setting rather than the tree\'s — local configuration is carried by no commit, so the sentence holds only in the clone it was measured in. %s prints the answer for the clone it is run in, which is why this may state the setting a clone has to name and not the value this one has.',
+                self::DOCUMENT,
+                $asserted['line'],
+                $asserted['value'],
+                self::SCRIPT,
             );
         }
 
@@ -346,6 +388,7 @@ final class HandoffState
      *     reports: int,
      *     stashes: int,
      *     hooks: string|null,
+     *     gate: string|null,
      *     changelog: array{cr: int, writable: bool}|null,
      *     files: array<string, string>
      * }
@@ -364,6 +407,7 @@ final class HandoffState
         $reports = $find('/^\s+reports with no content difference:\s+(\d+)/m');
         $stashes = $find('/^\s+stashes:\s+(\d+)$/m');
         $hooks = $find('/^\s+core\.hooksPath:\s+(\S+)/m');
+        $gate = $find('/^\s+this package\'s gate:\s+\S+\s+—\s+a clone runs it by naming\s+(\S+)\s+as its core\.hooksPath$/m');
         $changelog = $find('/^\s+CHANGELOG\.md:\s+(.*)$/m');
 
         $files = [];
@@ -384,6 +428,7 @@ final class HandoffState
             'reports' => (int) ($reports[1] ?? -1),
             'stashes' => (int) ($stashes[1] ?? -1),
             'hooks' => $hooks === null ? null : $hooks[1],
+            'gate' => $gate === null ? null : $gate[1],
             'changelog' => $changelog === null ? null : self::endings($changelog[1]),
             'files' => $files,
         ];
@@ -463,34 +508,47 @@ final class HandoffState
     }
 
     /**
-     * The gate the handoff says is wired, as the sentence beside the branch states it.
+     * The gate §1 states, and the sentence beside it that states what this checkout has instead.
      *
-     * @param  array{at: int, heading: string, lines: list<string>}|null  $section
-     * @return array{value: string, line: int}|null
+     * Two shapes are told apart here by the claim they make rather than by where they sit. `naming
+     * `X` as its `core.hooksPath`` is about the setting a clone has to set for the hook this package
+     * ships to run, which is a fact about the tree: the script prints it on every machine, and this
+     * reading can hold the section to it. `` `core.hooksPath` is `X` `` is about the clone the suite
+     * happens to be running in, which is local configuration — no commit carries it, and the section
+     * travels — so the sentence holds at home and is false in a runner. The first is read for its
+     * value; the second is read so that it can be named.
+     *
+     * Both are found in the bullets rather than the lines, because a sentence that wraps is one
+     * statement and the wrap is the editor's business.
+     *
+     * @param  array{at: int, heading: string, lines: list<string>}|null  $package
+     * @return array{claim: array{value: string, line: int}|null, asserted: array{value: string, line: int}|null}
      */
-    private static function hooks(?array $section): ?array
+    private static function gate(?array $package): array
     {
-        if ($section === null) {
-            return null;
-        }
+        $claim = null;
+        $asserted = null;
 
-        foreach ($section['lines'] as $offset => $line) {
-            if (! str_contains($line, 'core.hooksPath')) {
+        foreach (self::sectionBullets($package) as $item) {
+            if (! str_contains($item['text'], 'core.hooksPath')) {
                 continue;
             }
 
-            // The value is the one the sentence assigns to the setting — `core.hooksPath` is
-            // `.githooks` — and not the hook file it goes on to name on the same line: that is a
-            // different path, and reading it would report a disagreement with the script's own
-            // answer where the document has made none.
-            if (preg_match('/core\.hooksPath`?\s+is\s+`([^`]+)`/', $line, $match) !== 1) {
+            // The value is the one the sentence gives the setting and not the hook file it names
+            // beside it: the file is a different fact, and reading it as the setting would report a
+            // disagreement with the script where the document has made none.
+            if (preg_match('/naming\s+`([^`]+)`\s+as its `core\.hooksPath`/', $item['text'], $match) === 1) {
+                $claim ??= ['value' => $match[1], 'line' => $item['line']];
+
                 continue;
             }
 
-            return ['value' => $match[1], 'line' => $section['at'] + $offset + 2];
+            if (preg_match('/`core\.hooksPath`\s+(?:is|is set to)\s+`([^`]+)`/', $item['text'], $match) === 1) {
+                $asserted ??= ['value' => $match[1], 'line' => $item['line']];
+            }
         }
 
-        return null;
+        return ['claim' => $claim, 'asserted' => $asserted];
     }
 
     /**
@@ -560,7 +618,19 @@ final class HandoffState
     }
 
     /**
-     * The bullets of the two sections, each read whole with the line it opens on.
+     * The bullets of both sections, in the order a reader meets them.
+     *
+     * @param  array{at: int, heading: string, lines: list<string>}  $state
+     * @param  array{at: int, heading: string, lines: list<string>}|null  $package
+     * @return list<array{line: int, text: string, dated: bool}>
+     */
+    private static function bullets(array $state, ?array $package): array
+    {
+        return [...self::sectionBullets($package), ...self::sectionBullets($state)];
+    }
+
+    /**
+     * The bullets of one section, each read whole with the line it opens on.
      *
      * An item is assembled before it is judged, because the number and the date that belongs with it
      * are rarely on the same line: the claim is the bullet, and the bullet is the sentence a reader
@@ -576,52 +646,48 @@ final class HandoffState
      * function: Rector reads a variable captured by reference as one nothing writes, and the "dead"
      * block it then removes is this reading's whole body.
      *
-     * @param  array{at: int, heading: string, lines: list<string>}  $state
-     * @param  array{at: int, heading: string, lines: list<string>}|null  $package
+     * @param  array{at: int, heading: string, lines: list<string>}|null  $section
      * @return list<array{line: int, text: string, dated: bool}>
      */
-    private static function bullets(array $state, ?array $package): array
+    private static function sectionBullets(?array $section): array
     {
-        $bullets = [];
+        if ($section === null) {
+            return [];
+        }
 
-        foreach ([$package, $state] as $section) {
-            if ($section === null) {
+        $bullets = [];
+        $dated = preg_match(self::DATE, $section['heading']) === 1;
+        $open = null;
+
+        foreach ($section['lines'] as $offset => $line) {
+            if (preg_match('/^#{3,4} /', $line) === 1) {
+                if ($open !== null) {
+                    $bullets[] = $open;
+                }
+
+                $dated = preg_match(self::DATE, $line) === 1;
+                $open = null;
+
                 continue;
             }
 
-            $dated = preg_match(self::DATE, $section['heading']) === 1;
-            $open = null;
-
-            foreach ($section['lines'] as $offset => $line) {
-                if (preg_match('/^#{3,4} /', $line) === 1) {
-                    if ($open !== null) {
-                        $bullets[] = $open;
-                    }
-
-                    $dated = preg_match(self::DATE, $line) === 1;
-                    $open = null;
-
-                    continue;
-                }
-
-                if (str_starts_with($line, '- ')) {
-                    if ($open !== null) {
-                        $bullets[] = $open;
-                    }
-
-                    $open = ['line' => $section['at'] + $offset + 2, 'text' => $line, 'dated' => $dated];
-
-                    continue;
-                }
-
+            if (str_starts_with($line, '- ')) {
                 if ($open !== null) {
-                    $open['text'] .= "\n".$line;
+                    $bullets[] = $open;
                 }
+
+                $open = ['line' => $section['at'] + $offset + 2, 'text' => $line, 'dated' => $dated];
+
+                continue;
             }
 
             if ($open !== null) {
-                $bullets[] = $open;
+                $open['text'] .= "\n".$line;
             }
+        }
+
+        if ($open !== null) {
+            $bullets[] = $open;
         }
 
         return $bullets;
