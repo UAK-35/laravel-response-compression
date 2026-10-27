@@ -24,8 +24,11 @@ use SplFileInfo;
  *
  * The mapping is therefore a claim about two directories, and it is kept in one place rather than
  * in a list beside the gate. A list goes stale the moment a source file is renamed or added, so a
- * file the map does not name is a finding rather than something nobody notices: every `.php` file
- * under `src/` and `bin/` has to have a row here, held by `tests/Unit/Support/TestMapTest.php`.
+ * file the map does not name is a finding rather than something nobody notices: every program under
+ * `src/` and `bin/` has to have a row here, held by `tests/Unit/Support/TestMapTest.php`. A program
+ * is a `.php` file, and it is also a shell script — `bin/workbench.sh` is one, and a check that read
+ * the extension rather than the fact would have let it be carried by a commit measured only by a
+ * syntax check that skips it and a style check that skips it too.
  *
  * WHAT A COMMIT'S FILES ARE MEASURED BY
  * -------------------------------------
@@ -105,6 +108,7 @@ final class TestMap
             'tests/Unit/Gate/ChecksTest.php',
         ],
         'bin/tool.php' => ['tests/Unit/Gate/ToolTest.php'],
+        'bin/workbench.sh' => ['tests/Unit/Workbench/WorkbenchTest.php'],
         'src/Contracts/Encoder.php' => ['tests/Unit/Encoders'],
         'src/Encoders/BrotliEncoder.php' => ['tests/Unit/Encoders/BrotliEncoderTest.php'],
         'src/Encoders/GzipEncoder.php' => ['tests/Unit/Encoders/GzipEncoderTest.php'],
@@ -147,11 +151,18 @@ final class TestMap
     }
 
     /**
-     * Every `.php` file under `src/` and `bin/`, as a path from the package root.
+     * Every program under `src/` and `bin/`, as a path from the package root.
      *
      * The directory is read rather than listed here, because a list of the source files is the
      * second copy this reading exists to avoid: a file that arrived and has no row is the failure
      * the guard has to be able to see, and it cannot see it in a list that was never updated.
+     *
+     * What counts is the extension of a program rather than the language it is written in: `.php`
+     * and `.sh`, because a shell script under `bin/` is a program a commit can carry, and the gate's
+     * syntax and style rows pass it by. `composer-ca.ps1` and `composer-link.cmd` are deliberately
+     * not ones — they are conveniences for a machine rather than programs this package runs, and
+     * both are `export-ignore`d — so the walk names the two extensions it can answer for rather
+     * than every file in the directory.
      *
      * @return list<string>
      */
@@ -170,7 +181,7 @@ final class TestMap
             );
 
             foreach ($entries as $entry) {
-                if (! $entry instanceof SplFileInfo || ! $entry->isFile() || $entry->getExtension() !== 'php') {
+                if (! $entry instanceof SplFileInfo || ! $entry->isFile() || ! in_array($entry->getExtension(), ['php', 'sh'], true)) {
                     continue;
                 }
 

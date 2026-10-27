@@ -18,9 +18,11 @@ use Uak35\ResponseCompression\Tests\Support\TestMap;
 | `tests/Support/TestMap.php` is the answer now, and what can go wrong with one is a different
 | question from what can go wrong with a list beside the gate. A list goes stale — a source file
 | that was renamed keeps its old row, and a source file that arrived has none — so this reads the
-| map as a claim about the tree rather than trusting it: every `.php` file under `src/` and
-| `bin/` has to have a row, every row has to name a file that is there, and every row has to name
-| something for the tests to be pointed at.
+| map as a claim about the tree rather than trusting it: every program under `src/` and `bin/` has
+| to have a row, every row has to name a file that is there, and every row has to name something
+| for the tests to be pointed at. A program is a `.php` file and it is also a shell script: the
+| walk reads both, because `bin/workbench.sh` sat in the tree with neither and a commit carrying it
+| ran a syntax check and a style check that each skip it in one line.
 |
 | The narrowing is read the same way rather than restated here: a mapping that agreed with a copy
 | of itself would be two rules that can disagree about which tests a commit runs, which is the
@@ -39,7 +41,7 @@ it('names every file under src/ and bin/, and every row a file that is here', fu
     // notice it after the fact — which is why the missing case is named before the other one.
     $missing = array_values(array_diff(TestMap::files($root), array_keys(TestMap::covers())));
 
-    expect($missing)->toBe([], 'Every .php file under `src/` and `bin/` needs a row in TestMap::COVERS; these have none: '.implode(', ', $missing));
+    expect($missing)->toBe([], 'Every .php and .sh file under `src/` and `bin/` needs a row in TestMap::COVERS; these have none: '.implode(', ', $missing));
 
     // The other direction is a row naming a path that is not here, which is what a source file that
     // was renamed leaves behind. It is asked of every row rather than of the two directories,
@@ -80,7 +82,14 @@ it('reads the files it is a claim about, so an empty answer is not agreement', f
     // listing is shown to have substance before any count of it is believed.
     expect($files)->toContain('src/Support/Config.php')
         ->and($files)->toContain('bin/release.php')
-        ->and($files)->not->toContain('src/Middleware/CompressResponse.php.txt');
+        // The shell script is the extension this walk got wrong for as long as it named `.php`, and
+        // a listing that has stopped seeing one would agree with a map that had no row for it.
+        ->and($files)->toContain('bin/workbench.sh')
+        ->and($files)->not->toContain('src/Middleware/CompressResponse.php.txt')
+        // A convenience for a machine is not a program: the listing names the two extensions it can
+        // answer for, so the two Windows files beside the scripts are not rows waiting to happen.
+        ->and($files)->not->toContain('bin/composer-link.cmd')
+        ->and($files)->not->toContain('bin/composer-ca.ps1');
 });
 
 it('reads the files a commit carries into the tests that cover them', function (): void {
@@ -88,6 +97,10 @@ it('reads the files a commit carries into the tests that cover them', function (
     // the whole of one, because that is the only truthful answer to which of them covers it.
     expect(TestMap::covering(['bin/push.php']))->toBe(['tests/Unit/Release/PushTest.php'])
         ->and(TestMap::covering(['bin/release.php']))->toBe(['tests/Unit/Release'])
+
+        // A shell script is mapped the same way a program is, which is the whole point of the row:
+        // a commit carrying it runs its rail instead of two checks that skip it.
+        ->and(TestMap::covering(['bin/workbench.sh']))->toBe(['tests/Unit/Workbench/WorkbenchTest.php'])
 
         // A second path that the first one already covers is not a second run.
         ->and(TestMap::covering(['bin/release.php', 'tests/Unit/Release/RailsTest.php']))->toBe(['tests/Unit/Release'])
