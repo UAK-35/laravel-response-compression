@@ -438,8 +438,10 @@ the two bullets belonging to the first two groups above — the only additions
 by a commit — and one final newline this document has never had, left by `4d4c00d` deliberately. So a
 commit that names `CHANGELOG.md` carries whichever of them it did not mean to, which is why `21424aa`
 had the tool write its own bullet and leave the three alone: `CHANGELOG.md holds 3 line(s) this run
-did not write, and they are not staged`. Committing this section takes `handoff/HANDOFF.md` out of the
-list and leaves 16.
+did not write, and they are not staged`. **This document is itself uncommitted while the re-take is
+being written**: the reading above is what the script answers at `21424aa`, where
+`handoff/HANDOFF.md` holds what `HEAD` holds — so a count taken with this section half-written is 18,
+and the commit that lands it takes that path back out and leaves the 17.
 
 Everything the table below describes is otherwise at that `HEAD`:
 
