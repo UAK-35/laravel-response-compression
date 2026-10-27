@@ -4,6 +4,7 @@
 declare(strict_types=1);
 
 use Uak35\ResponseCompression\Tests\Support\PhpBinary;
+use Uak35\ResponseCompression\Tests\Support\Workers;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,6 +30,13 @@ use Uak35\ResponseCompression\Tests\Support\PhpBinary;
 | The tool runs from the package root — where Composer would have run it — inherits this process'
 | streams, and its exit code is the one returned, so a script that runs one tool means what that
 | tool means.
+|
+| One argument is added rather than passed through, and it is the pool: pest asked for `--parallel`
+| without a size would start one worker per core, and a worker of this suite is several processes —
+| which is a start this machine refuses, `proc_open(): CreateProcess failed` from a file that passes
+| when it is asked on its own. So the size is read from the one place that reads it, the same
+| answer `bin/checks.php` and `bin/coverage.php` hand pest when they start a pool of their own, and
+| a caller that named a pool keeps it.
 |
 | USAGE
 | -----
@@ -128,7 +136,54 @@ if (class_exists(PhpBinary::class)) {
     }
 }
 
+$arguments = pool($name, $arguments);
+
 exit(run([PHP_BINARY, $tool, ...$arguments], $root));
+
+/**
+ * The arguments the tool is handed, with this package's answer to a pool that was asked for without
+ * a size.
+ *
+ * `--parallel` is paratest, and paratest starts one worker per core unless it is told otherwise. A
+ * worker here is not one process: a test that starts a child — and most of this suite's files do —
+ * makes every worker two or three, so a pool of one per core is the machine being asked for several
+ * processes per core, and what it answers is a refused start. That refusal is the whole of the
+ * finding, and it is a fact about the pool rather than about the file that hit it: the same file
+ * passes when it is asked on its own. `Tests\Support\Workers` is where the size is read, and the
+ * two programs that start a pool of their own ask it the same question — a number written here
+ * would be a second number, and this is the one door a hand-run tool goes through.
+ *
+ * A caller that named a pool keeps it: `--processes` and `-p` are answers of their own, whatever
+ * they say, and this reads rather than overrides them. Anything that is not pest, and any pest run
+ * that did not ask for a pool, is handed its arguments exactly as they came — there is nothing
+ * general here, only the one option shape this package has measured a machine refuse. A tree with
+ * no dependencies installed has no class to read either, and then the arguments go as they came
+ * rather than the run stopping over a size nobody could look up.
+ *
+ * The number goes on the option (`--processes=8`) for the reason `Workers` records: pest rebuilds
+ * the arguments before paratest sees them, and the value written after the option arrives stripped.
+ *
+ * @param  list<string>  $arguments
+ * @return list<string>
+ */
+function pool(string $name, array $arguments): array
+{
+    if ($name !== 'pest' || ! in_array('--parallel', $arguments, true)) {
+        return $arguments;
+    }
+
+    foreach ($arguments as $argument) {
+        if ($argument === '-p' || str_starts_with($argument, '--processes')) {
+            return $arguments;
+        }
+    }
+
+    if (! class_exists(Workers::class)) {
+        return $arguments;
+    }
+
+    return [...$arguments, ...array_slice(Workers::arguments(), 1)];
+}
 
 /**
  * Run the tool with its streams going where this process' streams go, from the package root.

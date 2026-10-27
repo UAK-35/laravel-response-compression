@@ -16,6 +16,12 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRun;
 | manifest holds, and that the tool's exit code comes back out — a script that runs one tool has to
 | mean what that tool means, or a red tool upstream reads as a green build here.
 |
+| And one argument is the runner's own rather than the caller's: a pest asked for `--parallel`
+| without a size is handed the pool `Tests\Support\Workers` reads, because that same request
+| unhanded is one worker per core and a start this machine refuses. So the arguments the tool was
+| handed are read here too — the fixture's tool writes them down — with the width planted rather
+| than taken from this machine's core count, and a caller who named a pool keeping it.
+|
 | The manifest is the one file this program cannot do without, so the ways it can fail to name a
 | tool are refusals of its own: a file that is not there, and a file that returns no name. Both
 | would otherwise be a fatal out of a `require`, which is PHP's words about a file rather than this
@@ -51,6 +57,7 @@ function toolRepo(): ReleaseRepo
     // and none is wanted: this file runs as a script, and its lines start where a script's do.
     $repo->write('vendor/doer/bin/doer', "<?php\n\n"
         ."fwrite(STDOUT, 'doer in '.(string) getcwd().PHP_EOL);\n"
+        ."fwrite(STDOUT, 'doer was handed: '.implode(' ', array_slice(\$argv, 1)).PHP_EOL);\n"
         ."fwrite(STDERR, 'doer said'.PHP_EOL);\n"
         ."exit(7);\n");
 
@@ -204,4 +211,56 @@ it('says which interpreter it is under when that is not the one this checkout na
         ->and($run->error)->toContain('bin/tool.php: this ran under a different interpreter')
         ->and($run->error)->toContain('sh .agents/php-bin.sh --show says which PHP this checkout means')
         ->and($run->output)->toContain('doer in ');
+});
+
+it('sizes a pool that was asked for without a size, and leaves a caller\'s own pool alone', function (): void {
+    $repo = toolRepo();
+
+    // The fixture's tool under the name the sizing turns on, and under the name it does not: what is
+    // read here is the arguments the runner hands the tool, and the name is half of that question.
+    $repo->write('bin/tool-paths.php', "<?php\n\ndeclare(strict_types=1);\n\nreturn ["
+        ."'doer' => ['path' => 'vendor/doer/bin/doer', 'pin' => '1.0.0', 'why' => 'the tool this fixture runs'],"
+        ."'pest' => ['path' => 'vendor/doer/bin/doer', 'pin' => '1.0.0', 'why' => 'the same file, under the name a pool is sized for'],"
+        ."];\n");
+
+    // No `vendor/autoload.php` in this tree, which is a tree with nothing installed: there is no class
+    // to read a size from, and the arguments go as they came rather than the run stopping over it.
+    $unsized = $repo->script('bin/tool.php', 'pest', '--parallel');
+
+    expect($unsized->exitCode)->toBe(7)
+        ->and($unsized->output)->toContain('doer was handed: --parallel'.PHP_EOL);
+
+    // And the size is the class's answer rather than a number this program holds: planted, so the
+    // reading is about the runner rather than about how many cores this machine happens to have.
+    $repo->write('vendor/autoload.php', "<?php\n\ndeclare(strict_types=1);\n\n"
+        ."namespace Uak35\\ResponseCompression\\Tests\\Support;\n\n"
+        ."final class Workers\n{\n"
+        ."    /** @return list<string> */\n"
+        ."    public static function arguments(): array\n    {\n"
+        ."        return ['--parallel', '--processes=4'];\n"
+        ."    }\n}\n");
+
+    $sized = $repo->script('bin/tool.php', 'pest', '--parallel');
+
+    expect($sized->exitCode)->toBe(7)
+        ->and($sized->output)->toContain('doer was handed: --parallel --processes=4'.PHP_EOL);
+
+    // A caller that named a pool keeps it, in both spellings paratest takes: the size is read rather
+    // than imposed, so the line is the caller's own and nothing is appended to it.
+    foreach ([['--parallel', '--processes=2'], ['--parallel', '-p', '2']] as $arguments) {
+        $own = $repo->script('bin/tool.php', 'pest', ...$arguments);
+
+        expect($own->exitCode)->toBe(7)
+            ->and($own->output)->toContain('doer was handed: '.implode(' ', $arguments).PHP_EOL);
+    }
+
+    // And nothing general is going on: a pest run that asked for no pool, and a tool that is not
+    // pest, are both handed their arguments exactly as they came.
+    $noPool = $repo->script('bin/tool.php', 'pest', '--version');
+    $notPest = $repo->script('bin/tool.php', 'doer', '--parallel');
+
+    expect($noPool->exitCode)->toBe(7)
+        ->and($noPool->output)->toContain('doer was handed: --version'.PHP_EOL)
+        ->and($notPest->exitCode)->toBe(7)
+        ->and($notPest->output)->toContain('doer was handed: --parallel'.PHP_EOL);
 });

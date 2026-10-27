@@ -31,9 +31,9 @@ use RuntimeException;
  * refused start pays. The ladder is that long because two shorter versions were beaten by
  * measurement. Three attempts with 60 milliseconds of pauses lost a run of 29 failed tests, all one
  * refused start per file. Five attempts with just over two seconds on the table lost a run of 41,
- * every one of them reported as `no reason was given` — which is what `error_get_last()` holds when
- * Windows refuses a start without a message, and the absence rather than the exception is the
- * finding — and that is the run that set the ceiling. The fault is bursty rather than
+ * every one of them reported as `no reason was given` — which is what a refusal with no message of
+ * its own comes back as, and the absence rather than the exception is the finding — and that is the
+ * run that set the ceiling. The fault is bursty rather than
  * uniform: the next run at the same width recorded 948 starts and not one refusal, so a ceiling
  * read off a green run would have been read off nothing.
  *
@@ -119,17 +119,39 @@ final class Processes
 
         while (true) {
             $pipes = [];
+            $refusal = null;
 
-            // Suppressed because the reason is read rather than printed: `proc_open()` emits a
-            // warning for a refusal, and a worker that is going to answer anyway should not be
-            // reporting one to the transcript of a green run.
-            $process = @proc_open($command, $descriptors, $pipes, $cwd, $environment);
+            // The refusal is taken by a handler of this class's own rather than by `@`, and that is
+            // the difference between a warning nobody reads and a warning nobody records. `@` stops
+            // PHP from *printing* it and nothing else: the message is still raised, and a runner's
+            // handler still sees it — so Pest recorded it against the test that made the start, and
+            // `phpunit.xml.dist` carries `failOnWarning="true"`, which is a failing test on a tree
+            // with nothing wrong with it. Measured: a `@proc_open()` at a program that is not there
+            // comes back as one `proc_open(): CreateProcess failed` warning against the test that
+            // made the call, and a pooled run had 42 tests carrying it.
+            //
+            // The handler answers `true` for the one call below, so nothing else is raised while the
+            // attempt is made, and it goes back on the way out whichever way the call went: a handler
+            // left installed would swallow every warning after it, in a suite whose config fails the
+            // run on one. What it keeps is this class's reason — `start()` throws it beside the
+            // command it could not run, which is the report that replaces the warning.
+            set_error_handler(static function (int $severity, string $message, string $file, int $line) use (&$refusal): bool {
+                $refusal = $message;
+
+                return true;
+            });
+
+            try {
+                $process = proc_open($command, $descriptors, $pipes, $cwd, $environment);
+            } finally {
+                restore_error_handler();
+            }
 
             if (is_resource($process)) {
                 return [$process, $pipes];
             }
 
-            self::$reason = error_get_last()['message'] ?? 'no reason was given';
+            self::$reason = $refusal ?? 'no reason was given';
 
             if (microtime(true) + $pause / 1_000_000 > $deadline) {
                 return null;
