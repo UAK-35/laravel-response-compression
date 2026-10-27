@@ -887,7 +887,7 @@ def step_interpreter_token(root: Path) -> list[str]:
 
 def step_tokens(root: Path) -> list[str]:
     findings: list[str] = []
-    known = {"__PHP_EXE__", "__PHP_DIR__", "__PWSH_EXE__", "__PACKAGE_DIR__"}
+    known = {"__PHP_EXE__", "__PHP_DIR__", "__PWSH_EXE__", "__PACKAGE_DIR__", "__SYSTEM_TEMP_FOLDER__"}
 
     candidates = [root / pointer for pointer in POINTERS]
     candidates += [root / "AGENTS.md"]

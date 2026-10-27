@@ -54,6 +54,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -79,6 +80,7 @@ TOKENS: dict[str, tuple[tuple[str, str], str]] = {
     "__PHP_DIR__": (("php", "dir"), "the directory holding it, derived from the binary when absent"),
     "__PWSH_EXE__": (("pwsh", "exe"), "PowerShell 7, the shell every Windows command runs through"),
     "__PACKAGE_DIR__": (("package", "dir"), "this checkout - the repository root"),
+    "__SYSTEM_TEMP_FOLDER__": (("systemTempFolder", "systemTempFolderPath"), "this machine's temporary directory, where a run may put scratch files"),
 }
 
 DEFAULT_PWSH = "pwsh.exe"
@@ -104,6 +106,7 @@ SECTIONS: dict[str, str] = {
     "php": "the interpreter the gate, the suite and bin/ run under",
     "pwsh": "PowerShell 7, the shell every Windows command runs through",
     "package": "this checkout - the repository root",
+    "systemTempFolder": "this machine's temporary directory, where a run may put scratch files",
     "python": "the interpreter the agentic checks and the generators beside them run under",
     "composer": "the package manager, when it is the `composer.phar` beside `composer.json`",
     "git": "the origin, the signing key, and the line endings this checkout is written with",
@@ -123,6 +126,7 @@ OWNED: dict[str, tuple[str, ...]] = {
     "php": ("exe", "dir"),
     "pwsh": ("exe",),
     "package": ("dir",),
+    "systemTempFolder": ("systemTempFolderPath",),
 }
 
 
@@ -491,6 +495,7 @@ def initialise(args: argparse.Namespace) -> int:
         "php": {"exe": php, "dir": str(Path(php).parent).replace("\\", "/")},
         "pwsh": {"exe": pwsh},
         "package": {"dir": package},
+        "systemTempFolder": {"systemTempFolderPath": tempfile.gettempdir().replace("\\", "/")},
     }
 
     data: dict = {}

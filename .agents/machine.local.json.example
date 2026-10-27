@@ -9,6 +9,9 @@
     "package": {
         "dir": "the absolute path to this checkout, which `__PACKAGE_DIR__` resolves to"
     },
+    "systemTempFolder": {
+        "systemTempFolderPath": "this machine's temporary directory, as the platform names it, and what `__SYSTEM_TEMP_FOLDER__` resolves to"
+    },
     "python": {
         "exe": "the absolute path to the Python 3 the agentic checks and the two generators beside them run under",
         "version": "what that interpreter prints for `--version`, such as `3.12.4`",

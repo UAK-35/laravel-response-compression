@@ -45,6 +45,14 @@ composer[0-9].json
 # it holds is a project id: local to one machine and belonging to no version of this package.
 /.freebuff/
 
+# The workspace configs this checkout's editor reads. They are generated - each `.template` beside
+# them is the tracked artifact and `python manage-config.py` writes the config from it, substituting
+# the machine-local values the template names as tokens - so the rendered files are this machine's
+# and belong in no commit. Ignoring them is what keeps a machine path in them out of `git status`
+# and out of both path readings, which read the files a commit would carry.
+/opencode.jsonc
+/opencode.v1-backup.jsonc
+
 # Machine-local settings. `.agents/machine.local.json` is the one file that names this machine's
 # PHP, PowerShell and package directory; each settings file below is rendered from the committed
 # `.example` template beside it by `python .agents/render_local.py`. Committing either one would

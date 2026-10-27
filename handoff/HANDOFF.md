@@ -74,10 +74,10 @@ of its own and no dependency on anything beside it.
   `sh .agents/php-bin.sh --show` says which rung answered and the version `composer.json` requires.
   A command that runs PHP is written with the rendering in the line itself — the gate's own table in
   `AGENTS.md` §13 shows the form.
-- **Machine settings, one file, gitignored:** `.agents/machine.local.json` — **5,542 bytes and 14
-  sections on this machine**, where the predecessor measured 293 bytes and four keys. The four the
-  renderer reads behind a token are `__PHP_EXE__`, `__PHP_DIR__`, `__PWSH_EXE__` and
-  `__PACKAGE_DIR__`; the sections beside them are this machine's own record — the interpreter's
+- **Machine settings, one file, gitignored:** `.agents/machine.local.json` — **5,642 bytes and 15
+  sections on this machine**, where the predecessor measured 293 bytes and four keys. The five the
+  renderer reads behind a token are `__PHP_EXE__`, `__PHP_DIR__`, `__PWSH_EXE__`,
+  `__PACKAGE_DIR__` and `__SYSTEM_TEMP_FOLDER__`; the sections beside them are this machine's own record — the interpreter's
   version and extensions, what this checkout is at, what an install receives — and
   `python .agents/render_local.py --init` keeps every one of them while it re-names the machine,
   where it used to write its three answers over the file and take the record with them.

@@ -218,6 +218,7 @@ gitignored. Everything committed refers to a path through a `__TOKEN__` instead:
 | `__PHP_DIR__` | the directory containing `php.exe` |
 | `__PWSH_EXE__` | absolute path to `pwsh.exe` |
 | `__PACKAGE_DIR__` | absolute path to this package — the repository root |
+| `__SYSTEM_TEMP_FOLDER__` | this machine's temporary directory, where a run may put scratch files |
 
 ```bash
 python .agents/render_local.py --init    # asks for the paths, writes machine.local.json, renders every settings
