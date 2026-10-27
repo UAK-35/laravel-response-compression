@@ -373,7 +373,7 @@ file on disk — and that is the pair `state.sh` prints when it reports a non-ze
 
 ---
 
-## 5. Uncommitted work: eleven files from the sessions that read this, and one that is not its own
+## 5. Uncommitted work: seventeen paths from the sessions that read this, and two that are not their own
 
 **Nothing is staged and no commit was made when this was written; the work in the table below has
 since been committed** — `d89fc95` (the environment held to the machine file), `272a574` (the machine
@@ -414,16 +414,32 @@ earned, and that is measured rather than assumed — `git show <commit>:CHANGELO
 `<commit>^` is one added line and no removal for each of the four, and the four documents at `HEAD`
 are byte-identical to the state this thread authored.
 
-**The list is not empty as this is written — `handoff/state.sh` reads four paths against a `HEAD` at
-`bb49cb5` on 2026-10-27 — and not one of the four is either sitting's**: `pint.json` (an `exclude`
+**The list is not empty as this is re-taken — `handoff/state.sh` reads 17 paths against a `HEAD` at
+`21424aa` on 2026-10-27, 13 of them with a real content diff and 4 untracked, with nothing staged —
+and the 17 are five reasons and two files that are nobody's.** The two are `pint.json` (an `exclude`
 list for `external`, `ext`, `build` and `vendor`, plus a final newline) and
 `.agents/skills/package-dev/_meta.json` (a date and a timestamp), both written at 17:57:20 on
-2026-10-26, two minutes after the sixth of those commits; this document, whose §5 and §7 are this
-re-taking, and which is therefore the one path a commit here would have to name by hand; and
-`.idea/vcs.xml`, which the IDE rewrote at 00:34:46 on 2026-10-27 to register two nested repositories
-under the ignored `build/rc/` — a mapping nobody wrote deliberately, and the reason a count taken
-today is four rather than three. None of the four is recorded under `## Unreleased`, and none of them
-is a later session's to commit or discard.
+2026-10-26, two minutes after the sixth of the burst's commits: neither carries a bullet under
+`## Unreleased`, neither is this thread's to commit or discard, and both are still exactly as they
+were found (§7 item 14). The other fifteen are the sittings' own work waiting for the commit that
+will carry it, and no two of the five groups below are one reason:
+
+| Waiting for its commit | Paths | What it is |
+| --- | --- | --- |
+| the scratch-copies reading | `tests/Support/ScratchCopies.php` (new), `tests/Unit/Support/ScratchCopiesTest.php` (new), `docs/guards.md`, `docs/commit-environment.md` | the reading that names a copy of a tracked file among the files git does not have, the row and the two counts the render moved, and the record that names it beside `IgnoredTest` |
+| the workbench rail | `tests/Unit/Workbench/WorkbenchTest.php` (new), `tests/Support/TestMap.php`, `tests/Unit/Support/TestMapTest.php` | §7 item 13: the one program under `bin/` that is not PHP gets a rail, and `TestMap` reads a program as a `.sh` as well as a `.php` |
+| the pool a tool that starts pest is handed | `bin/tool.php`, `tests/Unit/Gate/ToolTest.php`, `docs/tool-registry.md` | `--parallel` with no size reaches pest as the width `Workers` reads, because that request unhanded is one worker per core and a start this machine refuses |
+| the refusal's own reason | `tests/Support/Processes.php`, `tests/Unit/Support/ProcessesTest.php` (new) | the message a refused start gave is taken by a handler of the class's own rather than from `error_get_last()`, so no warning is printed and none is left for a runner's handler to fail a run on |
+| the reading that said the deleted record was here | `tests/Support/Ignored.php`, `tests/Unit/Support/IgnoredTest.php` | the two sentences `21424aa` left out of its set on purpose: the docblock and the header now say the record for the package next door was deleted on 2026-10-27, and the docblock's first sentence — the row `docs/guards.md` renders — is untouched |
+
+`CHANGELOG.md` is the fifteenth path and the one with no reason of its own to be modified: it holds
+the two bullets belonging to the first two groups above — the only additions
+`git show HEAD:CHANGELOG.md` does not have, each authored while the work was done rather than written
+by a commit — and one final newline this document has never had, left by `4d4c00d` deliberately. So a
+commit that names `CHANGELOG.md` carries whichever of them it did not mean to, which is why `21424aa`
+had the tool write its own bullet and leave the three alone: `CHANGELOG.md holds 3 line(s) this run
+did not write, and they are not staged`. Committing this section takes `handoff/HANDOFF.md` out of the
+list and leaves 16.
 
 Everything the table below describes is otherwise at that `HEAD`:
 
@@ -440,8 +456,10 @@ setup edit — the fifth load-order entry of §3.1 — and is not this package's
 is also the one file a commit here would have to *name* deliberately: it is the canonical rules file,
 and a commit carrying it should say why the entry is being added.
 
-The predecessor's rule holds, and matters more now: **commit named paths, never `git add -A`**,
-because three of the seven untracked entries are another package's (§3.3).
+The predecessor's rule holds: **commit named paths, never `git add -A`**. What it was written
+against has moved — §3.3 is resolved, so none of today's four untracked entries is another package's
+— and what it protects is the five reasons above: one blanket stage would put all five under one
+subject and one bullet, which is the failure the named set exists to prevent.
 
 What the predecessor found when it looked, kept because the shape recurs:
 
@@ -674,10 +692,10 @@ git log --format='%h %G?' -5          # no `N` in the second column
     carry no bullet under `## Unreleased`, and have been left exactly as they were found. The first
     is the one that changes behaviour, since it decides which directories the style check skips.
     Deciding them is one commit with a bullet, or a deliberate leave with the reason written beside
-    it; until then `handoff/state.sh` reports them on every run. The fourth path §5 names is neither
-    of those and no work at all — `.idea/vcs.xml` is the IDE's own mapping, added for the nested
-    repositories under the ignored `build/rc/` scratch, and stands where §4's phantom reports stand:
-    a reading, not an edit, and nothing to stage, commit or revert.
+    it; until then `handoff/state.sh` reports them on every run. A fourth path the reading at
+    `bb49cb5` named is not among today's seventeen and was never work at all — `.idea/vcs.xml`, the
+    IDE's own mapping for the nested repositories under the ignored `build/rc/` scratch: a reading,
+    not an edit, so nothing to stage, commit or revert.
 15. **A path whose directory carries a space after a mount root is still read to the space** — new,
     named by §5's `bb49cb5` rather than half-fixed by it. `MachinePaths` reads a parenthesised mark as
     part of a name now, but the mount pattern still ends a path at a space, a rule that spelling
