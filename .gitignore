@@ -19,26 +19,36 @@ build
 # kept out of a commit without being kept out of the tree. An ignore rule that answers a guard is
 # the quiet half of the failure AGENTS.md section 0 describes: the guards read the set a commit
 # would carry, so a file this rule hides is one neither of them can report. The names below are what
-# a session actually leaves here; a scratch copy of a file this package owns now shows in
-# `git status`, and another package's machine record is reported by
-# `tests/Unit/Support/MachinePathsTest.php`, which is the colour this repository decided on for a
-# file that is somebody else's — a sentence rather than a silence. `tests/Support/Ignored.php` still
-# reads whatever these rules do hold, so a rule that starts hiding a record again is named too.
+# a session actually leaves here, so a scratch copy of a file this package owns shows in `git status`
+# and a machine record sitting in the carried set is reported by
+# `tests/Unit/Support/MachinePathsTest.php` — a sentence rather than a silence, and the colour this
+# repository decided on for a file that is somebody else's. The one that arrived that way, the record
+# for the package next door, was deleted on 2026-10-27; the paragraph above `/.quarantine/` carries
+# that account. `tests/Support/Ignored.php` reads whatever these rules do hold, so a rule that starts
+# hiding a record is named rather than trusted.
 composer[0-9].json
 /composer.phar
 /hs_err_pid*.log
 /permissions-01.md
 /oc-session-*.md
 
-# Files that are not this checkout's work but were sitting in it: another package's machine record,
-# and the two session configs a workspace agent wrote. They are moved here rather than deleted, and
-# here rather than outdoors, because both guards read the files a commit would carry and a write to a
-# path outside this root is the one edit AGENTS.md section 0 refuses. Move rather than a rule over
-# their names, because a rule is what the paragraph above was written against: the guard has to stop
-# reading the file, and nothing else has to be told to look away — and the file is still named, by
-# `tests/Support/Ignored.php` for the one that is a machine record and by this comment for all three.
+# A file that is not this checkout's to commit or delete has somewhere to be: it goes in here rather
+# than outdoors, because a write to a path outside this root is the one edit AGENTS.md section 0
+# refuses, and a move rather than a rule over its name is what the paragraph above was written
+# against — the guard has to stop reading the file, and nothing else has to be told to look away.
+#
+# The three files that were here are resolved. The two session configs a workspace agent wrote
+# (`opencode.jsonc`, `opencode.v1-backup.jsonc`) turned out to be this checkout's own editor setup,
+# which it decided to carry: they are tracked templates now — committed as `63a2465`, and rendered
+# into the ignored configs further down by `python manage-config.py`. The machine record for the
+# package next door was deleted on 2026-10-27, because a copy of another checkout's record names a
+# branch, a head, a tag and a signing key that only that checkout can keep true — nothing here could
+# tell whether it was still right — and it was the one entry every run printed a `[NOTE] Ignored:`
+# line about. What is left is this directory's own README, which says what was held, what became of
+# each file, and what the directory is for now.
+#
 # Nothing inside is tracked: an index entry is listed by `git ls-files --cached` whatever this file
-# says, which is why the two opencode configs were unstaged when they were moved.
+# says, which is why the two opencode configs were unstaged while they were here.
 /.quarantine/
 
 # The editor's agent writes this the first time a checkout is opened as a workspace, and what

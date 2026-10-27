@@ -238,7 +238,9 @@ Two further things came out of it, neither of which the predecessor's §3.2 knew
 
 **What is left red is not this package's code.** All four failures are one path reading and the two
 things that read through it, and all four are caused by the one outsider left in §3.3 — the sample
-machine file — while the escape reading is green for the first time:
+machine file — while the escape reading is green for the first time. **That cause is gone
+2026-10-27**: the file was deleted (§7 item 2), so the rows below describe the tree this section was
+measured on rather than the one a reader has now:
 
 | Failure | Caused by |
 | --- | --- |
@@ -289,6 +291,12 @@ about, answered, and is no longer an outsider:
    the two readings above stay red while it is there, which is the correct colour for "someone
    else's file is in this tree". The writer's side got the rule instead, so a future spill is
    refused before it happens.
+
+   **Deleted 2026-10-27**, so none of the three items in this list describes the tree any more: item
+   1 was undone in the sitting that found it, this one is gone, and item 3 was adopted. §7 item 2
+   carries the account of the deletion, `.quarantine/README.md` no longer holds the file, and the
+   paragraph above `/.quarantine/` in `.gitignore` says why the directory stays: it is where the next
+   file that is not this checkout's to commit or delete goes.
 
 3. **`composer-ca.ps1` and `composer-link.cmd`** appeared after the predecessor wrote this document,
    and they were the same category of spill from the same neighbour: a PowerShell script that fetches a
