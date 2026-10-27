@@ -372,7 +372,7 @@ nothing, declares a list this page does not have, or has no sentence to quote is
 than left out, because "not in the list" and "in it and correct" are the two answers a rendering
 has to be able to tell apart.
 
-The two lists name 21 readings and 7 files that are not guards, 28 files in `tests/Support/` in
+The two lists name 22 readings and 7 files that are not guards, 29 files in `tests/Support/` in
 all.
 
 | Reading | What it reads |
@@ -395,6 +395,7 @@ all.
 | [`../tests/Support/PhpBinary.php`](../tests/Support/PhpBinary.php) | which PHP this repository runs, read the one way it is decided |
 | [`../tests/Support/ReleaseLane.php`](../tests/Support/ReleaseLane.php) | the branch releases are cut from, read out of the one file that states it, and held in every other place this repository states it again |
 | [`../tests/Support/RepoEscapes.php`](../tests/Support/RepoEscapes.php) | paths that climb out of this repository, found in the files a commit would carry |
+| [`../tests/Support/ScratchCopies.php`](../tests/Support/ScratchCopies.php) | a copy of a tracked file among the files git does not have — the scratch a session leaves when it restores a file by copying, which the ignore rules keep out of `git status` and neither path reading is looking at |
 | [`../tests/Support/ScriptCoverage.php`](../tests/Support/ScriptCoverage.php) | what the spawned scripts covered, read back out of the files they wrote and mapped onto the repository's own copies |
 | [`../tests/Support/TestMap.php`](../tests/Support/TestMap.php) | the tests a commit runs, chosen from the files it carries: which test covers each source file, what a document change can stale, and which test a staged test file is measured by |
 | [`../tests/Support/ToolPaths.php`](../tests/Support/ToolPaths.php) | the one manifest of the tools this package runs, and every way a fact in it could be stated twice |

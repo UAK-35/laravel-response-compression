@@ -38,7 +38,11 @@ Inside the root the same file is at least visible. This repository's staged run 
 entries at the root by name — the one kind of uncommitted work `git status` says nothing about —
 which is how a machine record for another checkout ends up being *named* by a commit rather than
 merely sitting there; [`IgnoredTest`](../tests/Unit/Support/IgnoredTest.php) is the reading behind
-that note. A file outside the root gets no note, because there is no listing that could hold
+that note, and [`ScratchCopiesTest`](../tests/Unit/Support/ScratchCopiesTest.php) is the reading
+behind the same answer for the copy itself: a `build/head/<path>` snapshot of a file this package
+owns is named too, which is what makes the workaround of putting a file back by copying visible
+where this section's rule only asks for it to be kept inside the root. A file outside the root
+gets no note, because there is no listing that could hold
 it: [`MachinePathsTest`](../tests/Unit/Support/MachinePathsTest.php) reads the files a commit would
 carry and [`RepoEscapesTest`](../tests/Unit/Support/RepoEscapesTest.php) reads relative paths that
 climb, and a path that was never written into the tree is neither.
@@ -128,9 +132,10 @@ command that only runs on the machine it was written on is this trap with a long
 
 Each one is a fact about the machine or the session that the repository cannot hold: where a scratch
 file went, which `PATH` a shell had, which shell ran a line. The guards in
-[the guards page](guards.md) read files a commit would carry; the `IgnoreTest` and the staged run's
-note read the files a commit would *not* carry but this repository still holds. **Nothing reads the
-space outside the tree, and nothing reads a shell's environment.** So the three are kept where they
+[the guards page](guards.md) read files a commit would carry; `IgnoredTest`, `ScratchCopiesTest`
+and the staged run's note read the files a commit would *not* carry but this repository still
+holds. **Nothing reads the space outside the tree, and nothing reads a shell's environment.** So
+the three are kept where they
 can be kept — in the skill's Environment section, as the instruction a session applies before it
 runs the command — and argued here, where the reasoning behind an instruction is allowed to be
 longer than the instruction.
