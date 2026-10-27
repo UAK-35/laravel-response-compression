@@ -20,15 +20,17 @@ use RuntimeException;
  * holding `.agents/sample.machine.local.json.txt`, a machine record for the package beside this one,
  * and `AGENTS.md.txt`, a copy of a file this package owns, out of `git status` and out of both path
  * readings. The rule was narrowed on 2026-10-25 to the names a session actually leaves, so the record
- * is a file a commit would carry again and the machine-path reading reports it — the colour this
- * repository decided on for somebody else's file in its tree. This reading stays because the next
- * rule that holds a record has to be named too, so what is asked here is the other half of the
- * sentence: the files the rules hold are a set of their own.
+ * became a file a commit would carry and the machine-path reading reported it — the colour this
+ * repository decided on for somebody else's file in its tree — and the file itself was deleted on
+ * 2026-10-27, so this checkout answers with nothing again. This reading stays because the next rule
+ * that holds a record has to be named too, so what is asked here is the other half of the sentence:
+ * the files the rules hold are a set of their own.
  *
  * WHY IT NAMES RATHER THAN FAILS
  * ------------------------------
- * A green run on a clone with no spill has to stay green, and the file that is here was left in
- * place by a decision this repository made and wrote down. So the answer is names, not findings: what
+ * A green run on a clone with no spill has to stay green, and the file that was here is gone — deleted
+ * on 2026-10-27, by a decision this repository made and wrote down — so what this checkout answers is
+ * nothing. So the answer is names, not findings: what
  * a caller does with them is the caller's, and `IgnoredTest` writes them into the note channel a run
  * prints, which is where a session sees this checkout's own answer without having to ask for it.
  *

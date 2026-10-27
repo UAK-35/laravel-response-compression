@@ -19,10 +19,10 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 |
 | So the reading is over the other set: the files git does not have and the rules keep out of a
 | commit. It answers with names rather than findings, because a clone with no spill must stay green,
-| and the record that is here is left in place by a decision rather than adopted. What is held here
-| is that the names are said — on a fixture that has a spill, in the note channel a run prints, and
-| from this checkout's own listing, where the answer today is nothing because the record is once
-| again a file a commit would carry.
+| and the record that was here was deleted on 2026-10-27 rather than adopted. What is held here is
+| that the names are said — on a fixture that has a spill, in the note channel a run prints, and from
+| this checkout's own listing, where the answer today is nothing because no such record is left in it:
+| the spill is planted on a fixture rather than read out of this tree.
 |
 | The breaks a mutated tree would have to plant are not this test's: the reading is a note rather
 | than a guard, so the mutation harness has nothing to turn red, and the substance is asked here —
