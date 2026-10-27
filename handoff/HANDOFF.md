@@ -496,19 +496,34 @@ git log --format='%h %G?' -5          # no `N` in the second column
    failures are gone, two reds came out from behind the throw, and three numbers stated by hand in
    `docs/guards.md` had to be moved by hand, because prose is the one part of that page no program
    rewrites.
-2. **`.agents/sample.machine.local.json`** if it is still there (§3.3) — **already decided: leave
-   it.** It belongs to a sibling package and is out of this package's scope, so it is not this
-   thread's file to delete, move or ignore by rule. Nothing to do here beyond knowing why the
-   readings of §3.3 are red; the package it belongs to now carries a scope rule that refuses the
-   write, so the next spill does not reach this tree. **Moved 2026-10-25**: the decision to leave it
+2. ~~**`.agents/sample.machine.local.json`** if it is still there (§3.3) — **already decided: leave
+   it.**~~ — **closed 2026-10-27: the file is deleted**, and the account at the end of this item says
+   what replaced the decision. What it carried, in the order it was taken: it belongs to a sibling
+   package and is out of this package's scope, so it is not this thread's file to delete, move or
+   ignore by rule. Nothing to do here beyond knowing why the readings of §3.3 are red; the package it
+   belongs to now carries a scope rule that refuses the write, so the next spill does not reach this
+   tree. **Moved 2026-10-25**: the decision to leave it
    in place stands — it is still on disk — but it is in the gitignored `.quarantine/` now, with the
    two session configs a workspace agent wrote, because a file in the carried set is what kept every
    path reading red and `bin/commit.php` refusing this checkout's own commits. `.quarantine/README.md`
    says what each one is and how to put it back, `.gitignore` says why a move and not a rule, and
-   `tests/Support/Ignored.php` still names it in the note a run prints. **Its two siblings were adopted instead** —
+   `tests/Support/Ignored.php` still names it in the note a run prints.
+   **Deleted 2026-10-27**, with the two records that described it: the paragraph above `/.quarantine/`
+   in `.gitignore`, and `.quarantine/README.md`. What decided it was not ownership in the end but what
+   keeping a copy costs: the file names a branch, a head, a tag and a GPG signing key that only
+   `laravel-weighted-dbmanager` can keep true, so nothing in this tree could say whether it was still
+   right, and it was the one entry every run printed a `[NOTE] Ignored:` line about. That line is
+   gone — no run names a machine record now, and what the staged note still lists at the root is the
+   working files this checkout ignores (`composer.lock`, the session notes) rather than a record of
+   anybody's machine. **The two session configs went the other way**: this checkout decided its
+   editor setup is its own and committed them as `63a2465`, so `.quarantine/` holds nothing but its
+   own README — and `MachinePathsTest` names those two for as long as they are tracked, because each
+   carries a machine's own temp directory in an `external_directory` permission.
+   **Its two siblings were adopted instead** —
    `composer-ca.ps1` and `composer-link.cmd`, §3.3 item 3 — moved into `bin/` and adapted to this
-   package, which is why the escape reading is green and the machine-path reading now names this file
-   alone.
+   package, which is why the escape reading is green. The machine-path reading named this file alone
+   while the two configs were in `.quarantine/`; it names those two now, which is the colour the
+   paragraph above records.
 3. ~~**`bin/commit.php` cannot write into a CRLF `CHANGELOG.md`**~~ — **done, 2026-10-11**, by the
    session that read this document. The pin in item 5 took away the way a checkout produced one —
    `CHANGELOG.md` is written LF now — but the refusal was real for a file that arrived with CRLF, a
@@ -627,14 +642,25 @@ git log --format='%h %G?' -5          # no `N` in the second column
     neither has a reading behind it, so a script added to `bin/` and forgotten on both pages is a
     silence rather than a finding. The nearest thing to a guard is `TestMapTest`, and it is about
     `.php` files only.
-13. **`bin/workbench.sh` has no test of its own** — new, from §5's `c35e016`. It sits where item
-    11's two scripts sit and for the same reason: `TestMap` names markdown and the `.php` files under
-    `src/` and `bin/`, and `ScriptCoverage` reads `bin/*.php`, so a commit carrying a `.sh` is
-    measured by syntax and style — which skip it — and by nothing else. What holds it today is the
-    two path readings and the interpreter rule in `verify.py`; the refusals it promises were
-    exercised by hand, and the commit that added it measured a copy of 13,626 vendor files resolving
-    inside the copy, no remote and no object hardlinked to this checkout's store, and a junction
-    refused by name with nothing created — which is evidence, not cover.
+13. ~~**`bin/workbench.sh` has no test of its own**~~ — **done 2026-10-27**, by the session that
+    read this item. It sat where item 11's two scripts sit and for the same reason: `TestMap` names
+    markdown and the `.php` files under `src/` and `bin/`, and `ScriptCoverage` reads `bin/*.php`, so
+    a commit carrying a `.sh` was measured by syntax and style — which skip it — and by nothing else.
+    What holds it now is `tests/Unit/Workbench/WorkbenchTest.php`: the usage `--help` prints and
+    answers 0 for, and every refusal that stops a copy being built — an argument it does not take,
+    `--into` with no directory after it, a tree that is not a repository, a destination inside the
+    checkout it is copying (and the empty directory that answer made, gone again), and a destination
+    that already holds something, with the file in it read back byte for byte. `TestMap::COVERS`
+    gained the row and `TestMap::files()` reads `.sh` beside `.php`, so the next shell script in
+    `bin/` with no row is a finding in `TestMapTest` rather than a silence — which is what the map's
+    own claim about programs already said. The install and the link refusal stay evidence rather
+    than cover, deliberately: minutes and the network, and a privilege a runner may not have. What
+    the rail cost to write will be paid by anything that starts a `.sh` from PHP — the script is
+    named relative to the fixture, with `--into` too, because a native PHP process here resolves
+    `bash` to WSL's shell, which answers a `C:/` script path with "No such file or directory"
+    instead of opening it. Measured: `WorkbenchTest` and `TestMapTest` 10 passed (66 assertions) in
+    9.81s, `bin/index.php --check` exit 0, `pint --test` clean on the three files, and
+    `bin/checks.php --only=phpstan` `[OK] No errors` with Rector's dry run `[OK]`.
 14. **§5's two leftovers are uncommitted and unrecorded** — new, from the burst. `pint.json`'s
     `exclude` list and `.agents/skills/package-dev/_meta.json`'s date hold what `HEAD` does not,
     carry no bullet under `## Unreleased`, and have been left exactly as they were found. The first
