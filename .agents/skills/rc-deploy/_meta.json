@@ -1,11 +1,11 @@
 {
-  "name": "package-deploy",
+  "name": "rc-deploy",
   "version": "1.0.0",
   "description": "Weigh what the tree adds up to, cut a version, and check the releasing runbook: everything a version needs on this side of the remote. Commands - unreleased, weigh, weigh-dry-run, release-cut, prerelease, verify-releasing. Invoke when a version is being decided or cut, or when the claims in the releasing runbook are being checked again.",
   "author": "UAK35",
   "license": "MIT",
-  "date": "2026-10-05",
-  "updated_at": 1791221173630,
+  "date": "2026-10-29",
+  "updated_at": 1793280070685,
   "tags": [
     "release",
     "semver",
@@ -19,6 +19,6 @@
   ],
   "organization": "UAK35",
   "platform": "codebuff",
-  "id": 3610741284,
-  "source_hash": "cb7165f9ff34d9ce"
+  "id": 3953891744,
+  "source_hash": "ed0d91edf1c78426"
 }

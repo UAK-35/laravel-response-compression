@@ -42,12 +42,12 @@ sentence that mentions a skill is not an entry.
 
 | Skill | Authored in | What it does |
 |---|---|---|
-| `package-commit` | `.skills/package-commit/` | the guarded named-set commit — `commit`, `commit-dry-run`, `list`, `staged`, `verify-setup` |
-| `package-dev` | `.skills/package-dev/` | this package's daily loop — `gate`, `gate-local`, `staged`, `checks-list`, `test`, `test-unit`, `test-types`, `test-lint`, `tidy`, `single-test <path>`, `agentic-check`, `agentic-fix` |
-| `package-deploy` | `.skills/package-deploy/` | weighing and cutting a version, on this side of the remote — `unreleased`, `weigh`, `weigh-dry-run`, `release-cut`, `prerelease`, `verify-releasing` |
-| `package-push` | `.skills/package-push/` | getting a cut tag to the remote — `push`, `verify-pushing` |
 | `php-code-analyzer` | `.skills/php-code-analyzer/` | reading a path rather than gating it — `analyze`, `syntax-sweep`, `analyze-types`, `analyze-modernize`, `recommend-tools`, `analyze-apply <id>` |
+| `rc-commit` | `.skills/rc-commit/` | the guarded named-set commit — `commit`, `commit-dry-run`, `list`, `staged`, `verify-setup` |
+| `rc-deploy` | `.skills/rc-deploy/` | weighing and cutting a version, on this side of the remote — `unreleased`, `weigh`, `weigh-dry-run`, `release-cut`, `prerelease`, `verify-releasing` |
+| `rc-dev` | `.skills/rc-dev/` | this package's daily loop — `gate`, `gate-local`, `staged`, `checks-list`, `test`, `test-unit`, `test-types`, `test-lint`, `tidy`, `single-test <path>`, `agentic-check`, `agentic-fix` |
 | `rc-investigation` | `.skills/rc-investigation/` | answering a question about this package by reading it, and keeping the answer under `docs/investigations/` — `rc-investigation`, `record` |
+| `rc-push` | `.skills/rc-push/` | getting a cut tag to the remote — `push`, `verify-pushing` |
 
 | Custom agent | Defined in | What it does |
 |---|---|---|

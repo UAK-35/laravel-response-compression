@@ -1,4 +1,10 @@
-# Package Deploy — weighing and cutting a version
+---
+name: rc-deploy
+description: "Weigh what the tree adds up to, cut a version, and check the releasing runbook: everything a version needs on this side of the remote. Commands - unreleased, weigh, weigh-dry-run, release-cut, prerelease, verify-releasing. Invoke when a version is being decided or cut, or when the claims in the releasing runbook are being checked again."
+license: "MIT"
+---
+
+# RC Deploy - weighing and cutting a version
 
 Use this skill when the question is what the tree adds up to, what the next version should be, or how
 a version is cut and tagged. A version is a **tag**, and Packagist publishes tags: a commit on a
@@ -7,7 +13,7 @@ branch is invisible to a consumer, which is the fact every step below is arrange
 This is one half of the former `package-release`, and it is the half that touches nothing outside the
 checkout: it reads the tree, writes the release commit and the tag, and stops. **It never pushes.**
 Getting the tag to the remote — `git push`, and the `PUSHING.md` runbook that goes with it — is
-`package-push`.
+`rc-push`.
 
 ## Environment
 
@@ -35,14 +41,14 @@ Getting the tag to the remote — `git push`, and the `PUSHING.md` runbook that 
   printed.
 - `release-cut`: run `composer release --` after the weighing has been agreed. It writes the release
   commit — the version heading, the notes, the inventory — and tags it. **Nothing is pushed by this
-  command**; the tag is local until `package-push` sends it.
+  command**; the tag is local until `rc-push` sends it.
 - `prerelease`: cut an alpha, beta or rc with `composer release -- --prerelease=alpha`. The tag is what
   makes it installable, and a prerelease is skipped by a default `composer require` — a consumer needs
   `"minimum-stability": "alpha"` or a constraint like `^0.1.0@alpha`. This cuts the tag and stops; the
-  `--push` that would send it is not passed here, and pushing it afterwards is `package-push`.
+  `--push` that would send it is not passed here, and pushing it afterwards is `rc-push`.
 - `verify-releasing`: read `RELEASING.md` against the repository as it is now — what a version is, the
   numbering, the prerelease lanes, what the release commit carries — and fix what has gone stale in the
-  same change. The pushing half of the runbooks is `package-push`'s.
+  same change. The pushing half of the runbooks is `rc-push`'s.
 
 ## What a version is, and what a cut writes
 
@@ -54,7 +60,7 @@ Getting the tag to the remote — `git push`, and the `PUSHING.md` runbook that 
 - A cut writes the release commit and the tag and leaves both in the checkout. A tag that is pushed is
   a published version within minutes, and Packagist keeps what it saw: deleting the tag leaves a page
   for a version nobody can install. Cut the next lane number rather than moving a tag — and publish it
-  through `package-push` rather than by re-running the releaser.
+  through `rc-push` rather than by re-running the releaser.
 
 ## Failure modes worth naming before they happen
 
@@ -62,5 +68,5 @@ Getting the tag to the remote — `git push`, and the `PUSHING.md` runbook that 
 |---|---|
 | the releaser refuses the branch | the checkout is on a branch other than the lane `.release-lane` names |
 | the weighing says major and nobody agrees | the surface signal found a change to `src/`; read what it named before rewording anything |
-| a tag exists locally and is not on the remote | it was cut and never pushed — the version is not published, and `package-push` has the rest |
+| a tag exists locally and is not on the remote | it was cut and never pushed — the version is not published, and `rc-push` has the rest |
 | a prerelease is not installable | default stability skips it; that is the tag working as intended |

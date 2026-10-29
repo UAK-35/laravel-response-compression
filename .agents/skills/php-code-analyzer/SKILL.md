@@ -10,7 +10,7 @@ Use this skill when a path is being **read** rather than gated: you want to know
 file or a directory — a syntax error, a type a checker can see, a method too tangled to follow, a
 construct PHP 8.4 would spell better, two blocks that are the same code twice — and you want the
 findings numbered so that one of them can be fixed deliberately. It is the other half of
-`package-dev`: the gate asks whether the tree is *right*, and this asks what is *wrong* with a path.
+`rc-dev`: the gate asks whether the tree is *right*, and this asks what is *wrong* with a path.
 
 It runs the tools this package already pins, and it invents none. Two of the six readings below have
 no tool in `bin/tool-paths.php` at all, so they are readings rather than programs, and the skill says
@@ -95,7 +95,7 @@ rather than believed, and `recommend-tools` is where the tool that would decide 
 One numbered list, grouped by reading, and each row is a file, a line and the reading that produced
 it. A reading with nothing to report says so by being absent rather than by printing an empty
 section. The run is a **reading, not a gate**: it exits with what it found rather than with a verdict,
-and a finding here is not a red build until `package-dev`'s `gate` says the tree is not right.
+and a finding here is not a red build until `rc-dev`'s `gate` says the tree is not right.
 
 ## What this skill does not do
 

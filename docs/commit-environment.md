@@ -4,7 +4,7 @@
 breaks are all silent — a scratch file nobody committed, an empty answer that looks like a defect,
 and a command written for the shell the machine is not running.**
 
-The `package-commit` skill states the three in its Environment section, in the space a skill has for
+The `rc-commit` skill states the three in its Environment section, in the space a skill has for
 them: a list, each item an instruction. This is the record behind that list — what each trap looks
 like from the outside, why nothing in this repository reports it, and why the workaround the skill
 gives is the narrow one rather than a rule.
@@ -142,9 +142,9 @@ longer than the instruction.
 
 ## What the skill says, and what this record adds
 
-[`.skills/package-commit/instructions.md`](../.skills/package-commit/instructions.md) carries the
+[`.skills/rc-commit/instructions.md`](../.skills/rc-commit/instructions.md) carries the
 three as bullets under **Environment**, beside the two commands that answer "which PHP" and the rule
-that no `php` is written in front of a program. That file is the source; `.agents/skills/package-commit/SKILL.md`
+that no `php` is written in front of a program. That file is the source; `.agents/skills/rc-commit/SKILL.md`
 is generated from it by [`.skills/_sync.py`](../.skills/_sync.py), so the bullet is the one place a
 session following the skill will read it, and it is not edited in the generated copy.
 

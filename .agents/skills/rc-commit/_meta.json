@@ -1,11 +1,11 @@
 {
-  "name": "package-commit",
+  "name": "rc-commit",
   "version": "1.1.0",
   "description": "Commit a named set of paths in this repository through the one guarded path, bin/commit.php: it writes the changelog bullet, runs the staged checks, and refuses an index that carries a file the commit was not told about. Commands - commit, commit-dry-run, list, staged, verify-setup. Invoke on staging a change, a request to commit this repository, or a request to sort a thread's work into commits with a changelog entry each.",
   "author": "UAK35",
   "license": "MIT",
-  "date": "2026-10-25",
-  "updated_at": 1792963761429,
+  "date": "2026-10-29",
+  "updated_at": 1793280060119,
   "tags": [
     "git",
     "commit",
@@ -18,6 +18,6 @@
   ],
   "organization": "UAK35",
   "platform": "codebuff",
-  "id": 198745203,
-  "source_hash": "9bcea5dab9451f62"
+  "id": 927240183,
+  "source_hash": "20725d31fa5734fa"
 }

@@ -43,7 +43,7 @@
     },
     "skills": {
         "index": ".agents/README.md",
-        "dirs": ["the path of one generated skill target, one entry per skill, such as `.agents/skills/package-dev`"]
+        "dirs": ["the path of one generated skill target, one entry per skill, such as `.agents/skills/rc-dev`"]
     },
     "checks": {
         "list": "the command that prints the checks, `bin/checks.php --list`",

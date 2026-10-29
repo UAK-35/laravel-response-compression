@@ -1,9 +1,9 @@
-# Package Push — getting a cut version's tag to the remote
+# RC Push - getting a cut version's tag to the remote
 
 Use this skill when a tag that was already cut has to reach the remote, or when a push was refused or
 carried nothing. A version is a **tag**, and Packagist publishes tags: until the tag is on the remote
 the version is not published, which is the whole subject of this skill. Cutting the tag is not here —
-that is `package-deploy` — and this skill never weighs or cuts anything.
+that is `rc-deploy` — and this skill never weighs or cuts anything.
 
 It is one half of the former `package-release`, which was split because the two halves answer to
 different things: this half touches the remote and can be refused by it, and the other half writes a
@@ -56,4 +56,4 @@ annotated, or name it — `git push origin development --follow-tags v0.0.1` —
 ## Where the other half is
 
 Weighing what the tree adds up to, choosing the number, cutting the tag and checking `RELEASING.md` are
-`package-deploy`. This skill starts from a tag that already exists and ends when the remote has it.
+`rc-deploy`. This skill starts from a tag that already exists and ends when the remote has it.

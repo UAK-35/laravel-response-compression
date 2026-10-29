@@ -1654,15 +1654,15 @@ def mutate(name: str, root: Path) -> None:
         skill.mkdir(parents=True, exist_ok=True)
         (skill / "SKILL.md").write_text("---\nname: an-unlisted-skill\n---\n", encoding="utf-8")
     elif name == "skills":
-        (root / ".skills" / "package-dev" / "instructions.md").write_text(
-            read(root / ".skills" / "package-dev" / "instructions.md") + "\n- `not-a-command`: and so the hash moves\n",
+        (root / ".skills" / "rc-dev" / "instructions.md").write_text(
+            read(root / ".skills" / "rc-dev" / "instructions.md") + "\n- `not-a-command`: and so the hash moves\n",
             encoding="utf-8",
         )
     elif name == "gemini":
         path = root / "GEMINI.md"
-        path.write_text(read(path).replace("@.agents/skills/package-dev/SKILL.md", ""), encoding="utf-8")
+        path.write_text(read(path).replace("@.agents/skills/rc-dev/SKILL.md", ""), encoding="utf-8")
     elif name == "windsurf":
-        (root / ".windsurf" / "rules" / "package-dev.windsurf.md").unlink()
+        (root / ".windsurf" / "rules" / "rc-dev.windsurf.md").unlink()
     elif name == "toolchain":
         path = root / ".agents" / "toolchain.json"
         manifest = json.loads(read(path))
@@ -1708,7 +1708,7 @@ def mutate(name: str, root: Path) -> None:
     elif name == "descriptions":
         # Hyphenated, because that is the shape the step reads as a command name: `teleport` alone is
         # prose, and this check is only about the names a description advertises.
-        path = root / ".skills" / "package-dev" / "skill.yaml"
+        path = root / ".skills" / "rc-dev" / "skill.yaml"
         path.write_text(read(path).replace("Commands - gate,", "Commands - gate-teleport, gate,"), encoding="utf-8")
     elif name == "tools":
         # An extension required by the manifest and not loaded by the interpreter: the question the

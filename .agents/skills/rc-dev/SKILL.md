@@ -1,10 +1,10 @@
 ---
-name: package-dev
+name: rc-dev
 description: "This package's daily loop: the eleven check gate, the coverage floor, the dev tools, the lists of the guard index, which interpreter the checkout runs, and the check that asks whether the tools themselves still work. Commands - gate, gate-local, staged, which-php, checks-list, index, test, test-unit, test-types, test-lint, tidy, single-test, verify-tools, agentic-check, agentic-layer, agentic-fix, agentic-selftest. Invoke on mentions of a test run, a style fix, the gate, coverage, the guard index, a toolchain that misbehaves, or any change inside this repository."
 license: "MIT"
 ---
 
-# Package Dev — the daily loop in this checkout
+# RC Dev - the daily loop in this checkout
 
 Use this skill for any work inside this repository: a change to `src/`, the config, the tests, the
 docs records, the gate in `bin/` or the agentic layer. It is a package, so there is no server to

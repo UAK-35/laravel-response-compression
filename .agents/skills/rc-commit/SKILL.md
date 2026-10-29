@@ -1,4 +1,10 @@
-# Package Commit — a named set, and only that set
+---
+name: rc-commit
+description: "Commit a named set of paths in this repository through the one guarded path, bin/commit.php: it writes the changelog bullet, runs the staged checks, and refuses an index that carries a file the commit was not told about. Commands - commit, commit-dry-run, list, staged, verify-setup. Invoke on staging a change, a request to commit this repository, or a request to sort a thread's work into commits with a changelog entry each."
+license: "MIT"
+---
+
+# RC Commit - a named set, and only that set
 
 Use this skill to commit a **named set of paths** in this repository: the group of files one reason
 to have changed is about, committed together, with the changelog bullet written at the same time and
@@ -149,7 +155,7 @@ rather than for the normal path:
 ```
 
 Which tests those are is `tests/Support/TestMap.php`: a document runs the docs-link and config-claim
-tests, and a source file runs the suite that covers it. `gate-local` in the `package-dev` skill runs
+tests, and a source file runs the suite that covers it. `gate-local` in the `rc-dev` skill runs
 the whole gate when the question is broader than one commit.
 
 ### verify-setup
@@ -236,7 +242,7 @@ of this repository that nothing else knows about.
 - **Do not commit unless asked.** Committing is a user decision, not a step of finishing a task.
 - **Never discard, overwrite, stash or commit a change you did not make.** Another agent, an IDE, or
   the user may be editing the same tree.
-- **Never push from here.** Pushing is `package-push`'s job.
+- **Never push from here.** Pushing is `rc-push`'s job.
 - **Keep a red commit out of the history.** A failed staged check is a reason to fix the change, not
   to reach for `--skip-checks`, and not a reason to add a path to the set until the finding is out of
   the way.
@@ -247,9 +253,9 @@ of this repository that nothing else knows about.
 
 ## Usage
 
-- `@package-commit commit src/Support/Config.php`
-- `@package-commit commit-dry-run src/Middleware/CompressResponse.php`
-- `@package-commit list src`
-- `@package-commit staged`
-- `@package-commit verify-setup`
+- `@rc-commit commit src/Support/Config.php`
+- `@rc-commit commit-dry-run src/Middleware/CompressResponse.php`
+- `@rc-commit list src`
+- `@rc-commit staged`
+- `@rc-commit verify-setup`
 - *sort the work done in this thread into commits, one changelog entry each*

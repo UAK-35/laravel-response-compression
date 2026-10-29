@@ -54,10 +54,10 @@ from it. Nothing under `.agents/skills/` is edited by hand.
 | Tool | What it is | How it runs |
 |---|---|---|
 | [`../.skills/_sync.py`](../.skills/_sync.py) | generates every skill target and every pointer from the sources beside it: `.agents/skills/`, the `GEMINI.md` import block, the Windsurf rules | `python .skills/_sync.py`, then `python .agents/verify.py` |
-| [`../.skills/package-commit/skill.yaml`](../.skills/package-commit/skill.yaml) and [`instructions.md`](../.skills/package-commit/instructions.md) | the authored source of the `package-commit` skill — the guarded named-set commit | edit here; `_sync.py` writes the target |
-| [`../.skills/package-dev/skill.yaml`](../.skills/package-dev/skill.yaml) and [`instructions.md`](../.skills/package-dev/instructions.md) | the authored source of the `package-dev` skill — this package's daily loop | the same |
-| [`../.skills/package-deploy/skill.yaml`](../.skills/package-deploy/skill.yaml) and [`instructions.md`](../.skills/package-deploy/instructions.md) | the authored source of the `package-deploy` skill — weighing and cutting a version, on this side of the remote | the same |
-| [`../.skills/package-push/skill.yaml`](../.skills/package-push/skill.yaml) and [`instructions.md`](../.skills/package-push/instructions.md) | the authored source of the `package-push` skill — getting a cut tag to the remote | the same |
+| [`../.skills/rc-commit/skill.yaml`](../.skills/rc-commit/skill.yaml) and [`instructions.md`](../.skills/rc-commit/instructions.md) | the authored source of the `rc-commit` skill — the guarded named-set commit | edit here; `_sync.py` writes the target |
+| [`../.skills/rc-dev/skill.yaml`](../.skills/rc-dev/skill.yaml) and [`instructions.md`](../.skills/rc-dev/instructions.md) | the authored source of the `rc-dev` skill — this package's daily loop | the same |
+| [`../.skills/rc-deploy/skill.yaml`](../.skills/rc-deploy/skill.yaml) and [`instructions.md`](../.skills/rc-deploy/instructions.md) | the authored source of the `rc-deploy` skill — weighing and cutting a version, on this side of the remote | the same |
+| [`../.skills/rc-push/skill.yaml`](../.skills/rc-push/skill.yaml) and [`instructions.md`](../.skills/rc-push/instructions.md) | the authored source of the `rc-push` skill — getting a cut tag to the remote | the same |
 | [`../.skills/php-code-analyzer/skill.yaml`](../.skills/php-code-analyzer/skill.yaml) and [`instructions.md`](../.skills/php-code-analyzer/instructions.md) | the authored source of the `php-code-analyzer` skill — reading a path: syntax, types, complexity, modernization, duplicates, tools | the same |
 | [`../.skills/README.md`](../.skills/README.md) | how a `skill.yaml` is written, what the generator reads, and what a description may name | read |
 

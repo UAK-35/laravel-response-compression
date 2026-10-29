@@ -1,4 +1,4 @@
-# Package Dev — the daily loop in this checkout
+# RC Dev - the daily loop in this checkout
 
 Use this skill for any work inside this repository: a change to `src/`, the config, the tests, the
 docs records, the gate in `bin/` or the agentic layer. It is a package, so there is no server to
