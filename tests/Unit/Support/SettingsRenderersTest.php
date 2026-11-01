@@ -219,9 +219,10 @@ it('refuses to name a machine again over a record it cannot read, and leaves it 
 it('escapes a value into the string it is written in, and refuses a document that stops parsing', function (): void {
     $tree = settingsTree();
 
-    // A directory path that is legal on the machine and hostile to text: a backslash and a quote the
-    // JSON string has to carry, and a line ending that used to end the string it sat in.
-    $hostile = 'C:\\Temp\\a "quoted" dir'."\n".'and a second line';
+    // A path-shaped value that is hostile to text: the two backslashes and the quote the JSON string
+    // has to carry, and a line ending that used to end the string it sat in. Relative on purpose — a
+    // drive path here is a machine path in a file a commit carries, which `MachinePathsTest` refuses.
+    $hostile = 'build\\temp\\a "quoted" dir'."\n".'and a second line';
 
     $tree->write('opencode.jsonc.template', settingsRecord([
         'permissions' => [['action' => 'shell', 'resource' => '<__SYSTEM_TEMP_FOLDER__>/opencode/*']],

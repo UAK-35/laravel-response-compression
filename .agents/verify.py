@@ -39,6 +39,7 @@ Exit status: 0 everything agreed, 1 at least one finding, 2 a usage error.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
@@ -46,6 +47,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 from typing import NamedTuple
 
@@ -1351,9 +1353,25 @@ def step_tokens(root: Path) -> list[str]:
 
 
 def is_a_repo(root: Path) -> bool:
+    """Is *this* directory the top of a checkout, rather than one sitting inside another one.
+
+    The readings ask whether the tree they were handed is a repository they may put a question to,
+    and `rev-parse --git-dir` answered a different one: it succeeds in any directory under a work
+    tree. That was harmless for as long as every tree without a repository of its own lived outside
+    this checkout - and the selftest's planted copies live inside it now, under `build/`. Asked the
+    old way, a planted copy reported as a repository, `git ls-files` answered with the files under
+    it that *this* repository tracks - none, because `build/` is ignored - and every reading built
+    on that listing read nothing on a tree that is supposed to be full of the layer.
+
+    A tree that is not a checkout is not a defect, which is why this is a predicate rather than a
+    finding: `repository_files` walks it instead, past the directories a walk leaves alone. And the
+    question is asked as itself rather than by comparing paths: `--show-prefix` prints how far this
+    directory is from the top of its work tree, so empty is the top of it, and no shell's spelling
+    of a path has to agree with git's.
+    """
     try:
         result = subprocess.run(
-            ["git", "-C", str(root), "rev-parse", "--git-dir"],
+            ["git", "-C", str(root), "rev-parse", "--show-prefix"],
             capture_output=True,
             text=True,
             check=False,
@@ -1361,7 +1379,7 @@ def is_a_repo(root: Path) -> bool:
     except OSError:
         return False
 
-    return result.returncode == 0
+    return result.returncode == 0 and result.stdout.strip() == ""
 
 
 def ignored(root: Path, path: str) -> bool:
@@ -2151,6 +2169,55 @@ def plant(root: Path) -> None:
         )
 
 
+SCRATCH = ROOT / "build"
+
+
+@contextlib.contextmanager
+def scratch() -> Iterator[Path | None]:
+    """A throwaway tree inside this checkout, or nothing and a note saying why.
+
+    `tempfile.TemporaryDirectory()` on its own allocates in the host's temporary directory, which is
+    a path section 0 of `AGENTS.md` does not permit a write to and which nothing this repository
+    keeps can read afterwards: the planted trees held copies of every file a commit carries, and
+    they were the one kind of edit that crosses this root without either tree noticing. So the
+    scratch goes under `build/`, which the ignore rules already cover and which the commit skill
+    already names for scratch, and the directory that came back is proved to sit inside this
+    checkout before a single file is planted in it - a `build` that is a symlink or a junction to
+    somewhere else would otherwise be the same write by another route.
+
+    When the scratch root cannot be had, this says so and hands back nothing. It does not fall back
+    to the host: a selftest that ran somewhere else is a green run about a tree nobody can inspect,
+    and the caller turns the `None` into a finding rather than into a pass.
+    """
+    # Only the allocation is inside this `try`: an `OSError` raised by the round's own body arrives
+    # at the `yield` below, and catching it here would answer a second `yield` for one round.
+    try:
+        if SCRATCH.exists() and not SCRATCH.is_dir():
+            raise NotADirectoryError(f"{SCRATCH} is a file, not a directory")
+
+        SCRATCH.mkdir(parents=True, exist_ok=True)
+        if not SCRATCH.is_dir():
+            raise NotADirectoryError(f"{SCRATCH} is not a directory")
+
+        directory = tempfile.TemporaryDirectory(prefix="agentic-selftest-", dir=SCRATCH)
+    except OSError as error:
+        print(f"[FAIL] selftest: no scratch root inside this checkout - {error}; nothing was planted")
+        yield None
+        return
+
+    planted = Path(directory.name).resolve()
+
+    try:
+        if not planted.is_relative_to(ROOT):
+            print(f"[FAIL] selftest: the scratch {planted} is not inside this checkout, so nothing was planted")
+            yield None
+            return
+
+        yield planted
+    finally:
+        directory.cleanup()
+
+
 def mutate(name: str, root: Path) -> None:
     """Break the layer one way, and only that way."""
     if name == "canonical":
@@ -2328,8 +2395,10 @@ def selftest_rendered() -> int:
     and require that to be reported. Without it the half that names a drifted file could stop firing
     and every other round would still pass.
     """
-    with tempfile.TemporaryDirectory(prefix="agentic-selftest-") as directory:
-        root = Path(directory)
+    with scratch() as root:
+        if root is None:
+            return 1
+
         plant(root)
 
         # A machine file of the round's own, so the comparison does not depend on whether this machine
@@ -2394,8 +2463,10 @@ def selftest_sync_preview() -> int:
     state before anything can be planted in it, and that state - nothing generated yet - is the
     opposite of the one every other round requires.
     """
-    with tempfile.TemporaryDirectory(prefix="agentic-selftest-") as directory:
-        root = Path(directory)
+    with scratch() as root:
+        if root is None:
+            return 1
+
         plant(root)
 
         source = root / ".skills" / "an-unwritten-skill"
@@ -2482,8 +2553,10 @@ def selftest() -> int:
     steps = {name: function for name, function, _why in ALL_STEPS}
 
     for name, mutation in MUTATIONS:
-        with tempfile.TemporaryDirectory(prefix="agentic-selftest-") as directory:
-            root = Path(directory)
+        with scratch() as root:
+            if root is None:
+                return 1
+
             plant(root)
 
             function = steps[name]

@@ -51,6 +51,17 @@ The narrow shape of this one matters as much as the rule. It is not "no temporar
 **the scratch belongs beside the work it is about**, in a directory the ignore rules already cover,
 because that is the difference between a file a repository can see and one no rule can explain.
 
+The two programs that allocate the most scratch now hold themselves to it, rather than leaving it to
+a session's discipline. `python .agents/verify.py --selftest` plants a copy of the layer per fault it
+proves, and `sh .agents/php-bin.sh --selftest` builds a tree per rung and per constraint; both used
+the host's temporary directory — `tempfile.TemporaryDirectory()` with no `dir=`, and a bare
+`mktemp -d` — so every one of those trees was a copy of the files a commit carries, written where no
+listing of this repository could name it. They allocate under `build/` now, prove that the directory
+they were handed really sits inside this checkout, and refuse by name when they cannot get one
+instead of falling back: a self-test whose scratch went somewhere else is a green run about a tree
+nobody can inspect. Neither program carries an exception to section 0, and section 0 names no
+temporary directory of the host's as a permitted write.
+
 ## 2. Git's `sh` is appended to `PATH` for the run, and never prepended
 
 `bin/commit.php` runs `bin/checks.php --staged`, which is `syntax`, `pint` and the tests

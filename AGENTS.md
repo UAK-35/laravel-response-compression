@@ -52,6 +52,14 @@ the file an ignore rule is holding stops being a thing nobody ever mentions. Wha
 see is a command run against a path nobody wrote down — the half only the agent holding the terminal
 can keep.
 
+A program's own scratch is the same rule read one layer in. The two self-tests —
+`python .agents/verify.py --selftest` and `sh .agents/php-bin.sh --selftest` — allocate under
+`build/`, which the ignore rules already cover, and each one **refuses by name** when that directory
+cannot be had rather than falling back to the host's temporary directory. A temporary directory
+asked for without a root is the one write out of this repository that no listing there can hold and
+neither tree can name, which is why the fallback is a refusal and not a quieter place to put the
+files.
+
 ---
 
 ## 1. What this package is
@@ -232,7 +240,7 @@ gitignored. Everything committed refers to a path through a `__TOKEN__` instead:
 | `__PHP_DIR__` | the directory containing `php.exe` |
 | `__PWSH_EXE__` | absolute path to `pwsh.exe` |
 | `__PACKAGE_DIR__` | absolute path to this package — the repository root |
-| `__SYSTEM_TEMP_FOLDER__` | this machine's temporary directory, where a run may put scratch files |
+| `__SYSTEM_TEMP_FOLDER__` | this machine's temporary directory, as a generated settings file names it — a program's own scratch in this repository is `build/`, inside the root (section 0) |
 
 ```bash
 python .agents/render_local.py --init    # asks for the paths, writes machine.local.json, renders every settings

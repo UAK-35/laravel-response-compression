@@ -21,7 +21,9 @@
 #   sh .agents/php-bin.sh --matrix   that version as a GitHub Actions matrix:
 #                                    ["8.4"]
 #   sh .agents/php-bin.sh --selftest plant a fault per rung and prove each one is
-#                                    still answered, in a throwaway tree
+#                                    still answered, in a throwaway tree under
+#                                    this checkout's own `build/` - never in the
+#                                    host's temporary directory
 #
 # Exit is 0 when it named an interpreter, 1 when it could not - with the two
 # lines that would give this machine one - and 2 for a usage error.
@@ -277,6 +279,14 @@ fixture() {
     pb_required="$3"
 
     mkdir -p "$pb_root/.agents" "$pb_root/empty" "$pb_root/tools"
+
+    # Its own repository, so the rung that asks git answers about this fixture rather than about
+    # the checkout the fixture now sits under: the fixtures live in `build/`, which is inside this
+    # repository, and a directory with no `.git` of its own inherits the outer one - where rung 3
+    # would find *this* machine's setting and answer it as a fixture's. An initialised repository
+    # with no such setting is the empty answer the rungs are meant to fall through.
+    (cd "$pb_root" && git init -q 2>/dev/null) || true
+
     printf '{"require":{"php":"%s"}}\n' "$pb_required" > "$pb_root/composer.json"
     printf '{}\n' > "$pb_root/.agents/machine.local.json"
 
@@ -306,9 +316,10 @@ interpreter_file() {
 
 # A fixture's own repository, made from inside it rather than by `git -C`. A `-C`
 # argument is a path *this shell* spelled, and a shell's spelling is not always
-# one a Windows git can open: these fixtures live under the `/tmp` mount, where
-# `git -C` fails and `cd` does not - the same lesson the resolver above learned
-# about paths, applied to the program that reads them here.
+# one a Windows git can open: these fixtures lived under the `/tmp` mount, where
+# `git -C` was seen to fail and `cd` did not, and they live under this checkout's
+# own `build/` now and are entered the same way - the lesson the resolver above
+# learned about paths, applied to the program that reads them here.
 fixture_git() {
     (cd "$1" 2>/dev/null && git init -q 2>/dev/null && git config response-compression.php "$2" 2>/dev/null) || true
 }
@@ -328,7 +339,31 @@ ask() {
 selftest() {
     pb_failures=0
     pb_planted=0
-    pb_directory="$(mktemp -d)"
+
+    # Scratch goes under this checkout's own `build/`, which the ignore rules already cover. A
+    # `mktemp -d` lands in the host's temporary directory instead: a path section 0 of `AGENTS.md`
+    # does not permit a write to, and one nothing here can read afterwards - seventeen fixture trees
+    # holding copies of files this package ships were the one edit that crossed the root without
+    # either tree being able to name it. When that root cannot be had this says so and refuses,
+    # rather than falling back to the host: a ladder proved somewhere else is a green run about a
+    # tree nobody can inspect.
+    pb_scratch="$root/build"
+
+    if [ -z "$root" ] || ! mkdir -p "$pb_scratch" 2>/dev/null || [ ! -d "$pb_scratch" ]; then
+        echo "[FAIL] selftest: no scratch root inside this checkout ($pb_scratch), so nothing was planted"
+
+        return 1
+    fi
+
+    pb_directory="$pb_scratch/php-bin-selftest.$$"
+    rm -rf "$pb_directory"
+    mkdir -p "$pb_directory"
+
+    # A run that is stopped before its last fixture takes the scratch with it: a directory left
+    # under `build/` is the next run's leftovers, and a fixture tree is a copy of files this
+    # package owns under a name nothing points at.
+    trap 'rm -rf "$pb_directory"' 0 1 2 15
+
     PB_SH="$(command -v sh)"
 
     expect() {
@@ -448,7 +483,7 @@ selftest() {
     "$PB_SH" "$script" --nope >/dev/null 2>&1 || pb_status=$?
     expect "$pb_status" "2" 'an unknown option is a usage error'
 
-    rm -rf "$pb_directory"
+    # The trap above removes it on the way out, whichever exit that is.
 
     echo ""
     echo "$pb_planted fixture(s) planted, $pb_failures not answered"
