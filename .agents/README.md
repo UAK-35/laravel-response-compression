@@ -48,6 +48,7 @@ sentence that mentions a skill is not an entry.
 | `rc-dev` | `.skills/rc-dev/` | this package's daily loop — `gate`, `gate-local`, `staged`, `checks-list`, `test`, `test-unit`, `test-types`, `test-lint`, `tidy`, `single-test <path>`, `agentic-check`, `agentic-fix` |
 | `rc-investigation` | `.skills/rc-investigation/` | answering a question about this package by reading it, and keeping the answer under `docs/investigations/` — `rc-investigation`, `record` |
 | `rc-push` | `.skills/rc-push/` | getting a cut tag to the remote — `push`, `verify-pushing` |
+| `rc-report` | `.skills/rc-report/` | a prompt answered and the answer kept as a report under `docs/reports/` — `rc-report`, `record` |
 
 | Custom agent | Defined in | What it does |
 |---|---|---|

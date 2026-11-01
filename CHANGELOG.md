@@ -774,6 +774,26 @@ read as a runner that still runs the gate.
   it is written, so they render the interpreter from `.agents/machine.local.json` now — a failure the
   layer's `toolchain` step names and nothing had asked it about, because a docs-only commit runs
   neither that step nor the hook's layer subset.
+- **A new `rc-report` skill turns a prompt that asks for a report into a document under
+  `docs/reports/`, numbered and dated by the convention section 9 of `AGENTS.md` states.** The skill
+  activates on the `/rc-report` marker — the `/lpr-report` spelling the request also named is read as
+  the same marker, so neither spelling is guessed at — and otherwise on *create a report*, *report
+  the* or *need a report*, where it asks `Is this an RC report?` before beginning the response and
+  proceeds only on yes. The document is written after the response is finished, because it is the
+  answer kept rather than a second answer, and opens with the prompt as it was put, the creation date
+  and timezone, what was examined, the evidence beside each finding, and the limits. The filename is
+  `NNNN-YYYY-MM-DD_rpt-<slug>.md`: a sequence number, the creation date and a slug, with the ordering
+  rules the section states — recorded timestamps first, then the commit that added the file, then the
+  filesystem's creation time with any uncertainty recorded, ties broken by filename, a renumber that
+  preserves each report's date and slug and updates the references to it, a complete rename map
+  applied through temporary names inside the folder, and a folder whose order cannot be established
+  left in its relative order with the limitation stated in the report. The two reports already here,
+  `0001-2026-10-30_rpt-agentic-setup-audit.md` and `0002-2026-10-31_rpt-config-src-tests-bug-audit.md`,
+  state creation dates and carry creation times that order them exactly as their numbers do, so
+  nothing was renamed. The skill is authored in `.skills/rc-report/` and generated into
+  `.agents/skills/rc-report/` with its Windsurf pointer and `GEMINI.md` import; `.agents/README.md`
+  gains its row, `docs/scripts.md` lists its source, and `docs/tool-registry.md`'s inventory of the
+  skill sources — which still said five, and omitted `rc-investigation` — now names all seven.
 
 ### Changed
 

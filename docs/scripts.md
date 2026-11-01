@@ -58,6 +58,8 @@ from it. Nothing under `.agents/skills/` is edited by hand.
 | [`../.skills/rc-dev/skill.yaml`](../.skills/rc-dev/skill.yaml) and [`instructions.md`](../.skills/rc-dev/instructions.md) | the authored source of the `rc-dev` skill — this package's daily loop | the same |
 | [`../.skills/rc-deploy/skill.yaml`](../.skills/rc-deploy/skill.yaml) and [`instructions.md`](../.skills/rc-deploy/instructions.md) | the authored source of the `rc-deploy` skill — weighing and cutting a version, on this side of the remote | the same |
 | [`../.skills/rc-push/skill.yaml`](../.skills/rc-push/skill.yaml) and [`instructions.md`](../.skills/rc-push/instructions.md) | the authored source of the `rc-push` skill — getting a cut tag to the remote | the same |
+| [`../.skills/rc-investigation/skill.yaml`](../.skills/rc-investigation/skill.yaml) and [`instructions.md`](../.skills/rc-investigation/instructions.md) | the authored source of the `rc-investigation` skill — answering a question about this package and keeping the answer | the same |
+| [`../.skills/rc-report/skill.yaml`](../.skills/rc-report/skill.yaml) and [`instructions.md`](../.skills/rc-report/instructions.md) | the authored source of the `rc-report` skill — a prompt answered and the answer kept as a report | the same |
 | [`../.skills/php-code-analyzer/skill.yaml`](../.skills/php-code-analyzer/skill.yaml) and [`instructions.md`](../.skills/php-code-analyzer/instructions.md) | the authored source of the `php-code-analyzer` skill — reading a path: syntax, types, complexity, modernization, duplicates, tools | the same |
 | [`../.skills/README.md`](../.skills/README.md) | how a `skill.yaml` is written, what the generator reads, and what a description may name | read |
 

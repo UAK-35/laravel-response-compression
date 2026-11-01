@@ -1,0 +1,23 @@
+{
+  "name": "rc-report",
+  "version": "1.0.0",
+  "description": "Write a report about a prompt and keep it under docs/reports/, named by a sequence number, the date it was made and a slug. Activate when a prompt begins with the /rc-report marker or the /lpr-report marker, or when a prompt asks to create a report, to report the state of something, or says a report is needed and the user answers yes to 'Is this an RC report?'. Commands - rc-report, record.",
+  "author": "UAK35",
+  "license": "MIT",
+  "date": "2026-11-01",
+  "updated_at": 1793537174990,
+  "tags": [
+    "report",
+    "docs",
+    "audit",
+    "findings",
+    "package"
+  ],
+  "categories": [
+    "tooling"
+  ],
+  "organization": "UAK35",
+  "platform": "codebuff",
+  "id": 3183466206,
+  "source_hash": "57f3910803fe645d"
+}
