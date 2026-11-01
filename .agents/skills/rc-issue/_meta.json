@@ -1,0 +1,23 @@
+{
+  "name": "rc-issue",
+  "version": "1.0.0",
+  "description": "Write an issue about a prompt and keep it under docs/issues/, named by a sequence number, the date it was made and a slug. Activate when a prompt begins with the /rc-issue marker or the /lpr-issue marker, or when a prompt asks to create an issue or to create this as an issue and the user answers yes to 'Is this an RC issue?'. Commands - rc-issue, record.",
+  "author": "UAK35",
+  "license": "MIT",
+  "date": "2026-11-01",
+  "updated_at": 1793537638877,
+  "tags": [
+    "issue",
+    "defect",
+    "docs",
+    "evidence",
+    "package"
+  ],
+  "categories": [
+    "tooling"
+  ],
+  "organization": "UAK35",
+  "platform": "codebuff",
+  "id": 1588911415,
+  "source_hash": "27c4951b45fcb12e"
+}

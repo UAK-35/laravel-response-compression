@@ -811,6 +811,24 @@ read as a runner that still runs the gate.
   and generated into `.agents/skills/rc-plan/` with its Windsurf pointer and `GEMINI.md` import;
   `.agents/README.md` gains its row, `docs/scripts.md` lists its source, and `docs/tool-registry.md`'s
   inventory now names all eight skills.
+- **A new `rc-issue` skill records a defect or a gap as a numbered document under `docs/issues/`, so
+  an issue found in a session is evidenced rather than retold.** It activates on the `/rc-issue`
+  marker — the `/lpr-issue` spelling the request also named is read as the same marker, so neither is
+  guessed at — and otherwise on *create an issue* or *create this as an issue*, where it asks `Is this
+  an RC issue?` before beginning the response and proceeds only on yes. The document is written after
+  the response is finished: the prompt as it was put, what the issue is in one sentence, where it was
+  observed, how to reach it again with what was expected against what happened, the evidence beside
+  each claim, who is affected and how far it reaches, what a fix would have to satisfy, and what the
+  reading did not establish. The name is `NNNN-YYYY-MM-DD_issue-<slug>.md`, carrying the ordering rule
+  the plan and report skills state — recorded timestamps first, then the commit that added the file,
+  then the filesystem's creation time with any uncertainty recorded, ties broken by filename,
+  numbering from `0001`, a renumber that preserves date and slug and updates the references to it, a
+  complete rename map applied through temporary names inside the folder, and relative order kept with
+  the limitation stated when order cannot be established. `docs/issues/` does not exist yet: the first
+  issue creates it, so this change had no existing document to renumber. The skill is authored in
+  `.skills/rc-issue/` and generated into `.agents/skills/rc-issue/` with its Windsurf pointer and
+  `GEMINI.md` import; `.agents/README.md` gains its row, `docs/scripts.md` lists its source, and
+  `docs/tool-registry.md`'s inventory now names all nine skills.
 
 ### Changed
 

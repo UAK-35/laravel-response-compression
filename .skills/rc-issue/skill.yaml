@@ -1,0 +1,30 @@
+# =============================================================================
+# rc-issue — an issue on a prompt, kept under docs/issues/
+# =============================================================================
+# `description` is read by the `descriptions` step of `python .agents/verify.py`:
+# every hyphenated word in it is read as a command name, so the two that appear
+# here (`rc-issue` and `record`) are commands `instructions.md` defines. The two
+# markers are written with their leading slash on purpose - `/rc-issue` is not a
+# command name and is not read as one, where the bare word would be. Nothing else
+# hyphenated belongs in this description.
+#
+# The generator reads a small subset of YAML: `tags` and `categories` are one
+# comma separated line rather than a list, and there is no `files:` key.
+name: "rc-issue"
+version: "1.0.0"
+description: "Write an issue about a prompt and keep it under docs/issues/, named by a sequence number, the date it was made and a slug. Activate when a prompt begins with the /rc-issue marker or the /lpr-issue marker, or when a prompt asks to create an issue or to create this as an issue and the user answers yes to 'Is this an RC issue?'. Commands - rc-issue, record."
+instructions: "instructions.md"
+author: "UAK35"
+license: "MIT"
+tags: issue, defect, docs, evidence, package
+categories: tooling
+
+sync:
+  freebuff:
+    enabled: true
+    name_override: "rc-issue"
+  gemini:
+    enabled: true
+  windsurf:
+    enabled: true
+    filename: "rc-issue.windsurf.md"
