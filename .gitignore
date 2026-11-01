@@ -55,6 +55,18 @@ composer[0-9].json
 # it holds is a project id: local to one machine and belonging to no version of this package.
 /.freebuff/
 
+# The same client writes this when a conversation's attachments are imported into the workspace,
+# and what it holds is a transcript. A transcript quotes the strings it is about, which is why it
+# cannot be carried: a drive path and a climb above the repository root appear in it because the
+# session it records typed them, and `MachinePaths`, `RepoEscapes` and `verify.py`'s `toolchain`
+# step all report them — correctly, because those readings answer "what would this commit carry"
+# and a path in a carried file is a path in a commit. Unstaging it changed nothing on its own: an
+# index entry is listed by `git ls-files --cached` whatever this file says, and an untracked file
+# is read too. The file stays on disk for the session that wants it, and the directory is ignored
+# so it is in no commit and in no reading. The shapes are described here rather than written,
+# because a comment that spelled one out would be the first finding both guards reported.
+/.cloud-attachments/
+
 # The workspace configs this checkout's editor reads. They are generated - each `.template` beside
 # them is the tracked artifact and `python manage-config.py` writes the config from it, substituting
 # the machine-local values the template names as tokens - so the rendered files are this machine's
