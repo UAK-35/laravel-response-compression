@@ -1294,8 +1294,9 @@ read as a runner that still runs the gate.
   the three records here sorted as `how-…`, `why-opencode-…`, `why-the-staged-…`, which is neither the
   order they were made nor the order a reader arrives in — the first record written,
   `why-the-staged-check-runs-silent`, was the last by name. `rc-investigation` now writes
-  `NNNN-YYYY-MM-DD-<slug>.md`: the folder's next sequence number, the date the investigation was made,
-  and the question in a few lowercase words. The rule is in the skill — `record` names the number and
+  `NNNN-YYYY-MM-DD-inv-<slug>.md`: the folder's next sequence number, the date the investigation was
+  made, an `inv` mark that says which kind of document this is, and the question in a few lowercase
+  words. The rule is in the skill — `record` names the number and
   the date, **The record** states the shape, and a new **Keeping the folder in order** says how an
   existing folder is ordered and renumbered — and in `docs/investigations/README.md`, which described
   the old convention. The three records were renumbered from the evidence: `0001` from its own

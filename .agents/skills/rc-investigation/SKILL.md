@@ -52,13 +52,15 @@ Every activated investigation ends with **one** markdown document under `docs/in
 written **after** the response is finished rather than during it, because it is a record of the answer
 and not a draft of it. The folder is created by the first record; nothing else here creates it.
 
-- **Name it** `NNNN-YYYY-MM-DD-<slug>.md` —
-  `docs/investigations/0001-2026-10-25-why-config-is-read-once.md`. `NNNN` is the folder's sequence
-  number, at least four digits, and the record you add is the next number after the highest already
-  there: `0001` for the first record, `0002` for the second. `YYYY-MM-DD` is the date the investigation
-  was made — the date the record opens with — and editing the record does not change it. `<slug>` is a
-  few lowercase words from the question joined by hyphens, because it is what a reader searches for;
-  the number is what orders the folder by when the work was done.
+- **Name it** `NNNN-YYYY-MM-DD-inv-<slug>.md` —
+  `docs/investigations/0001-2026-10-25-inv-why-config-is-read-once.md`. `NNNN` is the folder's
+  sequence number, at least four digits, and the record you add is the next number after the highest
+  already there: `0001` for the first record, `0002` for the second. `YYYY-MM-DD` is the date the
+  investigation was made — the date the record opens with — and editing the record does not change it.
+  `inv` marks the file as an investigation record rather than a report, a plan, an issue or a runbook,
+  so a document carried out of the folder still says what it is. `<slug>` is a few lowercase words from
+  the question joined by hyphens, because it is what a reader searches for; the number is what orders
+  the folder by when the work was done.
 - **Open with the question** as it was actually put, and the date the investigation was made — the
   date the filename carries.
 - **Say what was read**, each file, reading and command named exactly, so the reading can be repeated
