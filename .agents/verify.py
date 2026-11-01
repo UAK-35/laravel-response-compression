@@ -47,6 +47,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parents[1]
 AGENTS_DIR = ROOT / ".agents"
@@ -1086,13 +1087,9 @@ def step_tokens(root: Path) -> list[str]:
     renderer = root / ".agents" / "render_local.py"
     if renderer.is_file():
         if (root / ".agents" / "machine.local.json").is_file():
-            result = subprocess.run(
-                [sys.executable, str(renderer), "--check"],
-                cwd=root,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            answer = capture(root, sys.executable, str(renderer), "--check")
+            before = len(findings)
+
             # One pass over the lines, each read for the prefix that says which kind it is: a
             # `[FAIL]` is a finding, and a `[NOTE]` is carried into this run's report. Every note,
             # not only the summary: the summary says which state the record is in, and the lines
@@ -1100,13 +1097,28 @@ def step_tokens(root: Path) -> list[str]:
             # session needs to finish the file, and the half it would otherwise have to know to ask
             # `--check` for. None of it fails the run: a fresh `--init` opens every section it
             # cannot fill, so `bin/bootstrap.php` would go red on the file its own first step wrote.
-            for line in result.stdout.splitlines():
+            for line in answer.output.splitlines():
                 stripped = line.strip()
 
                 if stripped.startswith("[FAIL]"):
                     findings.append(stripped)
                 elif stripped.startswith("[NOTE]"):
                     NOTES.append(stripped)
+
+            # The status is judged as well, and judged separately from the lines it printed: reading
+            # only the prefixes made a renderer that raised before printing anything - a syntax
+            # error, an import that is not there - identical to a renderer with nothing to report.
+            # A non-zero status that already produced a finding is not counted twice; one that
+            # produced none is exactly the crash this reading exists for.
+            last = (answer.output.strip().splitlines() or [""])[-1]
+
+            if answer.code is None:
+                findings.append(".agents/render_local.py --check: could not be run")
+            elif answer.code != 0 and len(findings) == before:
+                findings.append(
+                    f".agents/render_local.py --check: exited {answer.code} without naming a file - "
+                    f"{last or 'no output'}"
+                )
         else:
             # A machine that has not been set up is a machine, not a defect in this commit. Saying so
             # is the point: the alternative is a green run that silently judged nothing.
@@ -1179,11 +1191,28 @@ def step_descriptions(root: Path) -> list[str]:
     return findings
 
 
-def capture(root: Path, *command: str, timeout: int = 300) -> str | None:
-    """A command's output, or None when it could not be run at all.
+class Answer(NamedTuple):
+    """What a probe came back with: the status it exited with, and what it printed.
+
+    `code is None` is the one case that is not an answer - the program could not be started at all,
+    which `subprocess` reports as an exception rather than as a status. Every other shape, including
+    a non-zero status with a version line on it, is something a caller has to read for itself.
+    """
+
+    code: int | None
+    output: str
+
+
+def capture(root: Path, *command: str, timeout: int = 300) -> Answer:
+    """A command's status beside its output, rather than only its output.
 
     A probe is asking a tool a question, so a non-zero exit is an answer too - it is the caller that
-    decides whether the answer is bad news.
+    decides whether the answer is bad news, which is why this does not raise. What the caller cannot
+    decide without it is *whether it ran at all*, and that is the status: dropping it here is how a
+    tool that printed a usage line and crashed came to be recorded as having answered, which is F11
+    of `docs/reports/0001-2026-10-30_rpt-agentic-setup-audit.md`. stdout and stderr are merged,
+    because the question is what the program said and the line that explains a failure is as often
+    on the second stream as on the first.
     """
     try:
         result = subprocess.run(
@@ -1195,9 +1224,9 @@ def capture(root: Path, *command: str, timeout: int = 300) -> str | None:
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
-        return None
+        return Answer(code=None, output="")
 
-    return ANSI.sub("", (result.stdout or "") + (result.stderr or ""))
+    return Answer(code=result.returncode, output=ANSI.sub("", (result.stdout or "") + (result.stderr or "")))
 
 
 def satisfies(version: str, pin: str) -> bool:
@@ -1238,13 +1267,13 @@ def manifest_tools(root: Path) -> dict[str, dict[str, str]]:
     # Named as PHP's own source rather than as a path this program opens: single quotes, so a `$` in
     # a directory name is a character rather than the start of a variable.
     target = str(manifest).replace("\\", "/").replace("'", "\\\\'")
-    output = capture(root, php, "-r", f"echo json_encode(require '{target}');")
+    answer = capture(root, php, "-r", f"echo json_encode(require '{target}');")
 
-    if output is None:
+    if answer.code != 0:
         return {}
 
     try:
-        data = json.JSONDecoder().raw_decode(output.lstrip())[0]
+        data = json.JSONDecoder().raw_decode(answer.output.lstrip())[0]
     except json.JSONDecodeError:
         return {}
 
@@ -1343,20 +1372,23 @@ def step_tools(root: Path) -> list[str]:
             "every command this package runs needs it (python .agents/render_local.py --init)"
         )
     else:
-        version = capture(root, php, "-r", "echo PHP_VERSION;")
+        answer = capture(root, php, "-r", "echo PHP_VERSION;")
         pin = str(tools.get("php", {}).get("pin", ""))
-        health("php", version or "", pin, version is not None)
+        version = (answer.output.strip().splitlines() or [""])[0]
+        health("php", version, pin, answer.code == 0)
 
-        if version is None:
+        if answer.code is None:
             findings.append(f"php: {php} could not be run")
-        elif not satisfies(version.strip(), pin):
+        elif answer.code != 0:
+            findings.append(f"php: {php} exited {answer.code} when asked its version - {version or 'no output'}")
+        elif not satisfies(version, pin):
             findings.append(
-                f"php: {php} reports {version.strip()}, and .agents/toolchain.json pins `{pin}` - the "
+                f"php: {php} reports {version}, and .agents/toolchain.json pins `{pin}` - the "
                 "gate and the floor were not measured under the interpreter they were written for"
             )
 
-        modules = capture(root, php, "-m") or ""
-        loaded = {line.strip().lower() for line in modules.splitlines()}
+        modules = capture(root, php, "-m")
+        loaded = {line.strip().lower() for line in modules.output.splitlines()}
 
         for requirement in sorted(name for name in composer.get("require", {}) if name.startswith("ext-")):
             extension = requirement[4:].lower()
@@ -1366,8 +1398,8 @@ def step_tools(root: Path) -> list[str]:
                     "package cannot run here, whatever the gate says about the other checks"
                 )
 
-        loadable = capture(root, php, "-r", "echo implode(',', array_filter(['pcov','xdebug'], 'extension_loaded'));") or ""
-        if not loadable.strip():
+        loadable = capture(root, php, "-r", "echo implode(',', array_filter(['pcov','xdebug'], 'extension_loaded'));")
+        if not loadable.output.strip():
             findings.append(
                 "php: neither PCOV nor Xdebug is loaded, so composer test:unit cannot measure the "
                 "floor - it reports that rather than a number, which is the honest answer to this"
@@ -1377,14 +1409,22 @@ def step_tools(root: Path) -> list[str]:
     #    lock and the manifest is the only committed statement of anything.
     phar = root / "composer.phar"
     composer_command: list[str] = [php, str(phar)] if php and phar.is_file() else ["composer"]
-    composer_output = capture(root, *composer_command, "--version")
+    composer_answer = capture(root, *composer_command, "--version")
     composer_pin = str(tools.get("composer", {}).get("pin", ""))
     composer_found = ""
+    composer_first = (composer_answer.output.strip().splitlines() or [""])[0]
 
-    if composer_output is None:
+    if composer_answer.code is None:
         findings.append("composer: not runnable - neither composer.phar beside this checkout nor composer on PATH")
+    elif composer_answer.code != 0:
+        # A tool that starts and fails is not a tool that ran. The version it printed on its way out
+        # is the shape this used to read as success, because non-empty output was the whole of it.
+        findings.append(
+            f"composer: `{' '.join(composer_command)} --version` exited {composer_answer.code} - "
+            f"{composer_first or 'no output'}"
+        )
     else:
-        match = re.search(r"Composer version\s+(\S+)", composer_output)
+        match = re.search(r"Composer version\s+(\S+)", composer_answer.output)
         if match is not None:
             composer_found = match.group(1)
         if match is None:
@@ -1395,7 +1435,7 @@ def step_tools(root: Path) -> list[str]:
                 "composer.json is a Composer 2 script, and this is what runs them"
             )
 
-    health("composer", composer_found, composer_pin, composer_output is not None)
+    health("composer", composer_found, composer_pin, composer_answer.code == 0)
 
     # 3. Python, which is running this program, and PowerShell 7, which the Windows snippets assume.
     health("python", sys.version.split()[0], "3.9", True)
@@ -1406,17 +1446,24 @@ def step_tools(root: Path) -> list[str]:
     if os.name == "nt":
         pwsh = str((json.loads(read(machine) or "{}").get("pwsh", {}) or {}).get("exe", "")) if machine.is_file() else ""
         pwsh = pwsh or (shutil.which("pwsh") or "")
-        output = capture(root, pwsh, "-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()") if pwsh else None
+        pwsh_answer = (
+            capture(root, pwsh, "-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()")
+            if pwsh
+            else Answer(code=None, output="")
+        )
         pin = str(tools.get("pwsh", {}).get("pin", ""))
-        health("pwsh", output or "", pin, output is not None)
+        version = (pwsh_answer.output.strip().splitlines() or [""])[0]
+        health("pwsh", version, pin, pwsh_answer.code == 0)
 
-        if output is None:
+        if pwsh_answer.code is None:
             findings.append(
                 "pwsh: PowerShell 7 was not found - the Windows snippets in AGENTS.md and the skills "
                 "are written for it (python .agents/render_local.py --init)"
             )
-        elif not satisfies(output.strip(), pin):
-            findings.append(f"pwsh: reports {output.strip()}, and the pin is `{pin}`")
+        elif pwsh_answer.code != 0:
+            findings.append(f"pwsh: exited {pwsh_answer.code} when asked its version - {version or 'no output'}")
+        elif not satisfies(version, pin):
+            findings.append(f"pwsh: reports {version}, and the pin is `{pin}`")
     else:
         NOTES.append("tools: not Windows, so the PowerShell probe was left out")
 
@@ -1424,13 +1471,18 @@ def step_tools(root: Path) -> list[str]:
     #    that has not enabled it is a note rather than a finding - but it is worth saying out loud,
     #    because the gate is what a contributor is told runs before a commit.
     git = shutil.which("git")
-    git_output = capture(root, "git", "--version") if git else None
-    health("git", (git_output or "").removeprefix("git version "), "-", git_output is not None)
+    git_answer = capture(root, "git", "--version") if git else Answer(code=None, output="")
+    git_version = (git_answer.output.strip().splitlines() or [""])[0]
+    health("git", git_version.removeprefix("git version "), "-", git_answer.code == 0)
 
-    if git is None or git_output is None:
+    if git is None or git_answer.code is None:
         findings.append("git: not runnable, and every part of this repository's process is around it")
+    elif git_answer.code != 0:
+        findings.append(f"git: `git --version` exited {git_answer.code} - {git_version or 'no output'}")
     elif is_a_repo(root):
-        hooks = (capture(root, "git", "config", "--get", "core.hooksPath") or "").strip()
+        # `git config --get` exits 1 for a setting that is not there, which is an answer rather than
+        # a failure - so this is the one probe whose status is deliberately not read.
+        hooks = capture(root, "git", "config", "--get", "core.hooksPath").output.strip()
         if hooks != ".githooks":
             NOTES.append(
                 f"tools: core.hooksPath is `{hooks or 'unset'}`, so .githooks/pre-commit did not run on "
@@ -1468,13 +1520,22 @@ def step_tools(root: Path) -> list[str]:
             # Run through the same door the composer scripts use, so what is checked is the process
             # as well as the tool: bin/tool.php resolves the path from the manifest and runs it under
             # PHP_BINARY, which is the interpreter that installed the dependencies.
-            output = capture(root, *tool_command(root, name, "--version"), timeout=120)
-            first = (output or "").strip().splitlines()[0] if output and output.strip() else ""
-            health(name, first, str(entry.get("pin", "")), bool(output and output.strip()))
+            answer = capture(root, *tool_command(root, name, "--version"), timeout=120)
+            first = (answer.output.strip().splitlines() or [""])[0]
 
-            if output is None:
+            # The row follows the status, not the output: a tool that printed something and exited
+            # non-zero has not answered the question, and the table is read to see which part of the
+            # machine moved - a `ran: yes` beside a crash is the reading this batch is about.
+            health(name, first, str(entry.get("pin", "")), answer.code == 0)
+
+            if answer.code is None:
                 findings.append(f"{name}: `bin/tool.php {name} --version` could not be run")
-            elif not output.strip():
+            elif answer.code != 0:
+                findings.append(
+                    f"{name}: `bin/tool.php {name} --version` exited {answer.code} - "
+                    f"{first or 'no output'}"
+                )
+            elif not first:
                 findings.append(f"{name}: answered `bin/tool.php {name} --version` with nothing - it did not start")
 
     for program in ("checks.php", "commit.php", "coverage.php", "release.php", "tool.php", "tool-paths.php"):
@@ -1658,7 +1719,19 @@ MUTATIONS = [(step[0], step[0]) for step in SELFTESTABLE] + [
     ("skills", "target-edited"),
     ("gemini", "import-opted-out"),
     ("windsurf", "pointer-opted-out"),
+    ("tokens", "renderer-crashed"),
+    ("tools", "composer-exits"),
 ]
+
+# Rounds that have to report a *particular* fault rather than any fault. A step with several readings
+# can be satisfied by the wrong one - `tools` reports a missing vendor/, a missing tool, an extension
+# the interpreter does not carry - so "something was reported" would pass on a state that says
+# nothing about the exit status this round planted. A round named here must produce a finding that
+# contains the text, which is the claim the reading makes.
+EXPECT = {
+    ("tokens", "renderer-crashed"): "exited 3",
+    ("tools", "composer-exits"): "exited 1",
+}
 
 
 def repair(root: Path) -> list[str]:
@@ -1949,6 +2022,29 @@ def mutate(name: str, root: Path) -> None:
             read(path).replace('if [ -n "${RESPONSE_COMPRESSION_PHP:-}" ]; then', "if false; then", 1),
             encoding="utf-8",
         )
+    elif name == "renderer-crashed":
+        # The renderer exiting with a status and no finding of its own. A syntax error or an import
+        # that is not there printed nothing the `[FAIL]`/`[NOTE]` prefixes could be read from, so it
+        # was identical to a renderer with nothing to report - the exact shape this round exists to
+        # tell apart. The statement is planted at module level, after the imports, so the crash is a
+        # real one rather than a broken file the interpreter refuses before running anything.
+        path = root / ".agents" / "render_local.py"
+        path.write_text(
+            read(path).replace(
+                "ROOT = Path(__file__).resolve().parents[1]",
+                "raise SystemExit(3)\n\nROOT = Path(__file__).resolve().parents[1]",
+                1,
+            ),
+            encoding="utf-8",
+        )
+    elif name == "composer-exits":
+        # A tool that starts, prints what looks like a version and exits non-zero. The phar is the
+        # probe that needs no vendor/ to reach: every other tool in the manifest sits behind that
+        # directory, and a round about the exit status must not be answered by "not on disk".
+        (root / "composer.phar").write_text(
+            "<?php\necho 'Composer version 2.9.9 (stub)';\nexit(1);\n",
+            encoding="utf-8",
+        )
     elif name == "tokens":
         path = root / "CLAUDE.md"
         path.write_text(read(path) + "\nThe PHP binary is `__PHP_PATH__`.\n", encoding="utf-8")
@@ -1982,13 +2078,17 @@ def selftest_rendered() -> int:
         plant(root)
 
         # A machine file of the round's own, so the comparison does not depend on whether this machine
-        # has one: the values only have to resolve, not to name anything that exists.
+        # has one: the values only have to resolve, not to name anything that exists. Every token gets
+        # one, because the renderer exits non-zero for a token it cannot resolve - and `tokens` reads
+        # that status now, so a record with a hole in it is a finding rather than a note, which would
+        # make this round's "the tree is clean first" claim false before anything was planted.
         (root / ".agents" / "machine.local.json").write_text(
             json.dumps(
                 {
                     "php": {"exe": "php.exe", "dir": "php-dir"},
                     "pwsh": {"exe": "pwsh.exe"},
                     "package": {"dir": root.as_posix()},
+                    "systemTempFolder": {"systemTempFolderPath": "temp"},
                 },
                 indent=4,
             )
@@ -2141,8 +2241,16 @@ def selftest() -> int:
             mutate(mutation, root)
             broken = function(root)
 
+            expected = EXPECT.get((name, mutation))
+
             if not broken:
                 print(f"[FAIL] selftest {mutation}: the mutation was not reported - this step has stopped checking")
+                failures += 1
+            elif expected is not None and not any(expected in finding for finding in broken):
+                print(
+                    f"[FAIL] selftest {mutation}: reported `{broken[0]}`, which does not contain "
+                    f"`{expected}` - some other reading answered for the one this round plants"
+                )
                 failures += 1
             else:
                 print(f"[ OK ] selftest {mutation.ljust(22)} {broken[0]}")
