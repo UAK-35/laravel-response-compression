@@ -47,7 +47,7 @@ sentence that mentions a skill is not an entry.
 | `rc-deploy` | `.skills/rc-deploy/` | weighing and cutting a version, on this side of the remote — `unreleased`, `weigh`, `weigh-dry-run`, `release-cut`, `prerelease`, `verify-releasing` |
 | `rc-dev` | `.skills/rc-dev/` | this package's daily loop — `gate`, `gate-local`, `staged`, `checks-list`, `test`, `test-unit`, `test-types`, `test-lint`, `tidy`, `single-test <path>`, `agentic-check`, `agentic-fix` |
 | `rc-investigation` | `.skills/rc-investigation/` | answering a question about this package by reading it, and keeping the answer under `docs/investigations/` — `rc-investigation`, `record` |
-| `rc-plan` | `.skills/rc-plan/` | a prompt planned and the plan kept under `docs/plans/` — `rc-plan`, `record` |
+| `rc-plan` | `.skills/rc-plan/` | a prompt planned and the plan kept under `docs/planning/` — `rc-plan`, `record` |
 | `rc-push` | `.skills/rc-push/` | getting a cut tag to the remote — `push`, `verify-pushing` |
 | `rc-report` | `.skills/rc-report/` | a prompt answered and the answer kept as a report under `docs/reports/` — `rc-report`, `record` |
 

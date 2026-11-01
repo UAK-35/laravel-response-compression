@@ -1,6 +1,6 @@
 ---
 name: rc-plan
-description: "Write a plan about a prompt and keep it under docs/plans/, named by a sequence number, the date it was made and a slug. Activate when a prompt begins with the /rc-plan marker or the /lpr-plan marker, or when a prompt asks to create a plan, to plan the work of something, or says a plan is needed and the user answers yes to 'Is this an RC plan?'. Commands - rc-plan, record."
+description: "Write a plan about a prompt and keep it under docs/planning/, named by a sequence number, the date it was made and a slug. Activate when a prompt begins with the /rc-plan marker or the /lpr-plan marker, or when a prompt asks to create a plan, to plan the work of something, or says a plan is needed and the user answers yes to 'Is this an RC plan?'. Commands - rc-plan, record."
 license: "MIT"
 ---
 
@@ -8,7 +8,7 @@ license: "MIT"
 
 Use this skill when a prompt asks for a **plan**: the order the work will be done in, what each step
 touches, and how each step is known to have worked. It is two things in one pass: the **response**,
-which is the plan worked out, and the **document** under `docs/plans/` that sets it down — the goal,
+which is the plan worked out, and the **document** under `docs/planning/` that sets it down — the goal,
 the steps in order, the evidence each step will be held to, and what the plan does not decide.
 
 A plan that only exists in a response is one the next session re-derives from nothing, which is what
@@ -39,8 +39,8 @@ without asking for one is not this skill's.
 
 - `rc-plan <prompt>`: work out the plan and, once the response is finished, write the document. This
   is the whole skill: read and decide until the plan is answered, answer it, then set it down in
-  `docs/plans/`.
-- `record <name>`: write one plan as a markdown document under `docs/plans/` — the prompt as it was
+  `docs/planning/`.
+- `record <name>`: write one plan as a markdown document under `docs/planning/` — the prompt as it was
   put, the goal, the steps in order with what each touches and how it is verified, the risks, and
   what the plan does not decide. The name is the folder's next sequence number, the date the plan was
   made and a few words from the prompt, so a reader can find it again and the folder stays in the
@@ -48,12 +48,12 @@ without asking for one is not this skill's.
 
 ## The plan
 
-Every activated plan ends with **one** markdown document under `docs/plans/`. It is written **after**
+Every activated plan ends with **one** markdown document under `docs/planning/`. It is written **after**
 the response is finished rather than during it, because it is the plan kept and not a draft of it. The
 folder is created by the first plan; nothing else here creates it.
 
 - **Name it** `NNNN-YYYY-MM-DD_plan-<slug>.md` —
-  `docs/plans/0001-2026-11-01_plan-guard-index-render.md`. `NNNN` is the folder's sequence number, at
+  `docs/planning/0001-2026-11-01_plan-guard-index-render.md`. `NNNN` is the folder's sequence number, at
   least four digits, and the plan you add is the number that belongs to its place in the order (see
   **Keeping the folder in order**). `YYYY-MM-DD` is the date the plan was made, and `plan` marks the
   file as a plan rather than a report or a design record. `<slug>` is a few lowercase words from the

@@ -1,6 +1,6 @@
 ---
 trigger: model_decision
-description: "Write a plan about a prompt and keep it under docs/plans/, named by a sequence number, the date it was made and a slug. Activate when a prompt begins with the /rc-plan marker or the /lpr-plan marker, "
+description: "Write a plan about a prompt and keep it under docs/planning/, named by a sequence number, the date it was made and a slug. Activate when a prompt begins with the /rc-plan marker or the /lpr-plan marke"
 ---
 
 # rc-plan
