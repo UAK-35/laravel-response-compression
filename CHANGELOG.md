@@ -1212,6 +1212,22 @@ read as a runner that still runs the gate.
   new ones, and `package-commit`'s "pushing is `package-release`'s job" now names `package-push`.
   Nothing about `bin/release.php`, `composer release`, `.release-lane` or the release commit changed —
   the program does the same thing; what was split is which skill hands a maintainer the command.
+- **The investigation records are numbered and dated in their filenames, so the folder is read in the
+  order the questions were asked rather than in the order a directory listing returns.**
+  `docs/investigations/` named each file after its question alone, and a folder of names has no order:
+  the three records here sorted as `how-…`, `why-opencode-…`, `why-the-staged-…`, which is neither the
+  order they were made nor the order a reader arrives in — the first record written,
+  `why-the-staged-check-runs-silent`, was the last by name. `rc-investigation` now writes
+  `NNNN-YYYY-MM-DD-<slug>.md`: the folder's next sequence number, the date the investigation was made,
+  and the question in a few lowercase words. The rule is in the skill — `record` names the number and
+  the date, **The record** states the shape, and a new **Keeping the folder in order** says how an
+  existing folder is ordered and renumbered — and in `docs/investigations/README.md`, which described
+  the old convention. The three records were renumbered from the evidence: `0001` from its own
+  2026-10-25 opening and the commit that added it, then the two 2026-10-27 records in the order their
+  creation times give (`16:50` before `17:35`), because they arrived in one commit and neither records
+  a time. The earlier records that name a path keep the name it had when they were written — the two
+  bullets in this file and `handoff/HANDOFF.md`'s snapshot — because a snapshot is evidence of what
+  the tree held then; the numbered files and the folder's README are where the convention is stated.
 
 ### Fixed
 

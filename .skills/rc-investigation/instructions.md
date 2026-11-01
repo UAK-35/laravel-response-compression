@@ -36,7 +36,9 @@ a prompt that merely mentions investigation without asking for one is not this s
   it, then set the answer down in `docs/investigations/`.
 - `record <name>`: write one investigation as a markdown document under `docs/investigations/` — the
   question as it was asked, what was read, what was found and what stands behind it, and what the
-  reading did not establish. The name is a few words from the question, so a reader can find it again.
+  reading did not establish. The name is the folder's next sequence number, the date the investigation
+  was made and a few words from the question, so a reader can find it again and the folder stays in
+  the order the work was done.
 
 ## The record
 
@@ -44,10 +46,15 @@ Every activated investigation ends with **one** markdown document under `docs/in
 written **after** the response is finished rather than during it, because it is a record of the answer
 and not a draft of it. The folder is created by the first record; nothing else here creates it.
 
-- **Name it** after the question in a few lowercase words joined by hyphens, and end it in `.md` —
-  `docs/investigations/why-config-is-read-once.md`. The name is a reader's only index into the folder,
-  so it should say what the question was rather than what the file is.
-- **Open with the question** as it was actually put, and the date the investigation was made.
+- **Name it** `NNNN-YYYY-MM-DD-<slug>.md` —
+  `docs/investigations/0001-2026-10-25-why-config-is-read-once.md`. `NNNN` is the folder's sequence
+  number, at least four digits, and the record you add is the next number after the highest already
+  there: `0001` for the first record, `0002` for the second. `YYYY-MM-DD` is the date the investigation
+  was made — the date the record opens with — and editing the record does not change it. `<slug>` is a
+  few lowercase words from the question joined by hyphens, because it is what a reader searches for;
+  the number is what orders the folder by when the work was done.
+- **Open with the question** as it was actually put, and the date the investigation was made — the
+  date the filename carries.
 - **Say what was read**, each file, reading and command named exactly, so the reading can be repeated
   rather than believed. A finding that cannot be re-read is a claim, not a record.
 - **Put the evidence beside each finding**: the command and what it printed, the path and the line,
@@ -55,6 +62,15 @@ and not a draft of it. The folder is created by the first record; nothing else h
   check for itself.
 - **Give the answer** in a sentence or two, and then **the limits**: what the investigation did not
   establish, or could not, so the next reader knows where this one stopped.
+
+## Keeping the folder in order
+
+The number is the folder's order rather than a name a record is stuck with. Order the records by when
+each one was made — the date it opens with where it records one, otherwise the commit that added it,
+otherwise the file's own creation time — and number them from `0001` with no gap and no duplicate. A
+new record takes the next number after the highest in the folder; a record that turns up belonging
+earlier than one already there is a reason to renumber the folder from that evidence, and every
+reference to a renamed file is updated in the same change.
 
 ## Environment
 

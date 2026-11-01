@@ -1,6 +1,6 @@
 ---
 trigger: model_decision
-description: "Investigate a question about this package and record the investigation as a markdown document under docs/investigations/. Activate when a prompt begins with the /rc-investigation marker, or when a pro"
+description: "Investigate a question about this package and record the investigation as a markdown document under docs/investigations/, named by its sequence number, the date it was made and a slug. Activate when a"
 ---
 
 # rc-investigation

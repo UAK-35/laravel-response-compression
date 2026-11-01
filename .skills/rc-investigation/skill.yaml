@@ -10,8 +10,8 @@
 # The generator reads a small subset of YAML: `tags` and `categories` are one
 # comma separated line rather than a list, and there is no `files:` key.
 name: "rc-investigation"
-version: "1.0.0"
-description: "Investigate a question about this package and record the investigation as a markdown document under docs/investigations/. Activate when a prompt begins with the /rc-investigation marker, or when a prompt asks to investigate or to find out why and the user answers yes to 'Is this an RC package investigation?'. Commands - rc-investigation, record."
+version: "1.1.0"
+description: "Investigate a question about this package and record the investigation as a markdown document under docs/investigations/, named by its sequence number, the date it was made and a slug. Activate when a prompt begins with the /rc-investigation marker, or when a prompt asks to investigate or to find out why and the user answers yes to 'Is this an RC package investigation?'. Commands - rc-investigation, record."
 instructions: "instructions.md"
 author: "UAK35"
 license: "MIT"

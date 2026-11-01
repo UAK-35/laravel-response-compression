@@ -10,8 +10,10 @@ the README, so the docs-link guard resolves every link in them and notices one n
 folder is not read by that guard, so a record links nothing and nothing links to it and neither is
 expected of it. It is the reading kept, rather than a decision argued.
 
-Each file is named after its question in a few lowercase words joined by hyphens, so the folder is its
-own index — `why-config-is-read-once.md` rather than `investigation-1.md`.
+Each file is named `NNNN-YYYY-MM-DD-<slug>.md` — a sequence number, the date the record was made and a
+few lowercase words from the question joined by hyphens, such as
+`0001-2026-10-25-why-config-is-read-once.md`. The number keeps the folder in the order the
+investigations were made, and the slug is what a reader searches for.
 
 ## The rules a record follows
 
