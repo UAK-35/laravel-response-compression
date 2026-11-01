@@ -1,7 +1,8 @@
 # Agentic setup remediation plan
 
-Created: 2026-11-01 21:34 (Asia/Karachi, UTC+05:00). Report: 0003. Status: plan recorded; no finding
-fixed by this document.
+Created: 2026-11-01 21:34 (Asia/Karachi, UTC+05:00). Updated: 2026-11-02 (Asia/Karachi, UTC+05:00).
+Report: 0003. Status: plan recorded against the tree as it stood on 2026-11-01; all fifteen findings
+closed since by the six batches below, each row of the State column naming the commit that closed it.
 
 ## What this plan is
 
@@ -11,8 +12,13 @@ verifier — and said plainly that "setup fixes not applied". This document turn
 ordered body of work: what changes, in which file, what proves the change, and what the repository
 requires beside it before the commit is allowed to land.
 
-It fixes nothing. Every finding it names is still open, and the plan's own value is that it was
-written against the tree as it stands rather than against the report's memory of it.
+It fixed nothing when it was written. Every finding it names was still open on 2026-11-01, and the
+plan's own value is that it was written against the tree as it stood rather than against the report's
+memory of it.
+
+All six batches have since landed, and the plan is left as the record of what they were told to do
+rather than rewritten to agree with what they did. The table under *State of the findings today*
+carries the outcome: one row per finding, the batch that closed it, and the commit.
 
 ## Numbering and inventory
 
@@ -34,7 +40,7 @@ document repeats a finding only far enough to place it in a batch.
 
 ## State of the findings today
 
-Every cited site was re-read on 2026-11-01 for this plan. All fifteen findings are present in the code
+Every cited site was re-read on 2026-11-01 for this plan. All fifteen findings were present in the code
 as report 0001 described them; none was fixed, by the commits since or by the uncommitted work in the
 tree. Two things are worth saying about the reading rather than leaving to assumption:
 
@@ -46,23 +52,31 @@ tree. Two things are worth saying about the reading rather than leaving to assum
   and layer entries among the growth). The plan therefore names functions — `step_skills`,
   `step_tokens`, `php_binary`, `capture`, `step_tools` — rather than lines that are already stale.
 
+**Read again on 2026-11-02.** All fifteen are closed. The six batches were implemented and landed as
+`2392dcc` (1), `278eb40` (2), `4a21bc6` (3), `157582f` (4), `9d73763` (5) and `a59c95f` (6), and the
+`State` column records which one closed each finding. The `Finding` and `Site today` columns are left
+exactly as they were written: they are where each finding was found and what the code said there, so a
+row mentioning `step_skills()` comparing `source_hash` only, or `capture()` dropping the return code,
+describes the site *at the audit* - the batch sections and the `CHANGELOG.md` bullets say what replaced
+it. One column cannot hold both moments without becoming a claim about neither.
+
 | Finding | Site today | State |
 |---|---|---|
-| F01 | `.agents/verify.py` `step_skills()` compares `source_hash` only | open |
-| F02 | `.agents/verify.py` `step_tokens()` reads stdout prefixes; exit code and stderr unread | open |
-| F03 | `.agents/verify.py` `php_binary()`: machine record, then `PATH`; no resolver, no override | open |
-| F04 | `.agents/render_local.py` `substitute()` walks known tokens only; templates unread for unknowns | open |
-| F05 | `manage-config.py` `render()` inserts machine values into JSONC unescaped | open |
-| F06 | `opencode.jsonc.template` names `.agents/agents/php-code-analyzer.md`; only `code-reviewer.md` exists | open |
-| F07 | `AGENTS.md` section 13's rendered table and `.agents/toolchain.json` carry a bash-only form | open |
-| F08 | `.skills/_sync.py` `sync()` calls `present_targets()` after writes, dry run included | open |
-| F09 | `.skills/_sync.py` honours `sync.gemini/windsurf.enabled`; `.agents/verify.py` does not | open |
-| F10 | `.agents/render_local.py` `initialise()` keeps an unowned section only when it is a dict | open |
-| F11 | `.agents/verify.py` `capture()` drops the return code; `step_tools` accepts any non-empty output | open |
-| F12 | `.skills/rc-push/instructions.md` `push` is a literal `git push origin development` | open |
-| F13 | `AGENTS.md` lines 174–181 start a six-item boot order; line 308 puts the machine record before the override | open |
-| F14 | `.skills/php-code-analyzer/instructions.md` `analyze-apply` promises one finding, prescribes `composer tidy` | open |
-| F15 | `.agents/verify.py` `tempfile.TemporaryDirectory()` without `dir=`; `.agents/php-bin.sh` bare `mktemp -d` | open |
+| F01 | `.agents/verify.py` `step_skills()` compares `source_hash` only | closed - batch 1, `2392dcc` |
+| F02 | `.agents/verify.py` `step_tokens()` reads stdout prefixes; exit code and stderr unread | closed - batch 3, `4a21bc6` |
+| F03 | `.agents/verify.py` `php_binary()`: machine record, then `PATH`; no resolver, no override | closed - batch 1, `2392dcc` |
+| F04 | `.agents/render_local.py` `substitute()` walks known tokens only; templates unread for unknowns | closed - batch 4, `157582f` |
+| F05 | `manage-config.py` `render()` inserts machine values into JSONC unescaped | closed - batch 4, `157582f` |
+| F06 | `opencode.jsonc.template` names `.agents/agents/php-code-analyzer.md`; only `code-reviewer.md` exists | closed - batch 5, `9d73763` |
+| F07 | `AGENTS.md` section 13's rendered table and `.agents/toolchain.json` carry a bash-only form | closed - batch 5, `9d73763` |
+| F08 | `.skills/_sync.py` `sync()` calls `present_targets()` after writes, dry run included | closed - batch 2, `278eb40` |
+| F09 | `.skills/_sync.py` honours `sync.gemini/windsurf.enabled`; `.agents/verify.py` does not | closed - batch 2, `278eb40` |
+| F10 | `.agents/render_local.py` `initialise()` keeps an unowned section only when it is a dict | closed - batch 4, `157582f` |
+| F11 | `.agents/verify.py` `capture()` drops the return code; `step_tools` accepts any non-empty output | closed - batch 3, `4a21bc6` |
+| F12 | `.skills/rc-push/instructions.md` `push` is a literal `git push origin development` | closed - batch 5, `9d73763` |
+| F13 | `AGENTS.md` lines 174–181 start a six-item boot order; line 308 puts the machine record before the override | closed - batch 1, `2392dcc` |
+| F14 | `.skills/php-code-analyzer/instructions.md` `analyze-apply` promises one finding, prescribes `composer tidy` | closed - batch 5, `9d73763` |
+| F15 | `.agents/verify.py` `tempfile.TemporaryDirectory()` without `dir=`; `.agents/php-bin.sh` bare `mktemp -d` | closed - batch 6, `a59c95f` |
 
 ## The batches
 
@@ -245,7 +259,7 @@ If the work has to stop early, stop after Batch 3. That is the point past which 
 readings can be believed; everything after it is the layer telling the truth about things it already
 knew were wrong.
 
-## Decisions the repository has to make, not the plan
+## Decisions the plan left to the repository
 
 - **F06:** author the missing agent, or point at the existing skill. Recommended: the skill.
 - **F09:** support the `sync.*.enabled` opt-outs, or refuse them by name. Recommended: support them —
@@ -257,8 +271,11 @@ knew were wrong.
   Recommended: keep `tidy`, ask first, name what else it may touch.
 - **F15:** repository-local scratch, or a named boundary in section 0. Recommended: repository-local.
 
-None of these is settled by the report, and a batch should not start with one of them still open in the
-committer's head.
+None of these was settled by the report, and a batch was not to start with one of them still open in
+the committer's head. Each was settled by the batch that needed it: F06, F07, F09 and F15 on the
+recommended side, and F14 by naming the tool that owns a finding and the other findings that tool may
+touch, rather than by keeping a tree-wide `composer tidy`. The batch sections and the changelog say
+which.
 
 ## Definition of done, per batch
 
