@@ -473,6 +473,7 @@ Everything loadable lives in `.agents/`, and nothing loadable lives anywhere els
 
 ```bash
 python .skills/_sync.py            # regenerate .agents/skills/, the GEMINI.md imports, the Windsurf pointers
+python .skills/_sync.py --check    # compare every generated target with its source, and write nothing
 python .agents/verify.py           # prove the layer is consistent
 ```
 
@@ -513,7 +514,7 @@ rendered from it, and `verify.py` refuses a restatement of any of them elsewhere
 | `agentic-fix` | `python .agents/verify.py --fix` | repair what a generator owns (the rendered command table, the skill targets), then re-check |
 | `agentic-selftest` | `python .agents/verify.py --selftest` | plant one fault per step in a copy of the layer and require the step to name it - the `agentic` check in bin/checks.php runs this, so a reading that stopped checking fails the gate rather than passing quietly |
 | `agentic-init` | `python .agents/render_local.py --init` | ask for this machine's PHP and PowerShell, then render every settings file from the answers |
-| `skills-sync` | `python .skills/_sync.py` | regenerate .agents/skills/ and the pointers that read it from the sources in .skills/ |
+| `skills-sync` | `python .skills/_sync.py` | regenerate .agents/skills/ and the pointers that read it from the sources in .skills/ - --check names a target that differs from its source without writing, and --required answers which skills want a pointer |
 
 | Tool | Runs as | Version asked for | For |
 | --- | --- | --- | --- |

@@ -53,7 +53,7 @@ from it. Nothing under `.agents/skills/` is edited by hand.
 
 | Tool | What it is | How it runs |
 |---|---|---|
-| [`../.skills/_sync.py`](../.skills/_sync.py) | generates every skill target and every pointer from the sources beside it: `.agents/skills/`, the `GEMINI.md` import block, the Windsurf rules | `python .skills/_sync.py`, then `python .agents/verify.py` |
+| [`../.skills/_sync.py`](../.skills/_sync.py) | generates every skill target and every pointer from the sources beside it: `.agents/skills/`, the `GEMINI.md` import block, the Windsurf rules — and answers for them: `--check` names a target that differs from its source without writing, `--dry-run` names the writes a run would make, `--required gemini\|windsurf` prints the skills that want that pointer | `python .skills/_sync.py`, then `python .agents/verify.py` |
 | [`../.skills/rc-commit/skill.yaml`](../.skills/rc-commit/skill.yaml) and [`instructions.md`](../.skills/rc-commit/instructions.md) | the authored source of the `rc-commit` skill — the guarded named-set commit | edit here; `_sync.py` writes the target |
 | [`../.skills/rc-dev/skill.yaml`](../.skills/rc-dev/skill.yaml) and [`instructions.md`](../.skills/rc-dev/instructions.md) | the authored source of the `rc-dev` skill — this package's daily loop | the same |
 | [`../.skills/rc-deploy/skill.yaml`](../.skills/rc-deploy/skill.yaml) and [`instructions.md`](../.skills/rc-deploy/instructions.md) | the authored source of the `rc-deploy` skill — weighing and cutting a version, on this side of the remote | the same |

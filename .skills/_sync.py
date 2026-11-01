@@ -10,6 +10,17 @@ that directory, and a pointer rule in `.windsurf/rules/` for the same reason. Fo
 paragraph are four places for it to drift, so none of them is written by hand: the source is
 `.skills/<name>/` and this program is what turns it into all four.
 
+TWO WAYS TO ASK IT WITHOUT WRITING
+----------------------------------
+`--dry-run` prints the writes it would make, computed from the targets a run ends with rather than
+from the directory as it stands: a skill authored for the first time has no directory yet, so a
+preview built by reading the listing after the writes described an operation it was not previewing.
+`--check` writes nothing and exits 1 naming each target that differs from what its source would
+write, which is the question `python .agents/verify.py` asks instead of re-deriving a narrower one
+from a hash of the source. `--required gemini` and `--required windsurf` print the targets that want
+that pointer, so the `sync:` opt-outs below are read in exactly one place and the verifier cannot
+require a pointer this program honours an opt-out from.
+
 WHAT IT DOES NOT DO
 -------------------
 It does not rewrite a skill it did not author. `skill-creator`-style skills that live only in
@@ -229,6 +240,40 @@ def present_targets() -> list[str]:
     return sorted(path.name for path in TARGET.iterdir() if (path / "SKILL.md").is_file())
 
 
+def prospective_targets(found: list[dict]) -> list[str]:
+    """Every target a run ends with, whether or not this run writes anything.
+
+    Authored skills plus the directories already in `.agents/skills/`, which is the half this
+    program does not author. Reading the directory back after the writes is what made a dry run
+    describe an operation it was not previewing: a skill authored for the first time has no target
+    yet when nothing is written, so its pointer and its import were absent from the preview and
+    appeared only on the real run.
+    """
+    return sorted({skill["target"] for skill in found} | set(present_targets()))
+
+
+def required(found: list[dict]) -> dict[str, list[str]]:
+    """Which targets want an import and which want a pointer, read from the `sync:` flags.
+
+    One reader, because two is how the flags came to mean nothing: this program honoured
+    `sync.gemini.enabled` and `sync.windsurf.enabled` while the verifier required an import and a
+    pointer for every target, so a skill that opted out generated cleanly and failed verification.
+    The verifier asks this program with `--required` rather than reading the manifests again.
+
+    The two lists are not the same shape and the difference is not an oversight. An import is a
+    line naming a path, so an in-place skill - one this program does not author - can have one; a
+    pointer carries the skill's description and categories, which only a source has, so a skill
+    without a source cannot have a generated pointer and none is required of it.
+    """
+    names = prospective_targets(found)
+    by_name = {skill["target"]: skill for skill in found}
+
+    return {
+        "gemini": [name for name in names if name not in by_name or by_name[name]["gemini"]],
+        "windsurf": [name for name in names if name in by_name and by_name[name]["windsurf"]],
+    }
+
+
 def write(path: Path, text: str, dry_run: bool) -> bool:
     current = path.read_text(encoding="utf-8") if path.is_file() else None
     if current == text:
@@ -254,11 +299,10 @@ def sync(dry_run: bool, prune: bool) -> int:
         write(TARGET / skill["target"] / "SKILL.md", target_text(skill), dry_run)
         write(TARGET / skill["target"] / "_meta.json", meta_text(skill), dry_run)
 
-    # After the writes, so a skill authored in place is discovered too. In a dry run this is the
-    # listing as it stands, which is what the pointers that follow would be built from.
-    names = present_targets()
-
-    wanted = {f"{name}.windsurf.md" for name in names}
+    # Computed rather than read back from the directory: a dry run writes nothing, and the listing
+    # after no writes is not the listing this run would leave behind.
+    pointer_names = required(found)
+    wanted = {f"{name}.windsurf.md" for name in pointer_names["windsurf"]}
     if WINDSURF.is_dir():
         for rule in sorted(WINDSURF.glob("*.windsurf.md")):
             if rule.name in wanted or WINDSURF_MARK not in rule.read_text(encoding="utf-8"):
@@ -271,23 +315,69 @@ def sync(dry_run: bool, prune: bool) -> int:
                 rule.unlink()
 
     by_name = {skill["target"]: skill for skill in found}
-    for name in names:
-        if name in by_name and by_name[name]["windsurf"]:
-            write(WINDSURF / f"{name}.windsurf.md", windsurf_text(by_name[name]), dry_run)
+    for name in pointer_names["windsurf"]:
+        write(WINDSURF / f"{name}.windsurf.md", windsurf_text(by_name[name]), dry_run)
 
-    imported = [name for name in names if name not in by_name or by_name[name]["gemini"]]
+    imported = pointer_names["gemini"]
     if GEMINI.is_file():
         text = GEMINI.read_text(encoding="utf-8")
         write(GEMINI, block(text, GEMINI_BEGIN, GEMINI_END, gemini_block(imported)), dry_run)
 
-    print(f"{len(found)} skill(s) authored in .skills/, {len(names)} target(s) in .agents/skills/")
+    print(
+        f"{len(found)} skill(s) authored in .skills/, "
+        f"{len(prospective_targets(found))} target(s) in .agents/skills/"
+    )
     return 0
+
+
+def check() -> int:
+    """Compare every generated target with what its source would write, and write nothing.
+
+    The question is the whole file, not a hash of the source it came from. `_meta.json` recorded
+    `source_hash` and the verifier compared that, so an edited `SKILL.md` with its metadata left
+    alone was reported as generated from its source - the body a tool loads could differ from the
+    body the source says while every reading agreed. Comparing the expected text catches a changed
+    body, a changed description in the manifest, a hand-edited frontmatter and a missing file with
+    one check, because the generator already knows what all of them should be.
+    """
+    found = sources()
+    findings = 0
+
+    for skill in found:
+        expected = (
+            (TARGET / skill["target"] / "SKILL.md", target_text(skill)),
+            (TARGET / skill["target"] / "_meta.json", meta_text(skill)),
+        )
+
+        for path, text in expected:
+            where = path.relative_to(ROOT).as_posix()
+            current = path.read_text(encoding="utf-8") if path.is_file() else None
+
+            if current is None:
+                print(f"[FAIL] {where}: missing - run python .skills/_sync.py")
+                findings += 1
+            elif current != text:
+                print(
+                    f"[FAIL] {where}: differs from what .skills/{skill['source']}/ generates - "
+                    "run python .skills/_sync.py"
+                )
+                findings += 1
+
+    print(f"checked {len(found)} skill source(s) against {TARGET.relative_to(ROOT).as_posix()}")
+    return 1 if findings else 0
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="_sync.py", description="Generate skill targets and pointers.")
     parser.add_argument("--dry-run", action="store_true", help="show what would change, write nothing")
     parser.add_argument("--prune", action="store_true", help="also remove a generated pointer whose skill is gone")
+    parser.add_argument("--check", action="store_true", help="compare every generated target with its source, write nothing")
+    parser.add_argument(
+        "--required",
+        metavar="KIND",
+        choices=("gemini", "windsurf"),
+        help="print the targets that want that pointer, one per line",
+    )
     args = parser.parse_args(argv)
 
     if sys.version_info < (3, 9):
@@ -295,6 +385,17 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     try:
+        if args.check:
+            return check()
+
+        if args.required:
+            # Nothing but the names on stdout: `python .agents/verify.py` reads this answer and
+            # would read a summary line as a skill called `checked`.
+            for name in required(sources())[args.required]:
+                print(name)
+
+            return 0
+
         return sync(args.dry_run, args.prune)
     except SourceError as error:
         print(f"[FAIL] {error}")
