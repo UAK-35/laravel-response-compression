@@ -21,7 +21,7 @@
             "model": "opencode/north-mini-code-free",
             // The canonical agent body lives under .agents/. This inline entry is only the
             // OpenCode registration; the prompt points at the single source of truth.
-            "prompt": "Read and follow the canonical agent definition at .agents/agents/php-code-analyzer.md before acting. Skills live under .agents/skills/.",
+            "prompt": "Read and follow the canonical definition at .agents/skills/php-code-analyzer/SKILL.md before acting. It is a skill rather than a custom agent: the analysis is a reading this repository performs with its own tools, and .agents/agents/ holds the one agent that is a separate role.",
             "permission": {
                 "read": "allow",
                 "edit": "allow",

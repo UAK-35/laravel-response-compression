@@ -65,12 +65,25 @@ reports, and it fixes one finding at a time.
   would replace them is the recommendation. It names a tool rather than adding one: an entry in
   `bin/tool-paths.php` carries a path, a pin and a reason, and it is edited deliberately, with
   `tests/Unit/Support/ToolPathsTest.php` holding the pin to the version installed.
-- `analyze-apply <id>`: fix exactly one numbered finding from `analyze`, through the tool that owns
-  it rather than by hand. A style or modernization finding is `composer tidy` (Pint, then Rector, then
-  Pint again, so the second pass judges what Rector rewrote); a type finding is a change to the code
-  with `analyze-types` re-run until it is quiet; a syntax finding is the parse error itself. Re-run
-  `analyze <path>` afterwards and report the finding as fixed or still open, so a fix that did not
-  take is visible rather than assumed.
+- `analyze-apply <id>`: address one numbered finding from `analyze`, through the tool that owns it
+  rather than by hand — and say what else the tool may change, because two of the three do not stop at
+  the finding's file.
+
+  A type finding is a change to the code with `analyze-types` re-run until it is quiet, and a syntax
+  finding is the parse error itself; both are read one file at a time, so both are scoped to the file
+  the finding names.
+
+  A style or modernization finding is `composer tidy` — Pint, then Rector, then Pint again, so the
+  second pass judges what Rector rewrote — and that command is tree-wide: it takes no path and no
+  finding id, so it rewrites whatever the configuration reaches. So this command does not promise that
+  one finding changes. It promises that one finding is the *reason*, that the whole-tree run is asked
+  for before it happens rather than discovered afterwards, and that the other numbered findings the run
+  may move are named with it. Where a single file is all that is wanted, the tool itself takes a path
+  — `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/tool.php pint <file>` and the same with
+  `rector` — which is the narrow form of the same fix and the one to reach for first.
+
+  Re-run `analyze <path>` afterwards and report the finding as fixed or still open, plus any number
+  that moved because of it, so a fix that did not take is visible rather than assumed.
 
 ## The six readings
 

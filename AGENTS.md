@@ -162,6 +162,16 @@ Wrap every command in the mandated shell for the platform:
 bash -c "<command>"
 ```
 
+Two shells spell an interpreter inside a command differently, so the four commands in section 13 that
+render one carry a form for each — marked `bash:` and `PowerShell 7:` — and the mark says which shell
+runs that line. Bash makes the substitution a word with quotes: `"$(python .agents/render_local.py
+--value __PHP_EXE__)" bin/checks.php`. PowerShell 7 needs the call operator in front of it — `& (python
+.agents/render_local.py --value __PHP_EXE__) bin/checks.php` — because what the substitution prints is
+a string there until `&` makes it a command. Copy the form for the shell you are in, and read the other
+as the same command written for the other one: `verify.py`'s `toolchain` step hands each form to its
+own shell and refuses a line that shell cannot parse — `bash -n` and PowerShell's
+`[scriptblock]::Create`, neither of which runs it.
+
 **Path mandate.** No file a commit would carry may contain a drive path, a home directory or a
 network share. Two guards enforce it — `tests/Unit/Support/MachinePathsTest.php` for the machine a
 path names, and `tests/Unit/Support/RepoEscapesTest.php` for a relative path that climbs above this
@@ -515,11 +525,11 @@ rendered from it, and `verify.py` refuses a restatement of any of them elsewhere
 | `bootstrap` | `php bin/bootstrap.php` | set a fresh clone up in one command: name this machine's PHP, install the dependencies, then run the whole verification - the one command here that names a bare `php`, because it is the one that runs before .agents/machine.local.json exists and it is the file that writes it |
 | `gate` | `composer checks -- --require-all` | the whole gate, with a missing tool as a failure instead of a skip - what CI and a release use |
 | `gate-local` | `composer checks` | the same eleven checks on a workstation, where half the tools are require-dev and a missing one is a skip |
-| `staged` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged` | the staged files only - syntax, style, and the tests that cover them, out of tests/Support/TestMap.php - which is what the pre-commit hook runs, under the PHP it resolves from .agents/machine.local.json |
-| `checks-list` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --list` | the eleven checks, the condition each one skips on, and the tools the manifest pins - each one's path, the version it is pinned at and what it is for - under this machine's PHP rather than whichever `php` happens to be first on PATH |
+| `staged` | bash: `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --staged` · PowerShell 7: `& (python .agents/render_local.py --value __PHP_EXE__) bin/checks.php --staged` | the staged files only - syntax, style, and the tests that cover them, out of tests/Support/TestMap.php - which is what the pre-commit hook runs, under the PHP it resolves from .agents/machine.local.json |
+| `checks-list` | bash: `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/checks.php --list` · PowerShell 7: `& (python .agents/render_local.py --value __PHP_EXE__) bin/checks.php --list` | the eleven checks, the condition each one skips on, and the tools the manifest pins - each one's path, the version it is pinned at and what it is for - under this machine's PHP rather than whichever `php` happens to be first on PATH |
 | `which-php` | `sh .agents/php-bin.sh --show` | which interpreter this checkout runs, which rung answered, and the version composer.json requires - the one place all three are decided, and what the hook, the workflow and the coverage runner ask |
-| `index` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/index.php` | render the two lists of files in docs/guards.md from tests/Support/, where each file declares its own row - the composer.json script `index` is the same program |
-| `index-check` | `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/index.php --check` | the same reading with nothing written: what tests/Unit/Docs/GuardIndexTest.php asserts, and the form that fails a document which has drifted from the directory |
+| `index` | bash: `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/index.php` · PowerShell 7: `& (python .agents/render_local.py --value __PHP_EXE__) bin/index.php` | render the two lists of files in docs/guards.md from tests/Support/, where each file declares its own row - the composer.json script `index` is the same program |
+| `index-check` | bash: `"$(python .agents/render_local.py --value __PHP_EXE__)" bin/index.php --check` · PowerShell 7: `& (python .agents/render_local.py --value __PHP_EXE__) bin/index.php --check` | the same reading with nothing written: what tests/Unit/Docs/GuardIndexTest.php asserts, and the form that fails a document which has drifted from the directory |
 | `push` | `composer push` | push the current branch and read the GitHub Actions run it started to a verdict - only `success` exits 0, so the run is read before the push is reported as done |
 | `test` | `composer test` | Rector dry-run, Pint in test mode, PHPStan and the coverage floor, in that order |
 | `test-unit` | `composer test:unit` | Pest under coverage, holding every src/ file at 100.0% and a ratchet per program in bin/ |

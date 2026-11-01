@@ -141,6 +141,12 @@ VENDOR_SHIM = re.compile(r"vendor/bin/")
 # four commands that render an interpreter as the four nothing looks at.
 PHP_RENDER = re.compile(r'^"\$\(\s*python\s+\.agents/render_local\.py\s+--value\s+__PHP_EXE__\s*\)"\s+')
 
+# The same rendering, written for PowerShell 7. There the call operator is what makes a resolved
+# executable a command: `& (python …) bin/checks.php` runs the program the substitution printed, while
+# the bash form's quotes do the same job by making the substitution a word. Two shells, two spellings,
+# one command - which is why the table carries both and this program reads each in its own form.
+PWSH_RENDER = re.compile(r'^&\s*\(\s*python\s+\.agents/render_local\.py\s+--value\s+__PHP_EXE__\s*\)\s+')
+
 # Which PHP runs is decided in `.agents/php-bin.sh`, and the four things that used to decide it
 # separately are what the `interpreter` step reads. The three rungs of that ladder, as the step
 # spelled them before it moved there: the renderer, the `git config` key, and `php` on PATH.
@@ -606,6 +612,25 @@ def step_windsurf(root: Path) -> list[str]:
     return findings
 
 
+def command_forms(entry: dict) -> list[tuple[str, str]]:
+    """One command's forms, each with the shell it is written for.
+
+    Most commands are one line that either shell runs as it stands - `composer checks`, `sh
+    .agents/php-bin.sh --show` - so they carry one form. The four that render an interpreter inside
+    the command carry two, because the shells spell that rendering differently: bash makes the
+    substitution a word with quotes around it, while PowerShell 7 needs the call operator in front
+    of it to run what the substitution printed. One command, two spellings, and a reader who copies
+    the wrong one gets a syntax error rather than the check.
+    """
+    forms = [("bash", str(entry.get("line", "")))]
+    powershell = str(entry.get("powershell", "") or "")
+
+    if powershell:
+        forms.append(("PowerShell 7", powershell))
+
+    return forms
+
+
 def table_block(manifest: dict) -> str:
     commands = manifest.get("commands", {})
     tools = manifest.get("tools", {})
@@ -615,7 +640,13 @@ def table_block(manifest: dict) -> str:
         "| --- | --- | --- |",
     ]
     for name, entry in commands.items():
-        lines.append(f"| `{name}` | `{entry['line']}` | {entry['purpose']} |")
+        forms = command_forms(entry)
+
+        # One form is written as itself, because most commands are one command; a command with two is
+        # written as two and each says which shell it is for, since the whole point of the second is
+        # that the first does not run there.
+        runs = f"`{forms[0][1]}`" if len(forms) == 1 else " · ".join(f"{shell}: `{line}`" for shell, line in forms)
+        lines.append(f"| `{name}` | {runs} | {entry['purpose']} |")
 
     lines += ["", "| Tool | Runs as | Version asked for | For |", "| --- | --- | --- | --- |"]
     for name, entry in tools.items():
@@ -633,6 +664,183 @@ def rendered_toolchain(manifest: dict) -> str:
         f"{table_block(manifest)}\n"
         f"{TOOLCHAIN_END}"
     )
+
+
+def unreadable_program(root: Path, name: str, shell: str, line: str, script_names: set[str]) -> list[str]:
+    """The program a command names, when it is not the thing that command runs.
+
+    Read to the program rather than to the first word: `"$(python …)" bin/checks.php` renders an
+    interpreter in front of a program, and the program is what has to be here. Both renderings are
+    stripped for that reason, and the form is named in the finding when it is not the first one -
+    a broken line in the PowerShell half is a broken command, and a reader told only that `staged`
+    names nothing would look at the line that is right.
+    """
+    form = "" if shell == "bash" else f" (as {shell})"
+    stripped = PWSH_RENDER.sub("", PHP_RENDER.sub("", line))
+    renders = stripped != line
+    parts = stripped.split()
+    head = parts[0] if parts else ""
+
+    if head == "composer":
+        script = parts[1] if len(parts) > 1 else ""
+        if script and script not in script_names:
+            return [f".agents/toolchain.json: `{name}`{form} runs `{line}`, which no composer.json script provides"]
+    elif head == "python":
+        if len(parts) > 1 and not (root / parts[1]).is_file():
+            return [f".agents/toolchain.json: `{name}`{form} names {parts[1]}, which is not here"]
+    elif renders or head in ("php", "__PHP_EXE__"):
+        # Both shapes name an interpreter over a program, so both are read to the program: the
+        # rendered prefix is the interpreter, and the token form is the word after the token.
+        program = head if renders else (parts[1] if len(parts) > 1 else "")
+        if program and not (root / program).is_file():
+            return [f".agents/toolchain.json: `{name}`{form} names {program}, which is not here"]
+
+    return []
+
+
+# PowerShell, asked whether each line parses, in one start: the loop reports the index of the line
+# that threw and exits 1, and the caller turns that index back into the command's name. A command
+# carrying quotes cannot be written into a `-Command` string without being quoted a second time, so
+# the lines arrive in the environment, where they are handed over as they are.
+PWSH_PARSE = (
+    "$i = 0; "
+    'foreach ($line in ($env:RC_COMMAND_FORMS -split "`n")) { '
+    "$i++; "
+    "try { [void][scriptblock]::Create($line) } "
+    'catch { Write-Output "$i`: $($_.Exception.Message)"; exit 1 } }'
+)
+
+
+def command_shell(root: Path, name: str) -> str:
+    """The shell this machine runs, asked of the machine record before PATH.
+
+    The same order the toolchain probe asks it in, and for the same reason: `.agents/machine.local.json`
+    is where this machine's PowerShell 7 is named, and PATH is what a machine without a record falls
+    back to rather than what decides.
+    """
+    machine = root / ".agents" / "machine.local.json"
+    held = ""
+
+    if machine.is_file():
+        try:
+            data = json.loads(read(machine) or "{}")
+        except json.JSONDecodeError:
+            data = {}
+
+        section = data.get(name, {}) if isinstance(data, dict) else {}
+        held = str(section.get("exe", "")) if isinstance(section, dict) else ""
+
+    return held or (shutil.which(name) or "")
+
+
+def step_command_shells(root: Path, manifest: dict) -> list[str]:
+    """Each command form, parsed by the shell it is written for.
+
+    A form is a claim about a shell, and the two spellings of one rendering are each a syntax error
+    in the other - `& (…)` is not bash, and `"$(…)" program` is not how PowerShell runs a resolved
+    executable. So the question goes to the shell rather than to a pattern of this program's:
+    `bash -n` reads a command and runs nothing, and PowerShell's `[scriptblock]::Create` parses a
+    string and throws on a syntax error. Neither executes the command it reads, which matters -
+    a check that ran them would push, release and install on every commit.
+
+    A shell that is not here is a note rather than a finding: the hook runs on workstations, and a
+    Linux runner has no PowerShell 7 on it, so the half it cannot ask is said rather than failed.
+    """
+    findings: list[str] = []
+    forms = [
+        (shell, name, line)
+        for name, entry in manifest.get("commands", {}).items()
+        for shell, line in command_forms(entry)
+    ]
+
+    bash = [(name, line) for shell, name, line in forms if shell == "bash"]
+
+    if bash:
+        binary = shutil.which("bash")
+
+        if binary is None:
+            NOTES.append("toolchain: no bash on this machine, so the bash forms were not parsed")
+        else:
+            findings += parses_as_bash(root, binary, bash)
+
+    powershell = [(name, line) for shell, name, line in forms if shell == "PowerShell 7"]
+
+    if powershell:
+        binary = command_shell(root, "pwsh")
+
+        if not binary:
+            NOTES.append("toolchain: no PowerShell 7 on this machine, so the PowerShell forms were not parsed")
+        else:
+            findings += parses_as_powershell(root, binary, powershell)
+
+    return findings
+
+
+def parses_as_bash(root: Path, binary: str, forms: list[tuple[str, str]]) -> list[str]:
+    """Ask bash whether the forms parse, in one read, and name the one that does not.
+
+    One spawn for all of them because bash is started once per line otherwise and this runs in the
+    pre-commit hook - thirteen starts came to three seconds on the machine this was written on, for
+    a question whose answer is almost always "yes". A clean read is therefore one start; a failing
+    one is read again a line at a time, because "some line in the manifest does not parse" is not a
+    finding a reader can act on and the line number bash reports counts the joined lines rather than
+    the commands.
+    """
+    answer = capture(root, binary, "-n", "-c", "\n".join(line for _name, line in forms))
+
+    if answer.code is None:
+        NOTES.append("toolchain: bash could not be started, so the bash forms were not parsed")
+        return []
+
+    if answer.code == 0:
+        return []
+
+    findings: list[str] = []
+
+    for name, line in forms:
+        single = capture(root, binary, "-n", "-c", line)
+        last = (single.output.strip().splitlines() or ["no output"])[-1]
+
+        if single.code != 0:
+            findings.append(f".agents/toolchain.json: `{name}` does not parse as bash - {last}")
+
+    return findings or [
+        f".agents/toolchain.json: a bash form does not parse as it stands - {(answer.output.strip().splitlines() or ['no output'])[-1]}"
+    ]
+
+
+def parses_as_powershell(root: Path, binary: str, forms: list[tuple[str, str]]) -> list[str]:
+    """Ask PowerShell whether each line parses, in one start, naming the one that does not.
+
+    One process for all of them because PowerShell's own start-up is the expensive part - better
+    than a third of a second each - and a hook that adds two seconds is a hook somebody turns off.
+    """
+    answer = capture(
+        root,
+        binary,
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        PWSH_PARSE,
+        env={"RC_COMMAND_FORMS": "\n".join(line for _name, line in forms)},
+    )
+
+    if answer.code is None:
+        return []
+
+    if answer.code == 0:
+        return []
+
+    # The parser names the line it stopped on, so the command is named rather than the index.
+    reported = re.match(r"^(\d+)\s*:", answer.output.strip())
+
+    if reported:
+        index = int(reported.group(1)) - 1
+
+        if 0 <= index < len(forms):
+            return [f".agents/toolchain.json: `{forms[index][0]}` does not parse as PowerShell 7 - {answer.output.strip()}"]
+
+    return [f".agents/toolchain.json: a PowerShell form does not parse - {answer.output.strip()}"]
 
 
 def step_toolchain(root: Path) -> list[str]:
@@ -655,25 +863,14 @@ def step_toolchain(root: Path) -> list[str]:
     scripts = composer.get("scripts", {})
     script_names = set(scripts) if isinstance(scripts, dict) else set()
 
+    # Every form of every command, each read to the program it runs: the two spellings of one
+    # rendering are one command, and a check that understood only the bash one would pass a
+    # PowerShell line naming a file nobody has.
     for name, entry in manifest.get("commands", {}).items():
-        line = str(entry.get("line", ""))
-        renders_php = bool(PHP_RENDER.match(line))
-        parts = PHP_RENDER.sub("", line).split()
-        head = parts[0] if parts else ""
+        for shell, line in command_forms(entry):
+            findings += unreadable_program(root, name, shell, line, script_names)
 
-        if head == "composer":
-            script = parts[1] if len(parts) > 1 else ""
-            if script and script not in script_names:
-                findings.append(f".agents/toolchain.json: `{name}` runs `{line}`, which no composer.json script provides")
-        elif head == "python":
-            if len(parts) > 1 and not (root / parts[1]).is_file():
-                findings.append(f".agents/toolchain.json: `{name}` names {parts[1]}, which is not here")
-        elif renders_php or head in ("php", "__PHP_EXE__"):
-            # Both forms name an interpreter over a program, so both are read to the program: the
-            # rendered prefix is the interpreter, and the token form is the word after the token.
-            program = head if renders_php else (parts[1] if len(parts) > 1 else "")
-            if program and not (root / program).is_file():
-                findings.append(f".agents/toolchain.json: `{name}` names {program}, which is not here")
+    findings += step_command_shells(root, manifest)
 
     canonical = read(root / "AGENTS.md")
     block = re.search(re.escape(TOOLCHAIN_BEGIN) + r".*?" + re.escape(TOOLCHAIN_END), canonical, re.DOTALL)
@@ -1226,7 +1423,7 @@ class Answer(NamedTuple):
     output: str
 
 
-def capture(root: Path, *command: str, timeout: int = 300) -> Answer:
+def capture(root: Path, *command: str, timeout: int = 300, env: dict[str, str] | None = None) -> Answer:
     """A command's status beside its output, rather than only its output.
 
     A probe is asking a tool a question, so a non-zero exit is an answer too - it is the caller that
@@ -1237,6 +1434,12 @@ def capture(root: Path, *command: str, timeout: int = 300) -> Answer:
     because the question is what the program said and the line that explains a failure is as often
     on the second stream as on the first.
     """
+    # The environment is this one with the given lines added, rather than a replacement: a probe runs
+    # the programs this machine has, on the PATH it has, and only a value the caller is handing to the
+    # program it starts is new. Handing a whole environment over would be a second answer to what this
+    # machine is, which is the thing `.agents/machine.local.json` exists to hold.
+    environment = None if env is None else {**os.environ, **env}
+
     try:
         result = subprocess.run(
             list(command),
@@ -1245,6 +1448,7 @@ def capture(root: Path, *command: str, timeout: int = 300) -> Answer:
             text=True,
             timeout=timeout,
             check=False,
+            env=environment,
         )
     except (OSError, subprocess.TimeoutExpired):
         return Answer(code=None, output="")
@@ -1745,6 +1949,7 @@ MUTATIONS = [(step[0], step[0]) for step in SELFTESTABLE] + [
     ("tokens", "renderer-crashed"),
     ("tools", "composer-exits"),
     ("tokens", "template-unknown-token"),
+    ("toolchain", "command-form"),
 ]
 
 # Rounds that have to report a *particular* fault rather than any fault. A step with several readings
@@ -1759,6 +1964,9 @@ EXPECT = {
     # template that does not parse - and the unreadable-tree rounds above would be answered by any of
     # them, so this round names the placeholder it planted.
     ("tokens", "template-unknown-token"): "names __PHP_PATH__, which nothing resolves",
+    # Only the form's own shell can answer this one: the line still looks like a command to every
+    # pattern here, and the program it names is still on disk.
+    ("toolchain", "command-form"): "does not parse as PowerShell 7",
 }
 
 
@@ -2076,6 +2284,17 @@ def mutate(name: str, root: Path) -> None:
     elif name == "tokens":
         path = root / "CLAUDE.md"
         path.write_text(read(path) + "\nThe PHP binary is `__PHP_PATH__`.\n", encoding="utf-8")
+    elif name == "command-form":
+        # A PowerShell form with its closing parenthesis gone. The bash form is untouched, the
+        # manifest is still valid JSON, and the program the line names is still on disk — so every
+        # reading this step had before the form was parsed passes it, and the only thing that can
+        # report it is the shell the line is written for.
+        path = root / ".agents" / "toolchain.json"
+        manifest = json.loads(read(path))
+        manifest["commands"]["staged"]["powershell"] = manifest["commands"]["staged"]["powershell"].replace(
+            ") bin/checks.php", " bin/checks.php"
+        )
+        path.write_text(json.dumps(manifest, indent=4) + "\n", encoding="utf-8")
     elif name == "template-unknown-token":
         # A committed template naming a placeholder the table does not have, which is the mistake a
         # template makes on its own: it is written once and rendered on every machine, so the file it

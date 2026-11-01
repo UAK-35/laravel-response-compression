@@ -4,8 +4,8 @@
   "description": "Carry a version's tag to the remote, and check the pushing runbook against the tree it describes. Commands - push, verify-pushing. Invoke when a cut tag has to reach the remote, when a push was refused or carried nothing, or when a claim in the pushing runbook needs checking again.",
   "author": "UAK35",
   "license": "MIT",
-  "date": "2026-10-29",
-  "updated_at": 1793280064179,
+  "date": "2026-11-01",
+  "updated_at": 1793560651347,
   "tags": [
     "push",
     "tags",
@@ -19,5 +19,5 @@
   "organization": "UAK35",
   "platform": "codebuff",
   "id": 802439493,
-  "source_hash": "08b2e6ce625a2bfe"
+  "source_hash": "463b0e874809f812"
 }

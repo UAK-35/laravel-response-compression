@@ -19,7 +19,7 @@
             "model": "opencode/north-mini-code-free",
             // The canonical agent body lives under .agents/. This inline entry is only the
             // OpenCode registration; the system prompt points at the single source of truth.
-            "system": "Read and follow the canonical agent definition at .agents/agents/php-code-analyzer.md before acting. Skills live under .agents/skills/.",
+            "system": "Read and follow the canonical definition at .agents/skills/php-code-analyzer/SKILL.md before acting. It is a skill rather than a custom agent: the analysis is a reading this repository performs with its own tools, and .agents/agents/ holds the one agent that is a separate role.",
             // V1 `"bash": "allow"` -> V2 `shell` allow. The other V1 entries (read/edit/glob/
             // grep/list) already match V2's default-allow base policy, and `list` is not a V2
             // permission action, so only the shell grant is carried over.
