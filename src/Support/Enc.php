@@ -23,7 +23,7 @@ final readonly class Enc
         try {
             $uncompressed = brotli_uncompress($data);
 
-            return ! in_array($uncompressed, ['', '0'], true) && $uncompressed !== false;
+            return $uncompressed !== false;
         } catch (Exception|Error) {
             // @codeCoverageIgnoreStart
             // Only reachable when ext-brotli is missing, which CI cannot reproduce:

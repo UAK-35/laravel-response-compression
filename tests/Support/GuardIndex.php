@@ -1385,7 +1385,7 @@ final class GuardIndex
      * The declaration a block carries, and the line it is on.
      *
      * @param  array{text: string, at: int}  $block
-     * @return array{section: string, line: int}|null
+     * @return array{section: string, line: int, name: ?string}|null
      */
     private static function declaration(string $contents, array $block): ?array
     {

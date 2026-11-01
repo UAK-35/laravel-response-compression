@@ -1,0 +1,130 @@
+--- a/src/Middleware/CompressResponse.php
++++ b/src/Middleware/CompressResponse.php
+@@ -27,6 +27,8 @@ use Uak35\ResponseCompression\Support\Diagnostic;
+  */
+ final class CompressResponse
+ {
++    private bool $userAgentConsulted = false;
++
+     /**
+      * Handle an incoming request.
+      *
+@@ -51,10 +53,26 @@ final class CompressResponse
+ 
+         $this->logDebugStatus(Diagnostic::CompressionChecking, ['uri' => $requestUri]);
+ 
+-        // early exit if compression is not allowed for this request
+-        if (! $this->validateRequest($request, $requestUri)) {
+-            $this->logDebugStatus(Diagnostic::CompressionNotAllowed);
+-
+-            return $this->vary($next($request));
++        // early exit if compression is not allowed for this request (Bug 6 fix)
++        if ($this->tryMultipleEncodings()) {
++            // Multiple-encoding mode: validate against accepted encodings directly
++            $hasAcceptedEncoding = false;
++            foreach ($this->encodingOrder() as $encoding) {
++                if (in_array($encoding, $request->getEncodings(), true)) {
++                    $hasAcceptedEncoding = true;
++                    break;
++                }
++            }
++            
++            if (! $hasAcceptedEncoding) {
++                $this->logDebugStatus(Diagnostic::CompressionNotAllowed);
++                return $this->vary($next($request));
++            }
++        } else {
++            // Single-algorithm mode uses existing validation
++            if (! $this->validateRequest($request, $requestUri)) {
++                $this->logDebugStatus(Diagnostic::CompressionNotAllowed);
++                return $this->vary($next($request));
++            }
+         }
+ 
+         $response = $next($request);
+@@ -63,6 +81,7 @@ final class CompressResponse
+             foreach ($this->encodingOrder() as $encoding) {
+                 if ($this->shouldCompressForAlgo($encoding, $request, $response, $requestUri)) {
+                     $response = $this->encode($encoding, $response, $requestUri);
++                    break;
+                 }
+             }
+ 
+@@ -105,6 +124,10 @@ final class CompressResponse
+ 
+         $response->setVary('Accept-Encoding', false);
+ 
++        if ($this->userAgentConsulted) {
++            $response->setVary('User-Agent', false);
++        }
++
+         return $response;
+     }
+ 
+@@ -166,6 +189,24 @@ final class CompressResponse
+             return false;
+         }
+ 
++        if ($response->headers->has('Content-Encoding')) {
++            $this->logDebugStatus(Diagnostic::ResponseSkipped, [
++                'reason' => 'already_encoded',
++                'uri' => $requestUri,
++            ]);
++
++            return false;
++        }
++
++        if ($response->getStatusCode() === 206 || $response->headers->has('Content-Range')) {
++            $this->logDebugStatus(Diagnostic::ResponseSkipped, [
++                'reason' => 'partial_content',
++                'uri' => $requestUri,
++            ]);
++
++            return false;
++        }
++
+         $content = $response->getContent();
+ 
+         if (! is_string($content)) {
+@@ -264,7 +305,9 @@ final class CompressResponse
+         // A request that names no encoding has not asked for one. An absent header and a
+         // wildcard are different requests: Symfony reads a missing Accept-Encoding as an
+         // empty list, while `*` is the client saying it accepts anything.
+-        if (! in_array('*', $requestEncodings, true) && ! in_array($compressionAlgorithm, $requestEncodings, true)) {
++        // Normalize both sides to lowercase for case-insensitive comparison per HTTP spec (Bug 9 fix).
++        $requestEncodings = array_map('strtolower', $requestEncodings);
++        if (! in_array('*', $requestEncodings, true) && ! in_array(strtolower($compressionAlgorithm), $requestEncodings, true)) {
+             $this->logDebugStatus(Diagnostic::EncodingNotAccepted, ['uri' => $requestUri]);
+ 
+             return false;
+         }
+ 
++        $preferences = AcceptEncoding::preferences($acceptEncoding);
++        $quality = $preferences[$compressionAlgorithm]
++            ?? $preferences[AcceptEncoding::ANY]
++            ?? 1.0;
++
++        if ($quality <= 0.0) {
++            $this->logDebugStatus(Diagnostic::EncodingNotAccepted, [
++                'encoding' => $compressionAlgorithm,
++                'quality' => (string) $quality,
++                'uri' => $requestUri,
++            ]);
++
++            return false;
++        }
++
+         // A user agent identified by a common prefix is known to decode this encoding
+         // badly over a non-secure connection, so it is served the body as-is. `array_all`
+         // is the PHP 8.4 spelling of "none of these match".
++        $prefixes = $this->nonSupportingUserAgentPrefixes($compressionAlgorithm);
++        if (count($prefixes) > 0) {
++            $this->userAgentConsulted = true;
++        }
++
+         $didNotMatched = array_all(
+-            $this->nonSupportingUserAgentPrefixes($compressionAlgorithm),
++            $prefixes,
+             static fn (string $prefix): bool => $requestUserAgent === null || ! str_starts_with($requestUserAgent, $prefix),
+         );
+ 

@@ -477,7 +477,7 @@ Apply fixes in optimal sequence. Each fix is minimal and surgical, preserving ex
     - _Preservation: Weak ETags and absent ETags handled as before_
     - _Requirements: 2.3, 2.8_
 
-  - [ ] 3.6 Bug 3 - Pre-Compression Detection (validation guard)
+  - [x] 3.6 Bug 3 - Pre-Compression Detection (validation guard)
     - Update `src/Middleware/CompressResponse.php` in `validateResponse()` method
     - Add check after line 162 (after status validation):
     ```php
@@ -496,7 +496,7 @@ Apply fixes in optimal sequence. Each fix is minimal and surgical, preserving ex
     - _Preservation: Responses without Content-Encoding compress normally_
     - _Requirements: 1.3, 2.3_
 
-  - [ ] 3.7 Bug 5 - Partial Response Handling (validation guard)
+  - [x] 3.7 Bug 5 - Partial Response Handling (validation guard)
     - Update `src/Middleware/CompressResponse.php` in `validateResponse()` method
     - Add check after existing 304 check (after line 170):
     ```php
@@ -515,7 +515,7 @@ Apply fixes in optimal sequence. Each fix is minimal and surgical, preserving ex
     - _Preservation: Status 200 complete responses compress normally_
     - _Requirements: 1.5, 2.5_
 
-  - [ ] 3.8 Bug 4 - Quality Zero Handling (validation logic)
+  - [x] 3.8 Bug 4 - Quality Zero Handling (validation logic)
     - Update `src/Middleware/CompressResponse.php` in `validateRequestPerAlgoAndUserAgent()`
     - Add quality check after line 267 (after encoding presence check):
     ```php
@@ -540,7 +540,7 @@ Apply fixes in optimal sequence. Each fix is minimal and surgical, preserving ex
     - _Preservation: Positive quality values continue to compress_
     - _Requirements: 1.4, 2.4_
 
-  - [ ] 3.9 Bug 2 - Multiple Encoding Loop (control flow fix)
+  - [x] 3.9 Bug 2 - Multiple Encoding Loop (control flow fix)
     - Update `src/Middleware/CompressResponse.php` lines 62-69 in `handle()`
     - Add `break;` statement after successful compression in loop:
     ```php

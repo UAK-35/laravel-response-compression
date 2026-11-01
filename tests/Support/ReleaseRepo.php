@@ -423,8 +423,7 @@ final class ReleaseRepo
         );
 
         fclose($pipes[0]);
-        $output = (string) stream_get_contents($pipes[1]);
-        $error = (string) stream_get_contents($pipes[2]);
+        [$output, $error] = $this->drainPipes($pipes);
         fclose($pipes[1]);
         fclose($pipes[2]);
 
@@ -612,6 +611,79 @@ final class ReleaseRepo
     private static function changelog(string $notes): string
     {
         return "# Changelog\n\n## Unreleased\n\n".trim($notes, "\n")."\n\n## [v0.0.1] - 2025-01-01\n\n### Added\n\n- The first release.\n";
+    }
+
+    /**
+     * Drain stdout and stderr concurrently to prevent deadlock.
+     *
+     * @param  resource[]  $pipes
+     * @return array{string, string} [$stdout, $stderr]
+     */
+    private function drainPipes(array $pipes): array
+    {
+        $stdout = '';
+        $stderr = '';
+
+        // Set both pipes to non-blocking mode
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
+
+        // Keep reading until both pipes reach EOF
+        dump('drainPipes: Starting to read pipes');
+        $iterations = 0;
+        $maxIterations = 10000; // Safety limit
+
+        dump('Before while loop');
+        while ($iterations++ < $maxIterations) {
+            if ($iterations === 1) {
+                dump('drainPipes: FIRST iteration starting');
+            }
+            if ($iterations % 100 === 0) {
+                dump("drainPipes: iteration $iterations");
+            }
+            $hasData = false;
+
+            // Try reading from stdout
+            if ($iterations === 1) {
+                dump('Before stdout read');
+            }
+            if (! feof($pipes[1])) {
+                $chunk = fread($pipes[1], 8192);
+                if ($iterations === 1) {
+                    dump('After stdout fread, got '.strlen($chunk ?? '').' bytes');
+                }
+                if ($chunk !== false && $chunk !== '') {
+                    $stdout .= $chunk;
+                    $hasData = true;
+                }
+            }
+            if ($iterations === 1) {
+                dump('After stdout block');
+            }
+
+            // Try reading from stderr
+            if (! feof($pipes[2])) {
+                $chunk = fread($pipes[2], 8192);
+                if ($chunk !== false && $chunk !== '') {
+                    $stderr .= $chunk;
+                    $hasData = true;
+                }
+            }
+
+            // If both pipes are at EOF, we're done
+            if (feof($pipes[1]) && feof($pipes[2])) {
+                break;
+            }
+
+            // If no data was read in this iteration, sleep briefly to avoid busy-waiting
+            if (! $hasData) {
+                usleep(1000); // 1ms
+            }
+        }
+
+        dump("Exiting drainPipes after $iterations iterations");
+
+        return [$stdout, $stderr];
     }
 
     /**

@@ -19,11 +19,15 @@ final class BrotliEncoder implements Encoder
             if ($compressed) {
                 $response->setContent($compressed);
 
-                $response->headers->add([
-                    'Content-Encoding' => 'br',
-                    'Vary' => 'Accept-Encoding',
-                    'Content-Length' => strlen($compressed),
-                ]);
+                // Weaken strong ETag after content modification (RFC 9110 § 8.8.1)
+                $etag = $response->headers->get('ETag');
+                if ($etag !== null && str_starts_with($etag, '"') && ! str_starts_with($etag, 'W/')) {
+                    $response->headers->set('ETag', 'W/'.$etag);
+                }
+
+                $response->headers->set('Content-Encoding', 'br');
+                $response->headers->set('Content-Length', (string) strlen($compressed));
+                $response->setVary('Accept-Encoding', false); // false = append, don't replace
             }
         }
 

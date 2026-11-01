@@ -27,6 +27,8 @@ use Uak35\ResponseCompression\Support\Diagnostic;
  */
 final class CompressResponse
 {
+    private bool $userAgentConsulted = false;
+
     /**
      * Handle an incoming request.
      *
@@ -95,15 +97,41 @@ final class CompressResponse
      */
     private function vary(Response $response): Response
     {
+        // Check if Accept-Encoding is already present
+        $hasAcceptEncoding = false;
         foreach ($response->headers->all('Vary') as $header) {
             foreach (explode(',', (string) $header) as $value) {
                 if (strcasecmp(trim($value), 'Accept-Encoding') === 0) {
-                    return $response;
+                    $hasAcceptEncoding = true;
+                    break 2;
                 }
             }
         }
 
-        $response->setVary('Accept-Encoding', false);
+        // Add Accept-Encoding if not present
+        if (! $hasAcceptEncoding) {
+            $response->setVary('Accept-Encoding', false);
+        }
+
+        // Add User-Agent if the flag indicates we consulted it
+        if ($this->userAgentConsulted) {
+            $existingVary = $response->headers->get('Vary', '');
+            $varyValues = array_filter(array_map('trim', explode(',', $existingVary)));
+
+            // Only add User-Agent if not already present
+            $hasUserAgent = false;
+            foreach ($varyValues as $value) {
+                if (strcasecmp($value, 'User-Agent') === 0) {
+                    $hasUserAgent = true;
+                    break;
+                }
+            }
+
+            if (! $hasUserAgent) {
+                $varyValues[] = 'User-Agent';
+                $response->headers->set('Vary', implode(', ', $varyValues));
+            }
+        }
 
         return $response;
     }
@@ -273,8 +301,13 @@ final class CompressResponse
         // A user agent identified by a common prefix is known to decode this encoding
         // badly over a non-secure connection, so it is served the body as-is. `array_all`
         // is the PHP 8.4 spelling of "none of these match".
+        $prefixes = $this->nonSupportingUserAgentPrefixes($compressionAlgorithm);
+        if (count($prefixes) > 0) {
+            $this->userAgentConsulted = true;
+        }
+
         $didNotMatched = array_all(
-            $this->nonSupportingUserAgentPrefixes($compressionAlgorithm),
+            $prefixes,
             static fn (string $prefix): bool => $requestUserAgent === null || ! str_starts_with($requestUserAgent, $prefix),
         );
 

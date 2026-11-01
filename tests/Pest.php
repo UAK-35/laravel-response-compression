@@ -8,52 +8,14 @@ use Uak35\ResponseCompression\Middleware\CompressResponse;
 use Uak35\ResponseCompression\Tests\Support\Notes;
 use Uak35\ResponseCompression\Tests\TestCase;
 
-/*
-|--------------------------------------------------------------------------
-| Test Case
-|--------------------------------------------------------------------------
-|
-| The closure you provide to your test functions is always bound to a specific PHPUnit test
-| case class. By default, that class is "PHPUnit\Framework\TestCase". Of course, you may
-| need to change it using the "pest()" function to bind a different classes or traits.
-|
-*/
-
 pest()->extend(TestCase::class)->in('Unit')
     ->afterEach(function (): void {
         foreach (Notes::take() as $note) {
-            // What a reading declined to ask, printed by the test that made it. The error stream
-            // rather than the output one: PHPUnit keeps what a test writes to output as that test's
-            // unexpected output, which it shows only for a test that did not pass — and on a runner
-            // both streams are dropped that way, which is why a run that named a sink has nothing to
-            // print here: the file is that half, and the program that named it is what prints.
             fwrite(STDERR, $note.PHP_EOL);
         }
     });
 
-/*
-|--------------------------------------------------------------------------
-| Expectations
-|--------------------------------------------------------------------------
-|
-| When you're writing tests, you often need to check that values meet certain conditions. The
-| "expect()" function gives you access to a set of "expectations" methods that you can use
-| to assert different things. Of course, you may extend the Expectation API at any time.
-|
-*/
-
 expect()->extend('toBeOne', fn () => $this->toBe(1));
-
-/*
-|--------------------------------------------------------------------------
-| Functions
-|--------------------------------------------------------------------------
-|
-| While Pest is very powerful out-of-the-box, you may have some testing code specific to your
-| project that you don't want to repeat in every file. Here you can also expose helpers as
-| global functions to help you to reduce the number of lines of code in your test files.
-|
-*/
 
 function runCompressResponseMiddleware(Request $request, Response $response): Response
 {
@@ -82,4 +44,31 @@ function getShortHtmlContent(): string
 function packageRoot(): string
 {
     return dirname(__DIR__);
+}
+
+/**
+ * Generate deterministic incompressible content.
+ *
+ * Uses a seeded PRNG to generate pseudo-random bytes that compress poorly.
+ * Deterministic for reproducibility across test runs.
+ */
+function incompressibleContent(int $bytes = 2048): string
+{
+    mt_srand(42);
+    $chunks = [];
+
+    $remaining = $bytes;
+    while ($remaining > 0) {
+        $chunkSize = min(1024, $remaining);
+        $chunk = '';
+        for ($i = 0; $i < $chunkSize; $i++) {
+            $chunk .= chr(mt_rand(0, 255));
+        }
+        $chunks[] = $chunk;
+        $remaining -= $chunkSize;
+    }
+
+    mt_srand();
+
+    return implode('', $chunks);
 }

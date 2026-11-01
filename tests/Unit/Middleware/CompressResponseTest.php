@@ -189,16 +189,21 @@ it('should brotli compress json response', function (): void {
 });
 
 it('should not affect pre-compressed content', function (): void {
+    // Use incompressible content to ensure compressed size > min_length
+    $content = incompressibleContent(3000);
+    $gzipped = gzencode($content, 9);
 
-    $content = gzencode(getLongContent());
+    // Assert fixture meets requirements
+    expect(strlen($gzipped))->toBeGreaterThan(1024,
+        'Fixture compressed size must exceed min_length for test to be effective');
 
     $result = runCompressResponseMiddleware(
         Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
-        new Response($content, 200, ['Content-Type' => 'text/plain', 'Content-Encoding' => 'gzip'])
+        new Response($gzipped, 200, ['Content-Type' => 'text/plain', 'Content-Encoding' => 'gzip', 'Content-Length' => strlen($gzipped)])
     );
 
     expect($result->getStatusCode())->toBe(Response::HTTP_OK)
-        ->and($result->getContent())->toBe($content)
+        ->and($result->getContent())->toBe($gzipped)
         ->and(Enc::isGzipEncoded($result->getContent() ?: ''))->toBeTrue();
 });
 
@@ -581,7 +586,7 @@ it('marks a response left alone when no configured encoding is accepted', functi
 
 it('keeps an existing Vary value beside Accept-Encoding rather than replacing it', function (): void {
     $result = runCompressResponseMiddleware(
-        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'identity']),
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
         new Response(getLongContent(), 200, ['Content-Type' => 'text/plain', 'Vary' => 'Origin'])
     );
 
