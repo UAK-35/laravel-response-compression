@@ -794,6 +794,23 @@ read as a runner that still runs the gate.
   `.agents/skills/rc-report/` with its Windsurf pointer and `GEMINI.md` import; `.agents/README.md`
   gains its row, `docs/scripts.md` lists its source, and `docs/tool-registry.md`'s inventory of the
   skill sources — which still said five, and omitted `rc-investigation` — now names all seven.
+- **A new `rc-plan` skill turns a prompt that asks for a plan into a document under `docs/plans/`,
+  numbered and dated the way the report and investigation records are.** It activates on the
+  `/rc-plan` marker — the `/lpr-plan` spelling the request also named is read as the same marker, so
+  neither is guessed at — and otherwise on *create a plan*, *plan the* or *need a plan*, where it asks
+  `Is this an RC plan?` before beginning the response and proceeds only on yes. The document is
+  written after the response is finished: the prompt as it was put, the goal, the steps in order with
+  what each touches and how each is verified, the risks and the way back, and what the plan does not
+  decide. The name is `NNNN-YYYY-MM-DD_plan-<slug>.md`, carrying the ordering rule the report skill
+  states — recorded timestamps first, then the commit that added the file, then the filesystem's
+  creation time with any uncertainty recorded, ties broken by filename, numbering from `0001`, a
+  renumber that preserves date and slug and updates the references to it, a complete rename map
+  applied through temporary names inside the folder, and relative order kept with the limitation
+  stated when order cannot be established. `docs/plans/` does not exist yet: the first plan creates
+  it, so this change had no existing document to renumber. The skill is authored in `.skills/rc-plan/`
+  and generated into `.agents/skills/rc-plan/` with its Windsurf pointer and `GEMINI.md` import;
+  `.agents/README.md` gains its row, `docs/scripts.md` lists its source, and `docs/tool-registry.md`'s
+  inventory now names all eight skills.
 
 ### Changed
 
