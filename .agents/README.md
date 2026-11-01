@@ -77,6 +77,7 @@ python .agents/verify.py     # prove the layer is consistent
 | Tool | How it reads `.agents/` |
 |---|---|
 | Freebuff / Codebuff | loads `.agents/skills/<name>/SKILL.md` and `.agents/agents/<id>.md` natively |
+| Codex | root `AGENTS.md` supplies instructions; `.codex/config.toml` supplies project defaults; `.codex/README.md` explains loading and points to this index; skills use `.agents/skills/` |
 | Claude Code | documented to read `.agents/skills/` directly — `CLAUDE.md` points here |
 | Trae | `.trae/settings.json` → `skillRoots` / `agentRoots` = `.agents/…` |
 | Gemini CLI | `GEMINI.md`'s generated `<!-- SKILLS-IMPORT -->` block `@`-imports each `SKILL.md` |

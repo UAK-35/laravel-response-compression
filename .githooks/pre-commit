@@ -83,7 +83,7 @@ fi
 #
 # Same rule as the interpreter above: a machine without Python loses this check rather than the
 # commit, and a finding is printed by the check itself before this says anything.
-agentic_staged="$(git diff --cached --name-only | grep -E '^(AGENTS\.md|CLAUDE\.md|GEMINI\.md|\.agents/|\.skills/|\.trae/|\.cursor/|\.continue/|\.junie/|\.kiro/|\.windsurf/|\.github/copilot-instructions\.md)' || true)"
+agentic_staged="$(git diff --cached --name-only | grep -E '^(AGENTS\.md|CLAUDE\.md|GEMINI\.md|\.agents/|\.skills/|\.codex/|\.trae/|\.cursor/|\.continue/|\.junie/|\.kiro/|\.windsurf/|\.github/copilot-instructions\.md)' || true)"
 
 if [ -n "$agentic_staged" ] && [ -f .agents/verify.py ]; then
     python_bin=""

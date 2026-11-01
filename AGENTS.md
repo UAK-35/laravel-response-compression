@@ -2,7 +2,7 @@
 
 This is the **single source of truth** for AI agents and development tools working in this
 repository. Every other agentic file — `CLAUDE.md`, `GEMINI.md`, `.trae/TRAE.md`, the rules under
-`.cursor/`, `.continue/`, `.junie/`, `.kiro/`, `.windsurf/` and `.github/` — points here and restates
+`.codex/`, `.cursor/`, `.continue/`, `.junie/`, `.kiro/`, `.windsurf/` and `.github/` — points here and restates
 nothing, so a rule is edited in exactly one place and cannot come to mean two things.
 
 **Skills and custom agents live only under `.agents/`:**
@@ -421,6 +421,25 @@ Two rules follow, and both are enforced rather than asked for:
 - A claim in a record is checked where it can be: `ConfigClaimsTest` reads the docblock beside each
   config key and the README's copy of it, so a key whose comment says it is read by something that
   stopped reading it fails there.
+
+### Reports
+
+Write requested audit and review reports under `docs/reports/`. Each report filename is
+`NNNN-YYYY-MM-DD_rpt-<slug>.md`: a sequence padded to at least four digits, the report's original
+creation date, and a short lowercase slug with words joined by hyphens. Record the creation date
+and timezone inside the report; editing a report does not change that date.
+
+Before adding a report, inventory the existing report documents in that folder and try to order
+them by original creation time, earliest first. Use a recorded creation timestamp where available,
+otherwise the earliest Git addition date, otherwise the filesystem creation time. Filesystem dates
+can describe a checkout or copy rather than authorship; record the evidence used and any uncertainty.
+Break timestamp ties by the existing filename. Number the resulting order consecutively from
+`0001`, including the new report. Renumber existing reports when that evidence establishes their
+order, preserving their date and slug and updating repository references to renamed files. Plan the
+complete rename map first and use temporary names inside the folder to avoid collisions. If original
+order cannot be established, preserve existing relative order, append the new report, and explain the
+limitation in it. This convention applies to report documents in `docs/reports/`; investigation
+records keep their own naming convention.
 
 ---
 

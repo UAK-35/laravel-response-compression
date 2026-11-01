@@ -1,0 +1,16 @@
+# Portable project defaults; the host's enforced permissions remain authoritative.
+approval_policy = "on-request"
+approvals_reviewer = "auto_review"
+sandbox_mode = "workspace-write"
+
+# Keep discovery anchored at this checkout and leave room for its canonical rules.
+project_root_markers = [".git"]
+project_doc_max_bytes = 65536
+developer_instructions = "Follow AGENTS.md, including its session startup sequence and repository scope. Read .agents/README.md for the canonical skills, custom agents and commands."
+
+[sandbox_workspace_write]
+network_access = false
+writable_roots = []
+# Preserve the current host's temporary-directory allowances for tool execution.
+exclude_tmpdir_env_var = false
+exclude_slash_tmp = false

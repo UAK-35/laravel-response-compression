@@ -71,7 +71,7 @@
 /bin/workbench.sh      export-ignore
 
 # The agentic layer: the rules an agent reads, the skills it loads, the checks that keep the two
-# honest, and a pointer file for each of the ten tools that expect one. A consumer installs the
+# honest, and pointer files for the tools that expect them. A consumer installs the
 # middleware and the config; none of this is anything they run. It is left in the repository rather
 # than hidden because it is the reasoning behind the code - and `.agents/machine.local.json`, which
 # is the only file in it that names a machine, is gitignored rather than exported.
@@ -79,6 +79,7 @@
 /BEHAVE.mdc         export-ignore
 /CLAUDE.md          export-ignore
 /GEMINI.md          export-ignore
+/.codex            export-ignore
 /.agents            export-ignore
 /.skills            export-ignore
 /.trae              export-ignore
