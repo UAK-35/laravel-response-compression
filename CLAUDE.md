@@ -3,12 +3,12 @@
 > Canonical project rules live in **`AGENTS.md`**. This file is a pointer — it does not restate
 > them, so it cannot drift.
 
-## Read, in order
+## Where to start
 
-1. `AGENTS.md` — canonical rules (what this package is, the gate, the guards, the code rules, the
-   release and push runbooks, the commands).
-2. `.agents/README.md` — skills, custom agents and commands: the index of everything loadable.
-3. `.agents/agents/` — custom agents (`@code-reviewer`).
+The order a session loads this repository in is section 3 of `AGENTS.md`, and it is not repeated
+here: this file is a pointer, and a second copy of that list is a second answer the day the section
+changes. `.agents/README.md` is the index of skills, custom agents and commands, and the custom
+agents themselves live in `.agents/agents/` (`@code-reviewer`).
 
 Claude Code reads skills **directly** from `.agents/skills/<name>/SKILL.md`. There is no
 `.claude/skills/` copy and there must never be one.

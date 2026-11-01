@@ -115,7 +115,7 @@ Nothing else in this repository writes an interpreter down, and nothing else dec
 `.agents/php-bin.sh` is the one place that answers "which PHP", in this order: `$RESPONSE_COMPRESSION_PHP`,
 then `.agents/machine.local.json` read through `python .agents/render_local.py --value __PHP_EXE__`,
 then `git config --get response-compression.php`, then `php` on `PATH`. `sh .agents/php-bin.sh --show`
-says which rung answered about this checkout, and four things ask rather than deciding again:
+says which rung answered about this checkout, and five things ask rather than deciding again:
 
 - the **pre-commit hook**, which skips rather than blocking when no interpreter is found — a machine
   without PHP must not become a machine that cannot commit — and says so when a fallback answered;
@@ -124,11 +124,15 @@ says which rung answered about this checkout, and four things ask rather than de
 - **`bin/tool.php`**, which prints one line when the tool is about to run under an interpreter other
   than the one this machine names — the vendor/bin failure one layer up;
 - **`bin/coverage.php`**, whose header names both interpreters when they differ, because a floor
-  recorded under one and measured under another is the first thing to rule out when one moves.
+  recorded under one and measured under another is the first thing to rule out when one moves;
+- **`python .agents/verify.py`**, which runs the gate, the two path guards and every tool under the
+  interpreter that answered, so the verifier and the hook cannot measure one tree under two.
 
 A composer script runs under `PHP_BINARY` and names none, and every tool in `bin/` runs a vendor
 entry file the same way (`.agents/toolchain.json` has the rule). `python .agents/verify.py`'s
-`interpreter` step refuses a second copy of any of the four, and `tools` asks the resolver to prove
+`interpreter` step refuses a second copy of any of the five — the verifier's own resolution included,
+which it proves by planting an override for the length of one call and requiring that answer back —
+and `tools` asks the resolver to prove
 its own ladder — four rungs is four chances to answer something else, and the shell file is what
 `Tests\Support\PhpBinary` and the hook both believe.
 
@@ -305,14 +309,17 @@ once per clone:
 git config core.hooksPath .githooks
 ```
 
-It takes the interpreter from `.agents/machine.local.json` first — through
-`python .agents/render_local.py --value __PHP_EXE__`, so the same value every settings file is
-rendered from and the same one `python .agents/verify.py` asks about — then from
-`$RESPONSE_COMPRESSION_PHP`, then from a `response-compression.php` entry in `.git/config`, then
-from `php` on `PATH`. The last three are older ways of naming an interpreter and survive only so
-that a clone which has not run `python .agents/render_local.py --init` still commits; when one of
-them is what answered, the hook **says so**, because a check run under an interpreter nothing else
-in the repository agreed to is the failure that leaves no trace. It **skips rather than blocks**
+It asks `.agents/php-bin.sh` for the interpreter, in the order section 2 states it — the
+`$RESPONSE_COMPRESSION_PHP` override first, then `.agents/machine.local.json` (through
+`python .agents/render_local.py --value __PHP_EXE__`, the same value every settings file is rendered
+from and the same one `python .agents/verify.py` asks for), then a `response-compression.php` entry
+in `.git/config`, then `php` on `PATH`. Nothing decides a second time: `python .agents/verify.py`'s
+`interpreter` step refuses a second copy in this file's callers and in the verifier itself, and it
+plants an override to prove that the verifier reads the resolver's answer rather than choosing one.
+The last two rungs are older ways of naming an interpreter and survive only so that a clone which
+has not run `python .agents/render_local.py --init` still commits; when one of them is what answered,
+the hook **says so**, because a check run under an interpreter nothing else in the repository agreed
+to is the failure that leaves no trace. It **skips rather than blocks**
 when there is no PHP at all: a machine without PHP must not become a machine that cannot commit. It also runs
 `python .agents/verify.py --layer` when an agentic file is part of the commit, with the same
 skip-when-absent rule — the layer subset, because the commit is already running the staged half of

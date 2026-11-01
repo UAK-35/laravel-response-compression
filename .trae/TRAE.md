@@ -23,14 +23,12 @@ its own `AGENTS.md`, `.agents/` and `.trae/` describing a Laravel application; n
 here, which is one clause of §0 rather than the whole of it. `python .agents/verify.py` fails on an
 agentic file that names a path outside this root.
 
-## Session startup sequence
+## Session startup
 
-At the start of every TRAE session, load in order:
-
-1. `AGENTS.md` — canonical rules.
-2. `.agents/README.md` — the index.
-3. `.agents/toolchain.json` — the commands and the tool pins, rendered into section 13 of `AGENTS.md`.
-4. this file.
+Section 3 of `AGENTS.md` is the startup sequence, and this file is the fourth item in it
+(`.trae/TRAE.md`). The order is not repeated here: a session reads that section, and a copy kept in
+the anchor is the second answer that goes stale. `.agents/toolchain.json` is where the commands and
+the tool pins are written, rendered into section 13 of `AGENTS.md`.
 
 Skills and agents are read from `.agents/` through `.trae/settings.json`, whose committed template is
 `.trae/settings.json.example`:

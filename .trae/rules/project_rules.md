@@ -29,9 +29,8 @@ before it reads them. Where this file and `AGENTS.md` disagree, `AGENTS.md` is r
   mutates it or declines it by name.
 - Every behaviour change carries a `CHANGELOG.md` bullet under `## Unreleased`.
 
-## Load order
+## Where to start
 
-1. `AGENTS.md`
-2. `.agents/README.md`
-3. `.agents/toolchain.json`
-4. this file
+The load order is section 3 of `AGENTS.md` and is not restated in this file. `.agents/README.md` is
+the index of skills, custom agents and commands, and `.agents/toolchain.json` is where the commands
+and tool pins live.

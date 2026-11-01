@@ -198,6 +198,14 @@ INTERPRETER_FILES = {".agents/verify.py"}
 # absolute path, and a planted tree is asked the same question about a file of its own.
 MACHINE_NAME = ".agents/machine.local.json"
 
+# `.agents/php-bin.sh`'s four rungs, as that file spells them, because this program now reads its
+# answer rather than keeping a copy of it. The first is a decision - an override for one command —
+# and the last two are fallbacks, older ways of naming an interpreter that survive so that a clone
+# which has not run `--init` still commits. `interpreter` plants one on the first.
+PHP_OVERRIDE = "RESPONSE_COMPRESSION_PHP"
+ENVIRONMENT_RUNG = "the environment"
+FALLBACK_RUNGS = {"git config", "PATH"}
+
 # A token left standing where an interpreter goes, in front of a program: `__PHP_EXE__ bin/checks.php`.
 # The rule above refuses an interpreter's *name* written in front of a command; this is the same
 # failure one word further out, and the one the token exists to avoid. A token is a placeholder a
@@ -325,6 +333,51 @@ def command_names(text: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
+# A numbered item in a markdown list, as any of the pointer files may write one.
+ORDERED_ITEM = re.compile(r"^\s*\d+[.)]\s+(.*)$")
+
+
+def load_order(text: str) -> list[str]:
+    """The boot sequence a file publishes as a numbered list, or nothing when it publishes none.
+
+    A pointer exists to say where a rule is written, and the order a session loads the canonical
+    files in is one of those rules: it is section 3 of `AGENTS.md`. Five pointers carried their own
+    copy of it — three, four and four items long, one of them putting itself fourth and another
+    listing a file the section does not — so an agent following its entry point loaded a different
+    sequence than the one the canonical file states, and the copies could only drift further apart.
+
+    The shape read is deliberately narrow. A run of numbered items whose first item names
+    `AGENTS.md` is a load order; a numbered list that starts at something else is a list about
+    something else, and a pointer is still allowed to keep one. Prose that mentions reading
+    `AGENTS.md` first is not read at all: this refuses a list, not a sentence, because a sentence
+    that says `AGENTS.md` is first is the pointer doing the one thing a pointer is for.
+    """
+    blocks: list[list[str]] = []
+    current: list[str] = []
+
+    for line in text.splitlines():
+        item = ORDERED_ITEM.match(line)
+
+        if item is not None:
+            current.append(item.group(1).strip())
+            continue
+
+        # A blank line, or an unindented one, ends the run; an indented line is the rest of the
+        # item above it - a wrapped sentence, or a path shown on its own line beneath the item.
+        if current and (not line.strip() or not line.startswith((" ", "\t"))):
+            blocks.append(current)
+            current = []
+
+    if current:
+        blocks.append(current)
+
+    for block in blocks:
+        if len(block) >= 2 and "AGENTS.md" in block[0]:
+            return block
+
+    return []
+
+
 def step_canonical(root: Path) -> list[str]:
     findings: list[str] = []
     text = read(root / "AGENTS.md")
@@ -347,12 +400,23 @@ def step_canonical(root: Path) -> list[str]:
         path = root / pointer
         if not path.is_file():
             continue
-        for _number, title in SECTION.findall(read(path)):
+
+        text_of_pointer = read(path)
+
+        for _number, title in SECTION.findall(text_of_pointer):
             if title.strip().rstrip(".") in titles:
                 findings.append(
                     f"{pointer}: restates the section `{title.strip()}` - a pointer names the "
                     "canonical file instead of repeating it"
                 )
+
+        order = load_order(text_of_pointer)
+        if order:
+            findings.append(
+                f"{pointer}: publishes a load order of its own ({len(order)} items, the first "
+                "naming `AGENTS.md`) - section 3 is the sequence, and a second copy of it goes "
+                "stale the day that section gains an item"
+            )
 
     return findings
 
@@ -827,6 +891,39 @@ def step_interpreter(root: Path) -> list[str]:
                     "the answer is `.agents/php-bin.sh`'s, and Tests\\Support\\PhpBinary is the one PHP "
                     "reader of it"
                 )
+
+    # And the program running this step, which used to be a fifth decider: it read the machine record
+    # and fell through to PATH, so `RESPONSE_COMPRESSION_PHP` reached the hook, `bin/tool.php` and
+    # `bin/coverage.php` and not the verifier that runs them - and a check run under an interpreter
+    # nothing else agreed to is the failure that leaves no trace. The reading is behavioural rather
+    # than a pattern over this file, because what a second copy looks like here is a function body
+    # rather than a line: an override is planted for the length of one call and the answer has to be
+    # that override. `override-ignored` in the selftest proves the reading fires by taking the
+    # resolver's first rung away.
+    if shutil.which("sh") is None:
+        NOTES.append(
+            "interpreter: no `sh` on PATH, so .agents/verify.py's own resolution was not asked - "
+            "the resolver cannot be run without one"
+        )
+    else:
+        planted = "an-override-planted-by-the-interpreter-step"
+        held = os.environ.get(PHP_OVERRIDE)
+        os.environ[PHP_OVERRIDE] = planted
+
+        try:
+            resolved, rung = php_resolution(root)
+        finally:
+            if held is None:
+                os.environ.pop(PHP_OVERRIDE, None)
+            else:
+                os.environ[PHP_OVERRIDE] = held
+
+        if resolved != planted or rung != ENVIRONMENT_RUNG:
+            findings.append(
+                f".agents/verify.py: resolves the interpreter itself - with {PHP_OVERRIDE} set it "
+                f"answered `{resolved or 'nothing'}` from `{rung or 'no rung'}`, and the hook, "
+                "bin/tool.php and bin/coverage.php all run what `.agents/php-bin.sh` resolves"
+            )
 
     return findings
 
@@ -1375,20 +1472,71 @@ def step_gate(root: Path) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
+def php_resolution(root: Path) -> tuple[str | None, str]:
+    """The interpreter this checkout runs, and the rung that answered, asked where it is decided.
+
+    `.agents/php-bin.sh` owns the ladder. This program used to keep a copy of its first two rungs -
+    it read `.agents/machine.local.json` itself and fell through to `PATH` - so an override set for
+    one command reached the hook, `bin/tool.php` and `bin/coverage.php` and not the verifier that
+    runs them, and a run could be measured under an interpreter the rest of the repository had not
+    agreed to. The `interpreter` step above reads the answer rather than trusting this paragraph.
+
+    Both halves come from one call because the resolver prints them on one line: `--report` is
+    `rung<TAB>value` for exactly this reason, so a caller comparing the interpreter cannot be
+    comparing two different resolutions. `php_binary()` is the half a caller usually wants.
+    """
+    resolver = root / ".agents" / "php-bin.sh"
+    shell = shutil.which("sh")
+
+    if not resolver.is_file() or shell is None:
+        # A tree with no resolver is a tree this package does not ship - the archive a consumer
+        # unpacks - and there is nothing to ask. Saying where the borrowed answer came from is the
+        # point: the alternative is a run under an interpreter nothing else agreed to, reported by
+        # nothing at all.
+        _note("php: no .agents/php-bin.sh here to ask (or no sh to run it), so the interpreter came from PATH")
+
+        return shutil.which("php") or shutil.which("php.exe"), ""
+
+    result = subprocess.run(
+        [shell, str(resolver), "--report"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    rung, _, value = (result.stdout or "").strip().partition("\t")
+
+    if result.returncode != 0 or not value.strip():
+        # The resolver answered "nothing here", which is a finding rather than a fallback: it is the
+        # one program that says which two lines would give this machine an interpreter, and a run
+        # that guessed past it would measure something nobody chose.
+        _note(
+            "php: .agents/php-bin.sh could not name an interpreter - run python "
+            ".agents/render_local.py --init, or set RESPONSE_COMPRESSION_PHP for one command"
+        )
+
+        return None, ""
+
+    if rung.strip() in FALLBACK_RUNGS:
+        # The same line the hook prints: a fallback is not a mistake, and it is worth one sentence
+        # because a clone naming its interpreter nowhere is what produces it.
+        _note(
+            f"php: {rung.strip()} answered rather than this machine's record - run python "
+            ".agents/render_local.py --init"
+        )
+
+    return value.strip(), rung.strip()
+
+
 def php_binary(root: Path) -> str | None:
-    data = {}
-    machine = root / ".agents" / "machine.local.json"
-    if machine.is_file():
-        try:
-            data = json.loads(read(machine))
-        except json.JSONDecodeError:
-            data = {}
+    return php_resolution(root)[0]
 
-    candidate = data.get("php", {}).get("exe") if isinstance(data.get("php"), dict) else None
-    if candidate and Path(str(candidate)).is_file():
-        return str(candidate)
 
-    return shutil.which("php") or shutil.which("php.exe")
+def _note(text: str) -> None:
+    """One note, once: the resolution is asked several times in a run and the answer does not move."""
+    if text not in NOTES:
+        NOTES.append(text)
 
 
 def tool_command(root: Path, *args: str) -> list[str]:
@@ -1456,7 +1604,11 @@ SELFTESTABLE = list(STEPS) + [step for step in PACKAGE_STEPS if step[0] == "tool
 # fires and only the second proves *which* of its answers fired - the failure a single break hides is
 # a step that reports everything through one reading while the other has gone quiet, which is exactly
 # the state the mutation harness exists to refuse.
-MUTATIONS = [(step[0], step[0]) for step in SELFTESTABLE] + [("toolchain", "interpreter-restated")]
+MUTATIONS = [(step[0], step[0]) for step in SELFTESTABLE] + [
+    ("toolchain", "interpreter-restated"),
+    ("canonical", "load-order-restated"),
+    ("interpreter", "override-ignored"),
+]
 
 
 def repair(root: Path) -> list[str]:
@@ -1700,6 +1852,24 @@ def mutate(name: str, root: Path) -> None:
         path.write_text(
             read(path)
             + '\nphp_bin="$(python .agents/render_local.py --value __PHP_EXE__)"\n',
+            encoding="utf-8",
+        )
+    elif name == "load-order-restated":
+        # A pointer publishing the boot sequence again, which is the shape that returns because it
+        # looks like a summary: the section it copies gains an item and the copy keeps being obeyed.
+        path = root / "CLAUDE.md"
+        path.write_text(
+            read(path)
+            + "\n## Read, in order\n\n1. `AGENTS.md` - the canonical rules\n2. `.agents/README.md` - the index\n",
+            encoding="utf-8",
+        )
+    elif name == "override-ignored":
+        # The resolver's first rung taken away, which is the only way to make the verifier's own
+        # reading answer something other than the override it planted: the step has to notice that
+        # the value it asked for is not the value it was given, on a tree whose resolver still runs.
+        path = root / ".agents" / "php-bin.sh"
+        path.write_text(
+            read(path).replace('if [ -n "${RESPONSE_COMPRESSION_PHP:-}" ]; then', "if false; then", 1),
             encoding="utf-8",
         )
     elif name == "tokens":

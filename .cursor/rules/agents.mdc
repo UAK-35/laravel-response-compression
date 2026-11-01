@@ -8,12 +8,10 @@ alwaysApply: true
 `AGENTS.md` is the single source of truth for agents and tools in this repository. This rule exists
 only so a Cursor session starts there; it restates nothing, so the two cannot drift.
 
-Read, in order:
-
-1. `AGENTS.md` — what this package is, the gate, the guards, the code rules, the release and push
-   runbooks, the commands.
-2. `.agents/README.md` — the index of skills, custom agents and commands.
-3. `.agents/toolchain.json` — the commands and tool pins `AGENTS.md` renders its table from.
+The order a session loads this repository in is section 3 of `AGENTS.md`, and it is not repeated
+here — a pointer that copies it is a second answer the day it changes. `.agents/README.md` is the
+index of skills, custom agents and commands, and `.agents/toolchain.json` is where the commands and
+the tool pins are written.
 
 ## Two things not to guess at
 

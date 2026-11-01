@@ -2,12 +2,11 @@
 
 > Canonical rules live in **`AGENTS.md`**. This file does not restate them.
 
-## Load order
+## Where to start
 
-1. `AGENTS.md` — canonical rules (load this first).
-2. `.agents/README.md` — skills, custom agents and commands.
-3. `.trae/TRAE.md` — the session anchor.
-4. this file — the notes below, and the generated skill imports at the foot.
+Section 3 of `AGENTS.md` is the load order, and this file does not repeat it: `.agents/README.md`
+is the index of skills, custom agents and commands, `.trae/TRAE.md` is the TRAE session anchor, and
+what follows here is the team notes plus the generated skill imports at the foot.
 
 ## Scope
 
