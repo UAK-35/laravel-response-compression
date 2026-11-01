@@ -24,11 +24,22 @@ missing under, and a settings file is not written from a template that would pro
 token - a rendered file holding `__PHP_EXE__` is worse than no rendered file, because it looks
 finished.
 
-Nor does it delete a value it was not given. The machine file carries this machine's own record
-beside the three sections `--init` is asked for - versions, tool paths, what this checkout is at,
-what an install receives - and `--init` updates the keys it owns and keeps every other line as it
-stands. It used to write its three answers over the file and take the record with them, which is a
-setup command quietly discarding the facts somebody collected about the machine it is setting up.
+Nor does it pass on a placeholder it does not know. A template naming a token no row resolves - one
+renamed in this table and not in the template, or one this table has never carried - is refused by
+name before anything is substituted, in `--check` as well as in a write: substitution left it
+standing, so the file looked finished while holding a name nothing resolves, which is the unresolved
+token's failure one layer further in.
+
+Nor does it delete a value it was not given, or replace a record it cannot read. A section this
+machine has written something under is kept whichever shape it holds - a mapping, a list, a string,
+a number, a boolean - because the rule is to write the answers it was given and keep the rest. And a
+record it cannot parse is refused by name rather than treated as an empty one: the file is this
+machine's account of itself, and writing the answers over whatever is there is how that account goes
+quietly. So the machine file carries this machine's own record beside the sections `--init` is asked
+for - versions, tool paths, what this checkout is at, what an install receives - and `--init`
+updates the keys it owns and keeps every other line as it stands. It used to write its answers over
+the file and take the record with them, which is a setup command quietly discarding the facts
+somebody collected about the machine it is setting up.
 
 WHAT `--check` REPORTS
 ----------------------
@@ -53,6 +64,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -84,6 +96,11 @@ TOKENS: dict[str, tuple[tuple[str, str], str]] = {
 }
 
 DEFAULT_PWSH = "pwsh.exe"
+
+# A placeholder as a template writes it: two underscores, upper case, two underscores. The shape is
+# named here as well as the tokens it is supposed to be, because a template has to be read for the
+# placeholders it *names* rather than only for the ones this file happens to know.
+TOKEN_NAME = re.compile(r"__[A-Z][A-Z0-9_]*__")
 
 # The sections this file may carry, and what each one is for.
 #
@@ -237,6 +254,35 @@ def _read(path: Path) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+def _record(path: Path) -> dict:
+    """The machine file as this machine left it, or a refusal naming the file.
+
+    `_read` answers `{}` both for a file that is not there and for one it cannot parse, which is the
+    right answer for a reader and the wrong one for the only writer here: `--init` would take a
+    record nobody can parse for an empty record and write its four answers over it, and the file
+    it is overwriting is somebody's account of this machine rather than a cache. So the writer asks
+    this instead, and a file it cannot read is refused by name — a record this program cannot read
+    is one it can neither keep nor replace.
+    """
+    if not path.is_file():
+        return {}
+
+    where = path.relative_to(ROOT).as_posix()
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as error:
+        raise SystemExit(
+            f"{where}: could not be read as JSON ({error}) - this program keeps the record it finds, "
+            "so a file it cannot read is not one it will write over; repair it, or move it aside"
+        )
+
+    if not isinstance(data, dict):
+        raise SystemExit(f"{where}: is not a JSON object, and a machine's record is the sections it holds")
+
+    return data
+
+
 def values_from(data: dict, root: Path = ROOT) -> dict[str, str]:
     """The token table, with the two values that are derived rather than asked for."""
     values: dict[str, str] = {}
@@ -296,6 +342,28 @@ def _template_data(template: Path):
         return None
 
     return data
+
+
+def unknown_tokens(template: Path) -> list[str]:
+    """The placeholders a template names that no token resolves, sorted.
+
+    A template is the committed half of a settings file, so the one mistake it can make on its own
+    is naming a placeholder this program has no row for - a token renamed in one file and not the
+    other, or one this table has never carried. Substitution left it standing: the file it produced
+    looked finished, held a name nothing resolves, and said so nowhere, which is worse than the
+    unresolved token the program already refuses, because that one at least has a value to be
+    missing.
+
+    Read from the template's text rather than from its parsed structure, because a placeholder is a
+    string here: a token in a JSON key is as wrong as one in a value, and one that sits inside a
+    sentence is the same mistake in a longer form.
+    """
+    try:
+        text = template.read_text(encoding="utf-8")
+    except OSError:
+        return []
+
+    return sorted(set(TOKEN_NAME.findall(text)) - set(TOKENS))
 
 
 def rendered(template: Path, values: dict[str, str], missing: list[str]) -> str | None:
@@ -408,6 +476,18 @@ def render(values: dict[str, str], check: bool = False) -> int:
             findings.append(f"{template.relative_to(ROOT).as_posix()}: the template is missing")
             continue
 
+        # Refused before it is substituted, and in both modes: a template naming a token nothing
+        # resolves is not rendered into a file that looks complete, and `--check` does not compare
+        # a rendered file against a template that could not have produced it.
+        unknown = unknown_tokens(template)
+
+        if unknown:
+            findings.append(
+                f"{template.relative_to(ROOT).as_posix()}: names {', '.join(unknown)}, which nothing "
+                f"resolves - the tokens are {', '.join(TOKENS)}"
+            )
+            continue
+
         missing: list[str] = []
         expected = rendered(template, values, missing)
 
@@ -490,7 +570,7 @@ def initialise(args: argparse.Namespace) -> int:
     # from the answer it was given; every other key - a section of this machine's own record, or one
     # somebody added - is kept exactly as it stands. The file is written in one order: the owned
     # sections as they are declared, then the rest as the file had them.
-    existing = _read(MACHINE)
+    existing = _record(MACHINE)
     owned = {
         "php": {"exe": php, "dir": str(Path(php).parent).replace("\\", "/")},
         "pwsh": {"exe": pwsh},
@@ -515,17 +595,20 @@ def initialise(args: argparse.Namespace) -> int:
         data[section] = section_data
 
     for section in SECTIONS:
-        held = existing.get(section)
-
         if section in OWNED:
             continue
 
-        if isinstance(held, dict):
-            data[section] = held
+        if section in existing:
+            # Whatever the section holds, kept as it stands. A mapping is the shape the example
+            # shows, but a string, a list, a number and a boolean are this machine's record just as
+            # much - and "keeps the rest" is what `--force` promises when it asks to re-point a
+            # machine, so a section the program did not write is not one it gets to drop because it
+            # is not the shape this file would have chosen.
+            data[section] = existing[section]
             kept.append(section)
-        elif held is None:
+        else:
             # A section the shape declares and this file does not carry yet: opened empty, so the
-            # file it writes is the shape it documents rather than the three answers alone.
+            # file it writes is the shape it documents rather than the answers alone.
             data[section] = {}
 
     # And anything the shape does not declare, which is somebody else's section rather than this

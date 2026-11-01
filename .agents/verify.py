@@ -110,6 +110,12 @@ LAYER = [
 
 TOKEN = re.compile(r"__[A-Z][A-Z0-9_]*__")
 
+# The tokens, as `.agents/render_local.py`'s table declares them: the four answers `--init` is handed,
+# and the directory derived from the first of them. Named once here rather than inside a step,
+# because two readings ask the question - a document naming a token, and a template naming one - and
+# a second copy is how the two would come to disagree about which names resolve.
+KNOWN_TOKENS = {"__PHP_EXE__", "__PHP_DIR__", "__PWSH_EXE__", "__PACKAGE_DIR__", "__SYSTEM_TEMP_FOLDER__"}
+
 # Colour is not part of an answer. Composer colourises its output even when it is written to a pipe,
 # so `Composer version 2.10.3` arrives as `\x1b[32mComposer\x1b[39m version \x1b[33m2.10.3\x1b[39m`
 # and a version read out of that is not a version. The gate's own checks strip the same sequences
@@ -1032,7 +1038,7 @@ def step_interpreter_token(root: Path) -> list[str]:
 
 def step_tokens(root: Path) -> list[str]:
     findings: list[str] = []
-    known = {"__PHP_EXE__", "__PHP_DIR__", "__PWSH_EXE__", "__PACKAGE_DIR__", "__SYSTEM_TEMP_FOLDER__"}
+    known = KNOWN_TOKENS
 
     candidates = [root / pointer for pointer in POINTERS]
     candidates += [root / "AGENTS.md"]
@@ -1074,10 +1080,27 @@ def step_tokens(root: Path) -> list[str]:
     for template in sorted(root.glob(".*/**/*.example")):
         if not template.is_file():
             continue
+
+        where = rel(template, root)
+        source = read(template)
+
         try:
-            json.loads(read(template))
+            json.loads(source)
         except json.JSONDecodeError:
-            findings.append(f"{rel(template, root)}: not readable as JSON")
+            findings.append(f"{where}: not readable as JSON")
+
+        # And the placeholders it names, which is the second thing a template can get wrong on its
+        # own: a committed template is read on every machine, so `__PHP_PATH__` where the table says
+        # `__PHP_EXE__` was rendered as itself on all of them. Asked here as well as by the renderer,
+        # because this half runs on a tree with no machine file - which is where a wrong template
+        # would otherwise be read only by the machine that happened to have a record.
+        excused = GENERIC_TOKENS | FIXTURE_TOKENS.get(where, set())
+
+        for token in sorted(set(TOKEN.findall(source)) - known - excused):
+            findings.append(
+                f"{where}: names {token}, which nothing resolves - the tokens are "
+                f"{', '.join(sorted(known))}"
+            )
 
     # The comparison needs no repository, and gating it on one is how it stopped checking: it reads a
     # template and the file rendered from it and asks git nothing. Every tree that is not a checkout -
@@ -1721,6 +1744,7 @@ MUTATIONS = [(step[0], step[0]) for step in SELFTESTABLE] + [
     ("windsurf", "pointer-opted-out"),
     ("tokens", "renderer-crashed"),
     ("tools", "composer-exits"),
+    ("tokens", "template-unknown-token"),
 ]
 
 # Rounds that have to report a *particular* fault rather than any fault. A step with several readings
@@ -1731,6 +1755,10 @@ MUTATIONS = [(step[0], step[0]) for step in SELFTESTABLE] + [
 EXPECT = {
     ("tokens", "renderer-crashed"): "exited 3",
     ("tools", "composer-exits"): "exited 1",
+    # `tokens` reports several things - a document naming a token, a settings file that drifted, a
+    # template that does not parse - and the unreadable-tree rounds above would be answered by any of
+    # them, so this round names the placeholder it planted.
+    ("tokens", "template-unknown-token"): "names __PHP_PATH__, which nothing resolves",
 }
 
 
@@ -2048,6 +2076,14 @@ def mutate(name: str, root: Path) -> None:
     elif name == "tokens":
         path = root / "CLAUDE.md"
         path.write_text(read(path) + "\nThe PHP binary is `__PHP_PATH__`.\n", encoding="utf-8")
+    elif name == "template-unknown-token":
+        # A committed template naming a placeholder the table does not have, which is the mistake a
+        # template makes on its own: it is written once and rendered on every machine, so the file it
+        # produced held a name nothing resolves and looked finished on all of them. The plant is a
+        # rename of the token the template already uses, so the JSON is still well formed - this
+        # round is about the placeholder, and an unreadable template is the other half's finding.
+        path = root / ".trae" / "settings.local.json.example"
+        path.write_text(read(path).replace("__PHP_EXE__", "__PHP_PATH__"), encoding="utf-8")
     elif name == "descriptions":
         # Hyphenated, because that is the shape the step reads as a command name: `teleport` alone is
         # prose, and this check is only about the names a description advertises.

@@ -32,6 +32,13 @@ The angle brackets around a token are consumed with it: `<__TOKEN__>` becomes th
 rendered line names a real directory rather than a bracketed one. A bare `__TOKEN__` with no
 brackets is substituted too, for a template that wants the value inside a longer string.
 
+A value goes in as a JSON string, escaped. The substitution is text, so a value carrying a quote, a
+backslash or a newline used to be written as itself and took the document with it: a directory whose
+path held `\n` became a line ending inside a quoted string, which is a machine path silently
+changed rather than a crash, and the editor read whatever was left. So each value is escaped for the
+context it lands in, and the rendered document is parsed before it is written - a config that does
+not read as JSONC is refused with the line rather than handed to the editor.
+
 WHAT IT DOES NOT DO
 -------------------
 It does not read the token table in `.agents/render_local.py`. That table is the settings-file
@@ -98,6 +105,129 @@ def value(data: dict, section: str, key: str) -> str | None:
     return found.strip() if isinstance(found, str) and found.strip() else None
 
 
+def escaped(value: str) -> str:
+    """A value as it can sit inside a JSON string: quotes, backslashes and line endings and all.
+
+    `json.dumps` is the escaper rather than a hand-written one, because it is the same library that
+    will parse the document back: what it writes a string as is, by construction, what it reads a
+    string from. The surrounding quotes are dropped, because the template already wrote the pair the
+    value sits between - the value is what goes inside them.
+    """
+    return json.dumps(value)[1:-1]
+
+
+def without_comments(text: str) -> str:
+    """A JSONC document with its comments removed and its string bodies left alone.
+
+    Written as a scan rather than a regular expression because of one line in the template: the
+    schema is a URL, and a rule that deleted `//` to the end of a line would cut the document in
+    half at `https://opencode.ai/config.json`. A string is copied through character by character,
+    an escape inside it included, so a `//` or a `/*` within one is text.
+    """
+    out: list[str] = []
+    index = 0
+
+    while index < len(text):
+        char = text[index]
+
+        if char == '"':
+            out.append(char)
+            index += 1
+
+            while index < len(text):
+                held = text[index]
+                out.append(held)
+
+                if held == "\\" and index + 1 < len(text):
+                    out.append(text[index + 1])
+                    index += 2
+                    continue
+
+                index += 1
+
+                if held == '"':
+                    break
+
+            continue
+
+        if text.startswith("//", index):
+            end = text.find("\n", index)
+            index = len(text) if end == -1 else end
+            continue
+
+        if text.startswith("/*", index):
+            end = text.find("*/", index + 2)
+
+            if end == -1:
+                raise ValueError("a block comment is never closed")
+
+            index = end + 2
+            continue
+
+        out.append(char)
+        index += 1
+
+    return "".join(out)
+
+
+def without_trailing_commas(text: str) -> str:
+    """The same document with a comma before a closing brace or bracket taken out.
+
+    JSONC permits it and `json` does not, and the template uses the same brace and bracket style the
+    rest of this repository's JSON does - so the renderer has to tolerate one rather than teach every
+    editor's config to be stricter than the editor requires.
+    """
+    out: list[str] = []
+    index = 0
+    in_string = False
+
+    while index < len(text):
+        char = text[index]
+
+        if in_string:
+            out.append(char)
+
+            if char == "\\" and index + 1 < len(text):
+                out.append(text[index + 1])
+                index += 2
+                continue
+
+            if char == '"':
+                in_string = False
+
+            index += 1
+            continue
+
+        if char == '"':
+            in_string = True
+            out.append(char)
+            index += 1
+            continue
+
+        if char == ",":
+            look = index + 1
+
+            while look < len(text) and text[look] in " \t\r\n":
+                look += 1
+
+            if look < len(text) and text[look] in "}]":
+                index += 1
+                continue
+
+        out.append(char)
+        index += 1
+
+    return "".join(out)
+
+
+def validate(text: str, name: str) -> None:
+    """Refuse a document that does not read as JSONC, naming where it stops making sense."""
+    try:
+        json.loads(without_trailing_commas(without_comments(text)))
+    except (json.JSONDecodeError, ValueError) as error:
+        raise SystemExit(f"{name}: what was rendered does not read as JSONC ({error}) - nothing was written")
+
+
 def render(template: str, data: dict) -> str:
     """The template with every token replaced, or a refusal naming what could not be."""
     unknown = sorted({token for token in TOKEN.findall(template) if token not in SUBSTITUTIONS})
@@ -122,8 +252,11 @@ def render(template: str, data: dict) -> str:
             missing.append(f"{token} ({section}.{key})")
             continue
 
-        rendered = bracketed(token).sub(lambda _match: found, rendered)
-        rendered = rendered.replace(token, found)
+        # Escaped rather than pasted: the value lands inside a JSON string, and a path holding a
+        # quote, a backslash or a line ending would otherwise end the string it was meant to be.
+        written = escaped(found)
+        rendered = bracketed(token).sub(lambda _match: written, rendered)
+        rendered = rendered.replace(token, written)
 
     if missing:
         raise SystemExit(
@@ -144,6 +277,10 @@ def main() -> int:
 
     template = TEMPLATE.read_text(encoding="utf-8")
     rendered = render(template, machine(MACHINE))
+
+    # Before the write, not after: the editor reads this file happily and a placeholder only surfaces
+    # later as a path that does not exist, so a document that does not parse is refused here.
+    validate(rendered, TEMPLATE.name)
     OUTPUT.write_text(rendered, encoding="utf-8", newline="\n")
 
     print(f"wrote {OUTPUT.name} from {TEMPLATE.name} and {MACHINE.relative_to(ROOT).as_posix()}")
