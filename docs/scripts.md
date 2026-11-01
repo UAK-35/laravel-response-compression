@@ -62,6 +62,7 @@ from it. Nothing under `.agents/skills/` is edited by hand.
 | [`../.skills/rc-issue/skill.yaml`](../.skills/rc-issue/skill.yaml) and [`instructions.md`](../.skills/rc-issue/instructions.md) | the authored source of the `rc-issue` skill — a defect or a gap named and evidenced | the same |
 | [`../.skills/rc-plan/skill.yaml`](../.skills/rc-plan/skill.yaml) and [`instructions.md`](../.skills/rc-plan/instructions.md) | the authored source of the `rc-plan` skill — a prompt planned and the plan kept | the same |
 | [`../.skills/rc-report/skill.yaml`](../.skills/rc-report/skill.yaml) and [`instructions.md`](../.skills/rc-report/instructions.md) | the authored source of the `rc-report` skill — a prompt answered and the answer kept as a report | the same |
+| [`../.skills/rc-runbook/skill.yaml`](../.skills/rc-runbook/skill.yaml) and [`instructions.md`](../.skills/rc-runbook/instructions.md) | the authored source of the `rc-runbook` skill — an operation's procedure kept | the same |
 | [`../.skills/php-code-analyzer/skill.yaml`](../.skills/php-code-analyzer/skill.yaml) and [`instructions.md`](../.skills/php-code-analyzer/instructions.md) | the authored source of the `php-code-analyzer` skill — reading a path: syntax, types, complexity, modernization, duplicates, tools | the same |
 | [`../.skills/README.md`](../.skills/README.md) | how a `skill.yaml` is written, what the generator reads, and what a description may name | read |
 

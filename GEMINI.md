@@ -33,4 +33,5 @@ else. It is not restated here.
 @.agents/skills/rc-plan/SKILL.md
 @.agents/skills/rc-push/SKILL.md
 @.agents/skills/rc-report/SKILL.md
+@.agents/skills/rc-runbook/SKILL.md
 <!-- SKILLS-IMPORT:END -->

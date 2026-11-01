@@ -829,6 +829,27 @@ read as a runner that still runs the gate.
   `.skills/rc-issue/` and generated into `.agents/skills/rc-issue/` with its Windsurf pointer and
   `GEMINI.md` import; `.agents/README.md` gains its row, `docs/scripts.md` lists its source, and
   `docs/tool-registry.md`'s inventory now names all nine skills.
+- **A new `rc-runbook` skill keeps an operation's procedure as a numbered document under
+  `docs/runbooks/`, so a run somebody was walked through is one the next person can carry out from the
+  document alone.** It activates on the `/rc-runbook` marker — the `/lpr-runbook` spelling the request
+  also named is read as the same marker, so neither is guessed at — and otherwise on *create a
+  runbook* or *create this as a runbook*, where it asks `Is this an RC runbook?` before beginning the
+  response and proceeds only on yes. The document is written after the response is finished: the
+  prompt as it was put, when the runbook is used, the preconditions as things that can be checked, the
+  steps in the order they are run with the command each one runs, what it touches and what it proves,
+  what to do when a step fails beside that step, the way back and how far it reaches, and what the
+  runbook does not cover. The name is `NNNN-YYYY-MM-DD_runbook-<slug>.md`, carrying the ordering rule
+  the plan, report and issue skills state — recorded timestamps first, then the commit that added the
+  file, then the filesystem's creation time with any uncertainty recorded, ties broken by filename,
+  numbering from `0001`, a renumber that preserves date and slug and updates the references to it, a
+  complete rename map applied through temporary names inside the folder, and relative order kept with
+  the limitation stated when order cannot be established. `docs/runbooks/` does not exist yet: the
+  first runbook creates it, so this change had no existing document to renumber. `RELEASING.md` and
+  `PUSHING.md` are runbooks this package ships rather than records of one, and they stay where they
+  are. The skill is authored in `.skills/rc-runbook/` and generated into `.agents/skills/rc-runbook/`
+  with its Windsurf pointer and `GEMINI.md` import; `.agents/README.md` gains its row,
+  `docs/scripts.md` lists its source, and `docs/tool-registry.md`'s inventory now names all ten
+  skills.
 
 ### Changed
 

@@ -1,0 +1,30 @@
+# =============================================================================
+# rc-runbook — a runbook on a prompt, kept under docs/runbooks/
+# =============================================================================
+# `description` is read by the `descriptions` step of `python .agents/verify.py`:
+# every hyphenated word in it is read as a command name, so the two that appear
+# here (`rc-runbook` and `record`) are commands `instructions.md` defines. The two
+# markers are written with their leading slash on purpose - `/rc-runbook` is not a
+# command name and is not read as one, where the bare word would be. Nothing else
+# hyphenated belongs in this description.
+#
+# The generator reads a small subset of YAML: `tags` and `categories` are one
+# comma separated line rather than a list, and there is no `files:` key.
+name: "rc-runbook"
+version: "1.0.0"
+description: "Write a runbook about a prompt and keep it under docs/runbooks/, named by a sequence number, the date it was made and a slug. Activate when a prompt begins with the /rc-runbook marker or the /lpr-runbook marker, or when a prompt asks to create a runbook or to create this as a runbook and the user answers yes to 'Is this an RC runbook?'. Commands - rc-runbook, record."
+instructions: "instructions.md"
+author: "UAK35"
+license: "MIT"
+tags: runbook, procedure, operations, docs, package
+categories: tooling
+
+sync:
+  freebuff:
+    enabled: true
+    name_override: "rc-runbook"
+  gemini:
+    enabled: true
+  windsurf:
+    enabled: true
+    filename: "rc-runbook.windsurf.md"

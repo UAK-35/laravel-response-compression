@@ -51,6 +51,7 @@ sentence that mentions a skill is not an entry.
 | `rc-plan` | `.skills/rc-plan/` | a prompt planned and the plan kept under `docs/planning/` — `rc-plan`, `record` |
 | `rc-push` | `.skills/rc-push/` | getting a cut tag to the remote — `push`, `verify-pushing` |
 | `rc-report` | `.skills/rc-report/` | a prompt answered and the answer kept as a report under `docs/reports/` — `rc-report`, `record` |
+| `rc-runbook` | `.skills/rc-runbook/` | an operation's procedure kept under `docs/runbooks/` — `rc-runbook`, `record` |
 
 | Custom agent | Defined in | What it does |
 |---|---|---|

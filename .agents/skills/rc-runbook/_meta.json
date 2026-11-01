@@ -1,0 +1,23 @@
+{
+  "name": "rc-runbook",
+  "version": "1.0.0",
+  "description": "Write a runbook about a prompt and keep it under docs/runbooks/, named by a sequence number, the date it was made and a slug. Activate when a prompt begins with the /rc-runbook marker or the /lpr-runbook marker, or when a prompt asks to create a runbook or to create this as a runbook and the user answers yes to 'Is this an RC runbook?'. Commands - rc-runbook, record.",
+  "author": "UAK35",
+  "license": "MIT",
+  "date": "2026-11-01",
+  "updated_at": 1793537812283,
+  "tags": [
+    "runbook",
+    "procedure",
+    "operations",
+    "docs",
+    "package"
+  ],
+  "categories": [
+    "tooling"
+  ],
+  "organization": "UAK35",
+  "platform": "codebuff",
+  "id": 4195360580,
+  "source_hash": "059c368ca9f2b114"
+}
