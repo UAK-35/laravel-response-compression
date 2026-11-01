@@ -1,0 +1,631 @@
+{
+  "pbtResults": {
+    "1.1 Bug 1 - Vary Header Overwrite exploration test": {
+      "status": "passed",
+      "failingExample": "Bug 1 exploration test SUCCESSFULLY DETECTED the bug (test failures prove bug exists):\n\n**Counterexample 1** - Multiple existing Vary values:\n- Input: Response with `Vary: Origin, Accept-Language` + gzip compression\n- Expected: Vary header contains \"Origin\", \"Accept-Language\", \"Accept-Encoding\"\n- Actual: Vary header contains ONLY \"Accept-Encoding\"\n- Result: Original cache variation markers lost\n\n**Counterexample 2** - Wildcard Vary:\n- Input: Response with `Vary: *` + gzip compression\n- Expected: Vary header remains \"*\"\n- Actual: Vary header changed to \"Accept-Encoding\"\n- Result: Wildcard semantic destroyed\n\n**Counterexample 3** - Single Vary value:\n- Input: Response with `Vary: Origin` + gzip compression\n- Expected: Vary header contains \"Origin, Accept-Encoding\"\n- Actual: Vary header contains ONLY \"Accept-Encoding\"\n- Result: Single existing Vary value lost\n\n**Root Cause Confirmed**: The encoders are using `headers->add(['Vary' => 'Accept-Encoding'])` which REPLACES the existing Vary header instead of using `setVary('Accept-Encoding', false)` which would APPEND to it.",
+      "lastRunTimestamp": 1793445720145
+    },
+    "1.5 Bug 5 - Partial Response Handling exploration test": {
+      "status": "passed",
+      "failingExample": "Test failures confirm Bug 5 exists:\n1. HTTP 206 partial response test: Response has Content-Encoding header when it should be false (line 512)\n2. Content-Range with status 200 test: Response has Content-Encoding header when it should be false (line 550)\n3. Byte range accuracy test: Compressed body differs from expected partial content (line 586)\n\nAll three test cases demonstrate that 206 partial responses with Content-Range headers are being compressed when they should be skipped. The compressed body (~gzipped) no longer matches the byte range advertised in the Content-Range header, corrupting the partial response semantics.",
+      "lastRunTimestamp": 1793449693661
+    },
+    "1.6 Bug 6 - Fallback Gating exploration test": {
+      "status": "passed",
+      "failingExample": "All 3 Bug 6 exploration tests failed as expected on unfixed code:\n\n1. \"should fallback to accepted encoding when algorithm config does not match\"\n   - Failed asserting that false is true (line 631)\n   - Expected: Content-Encoding header with 'gzip'\n   - Actual: No Content-Encoding header (response uncompressed)\n   \n2. \"should use fallback encoding when primary algorithm is not accepted\"\n   - Failed asserting that false is true (line 674)\n   - Expected: Content-Encoding header with 'gzip'\n   - Actual: No Content-Encoding header (response uncompressed)\n   \n3. \"should negotiate from candidate list not single algorithm setting\"\n   - Failed asserting that false is true (line 710)\n   - Expected: Content-Encoding header with 'gzip' or 'zstd'\n   - Actual: No Content-Encoding header (response uncompressed)\n\nThis proves Bug 6 exists: when try_multiple_encodings=true but algorithm config doesn't match client's Accept-Encoding, the system returns uncompressed content even though a fallback encoding is available and accepted by the client.",
+      "lastRunTimestamp": 1793450156836
+    },
+    "1.8 Bug 8 - ETag Handling exploration test": {
+      "status": "passed",
+      "failingExample": "Strong ETag \"original-tag\" remains unchanged after gzip compression, even though the response body bytes have changed. The test correctly detected that the ETag was not removed, weakened to W/\"original-tag\", or changed to a different value.",
+      "lastRunTimestamp": 1793452899833
+    },
+    "1.9 Bug 9 - Case Normalization exploration test": {
+      "status": "passed",
+      "failingExample": "All 5 test cases FAILED as expected on unfixed code, confirming Bug 9 exists:\n\n1. \"should match uppercase encoding names case-insensitively\" - FAILED\n   - Request with 'Accept-Encoding: GZIP' (uppercase)\n   - Expected: Content-Encoding header with compression\n   - Actual: No Content-Encoding header (no compression)\n   - Proves: Case-sensitive comparison fails to match \"GZIP\" vs \"gzip\"\n\n2. \"should match title-case encoding name Gzip\" - FAILED  \n   - Request with 'Accept-Encoding: Gzip' (title case)\n   - Expected: Content-Encoding header with compression\n   - Actual: No Content-Encoding header (no compression)\n   - Proves: Case-sensitive comparison fails to match \"Gzip\" vs \"gzip\"\n\n3. \"should match camel-case encoding name GZip\" - FAILED\n   - Request with 'Accept-Encoding: GZip' (camel case)\n   - Expected: Content-Encoding header with compression\n   - Actual: No Content-Encoding header (no compression)\n   - Proves: Case-sensitive comparison fails to match \"GZip\" vs \"gzip\"\n\n4. \"should match uppercase BR encoding name\" - FAILED\n   - Request with 'Accept-Encoding: BR' (uppercase)\n   - Expected: Content-Encoding header with brotli compression\n   - Actual: No Content-Encoding header (no compression)\n   - Proves: Case-sensitive comparison fails to match \"BR\" vs \"br\"\n\n5. \"should match mixed-case encodings in multi-encoding mode\" - FAILED\n   - Request with 'Accept-Encoding: GZIP, Br' (mixed cases)\n   - Expected: Content-Encoding header with either gzip or br\n   - Actual: No Content-Encoding header (no compression)\n   - Proves: Case-sensitive comparison fails for multiple mixed-case encodings\n\nRoot Cause: The encoding comparison in validateRequestPerAlgoAndUserAgent() uses case-sensitive in_array() check against request encodings without normalizing to lowercase first.\n\nExpected Fix: Normalize both the algorithm and request encodings to lowercase before comparison.",
+      "lastRunTimestamp": 1793455074091
+    },
+    "1.10 Bug 10 - Brotli Detection exploration test": {
+      "status": "passed",
+      "failingExample": "Bug 10 exploration tests correctly FAIL on unfixed code, proving the bug exists:\n\n1. Empty string test: isBrotliEncoded(brotli_compress('')) returns false (should be true)\n2. Zero string test: isBrotliEncoded(brotli_compress('0')) returns false (should be true)  \n3. Decompression distinction test: Cannot distinguish valid empty/zero from decompression failure\n4. Edge cases test: Fails for empty string and '0' content\n\nRoot cause confirmed: src/Support/Enc.php line 26 explicitly rejects '' and '0' results:\n`return ! in_array($uncompressed, ['', '0'], true) && $uncompressed !== false;`\n\nThese are valid decompression results that should return true. The tests will PASS once the bug is fixed by changing the logic to: `return $uncompressed !== false;`",
+      "lastRunTimestamp": 1793455294162
+    },
+    "1.11 Bug 11 - Test Fixtures exploration test": {
+      "status": "passed",
+      "failingExample": "Test 1 (pre-compressed fixture): getLongContent() compresses to 73 bytes with gzencode($content, 9), which is below the min_length threshold of 1024 bytes (config default 2048). The test passes because the size check prevents double compression, not because the Content-Encoding header is detected.\n\nTest 2 (first-candidate): Passed - demonstrates that tests claiming to verify first-candidate selection only accept one encoding, so no selection logic is exercised.\n\nTest 3 (vary-preservation): When compression is applied with gzip, the Vary header only contains \"Accept-Encoding\" and loses the original \"Origin\" value. This demonstrates Bug 1 (Vary header overwrite). Tests that request identity encoding never exercise the encoder's Vary header logic because compression is skipped entirely.",
+      "lastRunTimestamp": 1793455908890
+    },
+    "1.12 Bug 12 - Deadlock Prevention exploration test": {
+      "status": "passed",
+      "failingExample": "Test hangs/times out after 15 seconds when child process writes 1MB to stderr before stdout. This demonstrates the deadlock: parent blocks reading stdout while child blocks writing to full stderr pipe buffer. Counterexample: Any child process writing >64KB to stderr before stdout triggers the deadlock.",
+      "lastRunTimestamp": 1793536688771
+    }
+  },
+  "executionHistory": {
+    "1.1 Bug 1 - Vary Header Overwrite exploration test": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443894096
+      },
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443908842
+      },
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793445735175
+      }
+    ],
+    "1.2 Bug 2 - Multiple Encoding Loop exploration test": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443894254
+      },
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793445745893
+      },
+      {
+        "executionId": "79859248-3232-489e-8b6d-aef02cfde44f",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793446095757
+      },
+      {
+        "executionId": "79859248-3232-489e-8b6d-aef02cfde44f",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793447063984
+      }
+    ],
+    "1.3 Bug 3 - Pre-Compression Detection exploration test": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443894342
+      },
+      {
+        "executionId": "79859248-3232-489e-8b6d-aef02cfde44f",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793447073191
+      },
+      {
+        "executionId": "79859248-3232-489e-8b6d-aef02cfde44f",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793447828209
+      }
+    ],
+    "1.4 Bug 4 - Quality Zero Handling exploration test": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443894407
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793447956597
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793449556806
+      }
+    ],
+    "1.5 Bug 5 - Partial Response Handling exploration test": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443894489
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793449562917
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793449711313
+      }
+    ],
+    "1.6 Bug 6 - Fallback Gating exploration test": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443894564
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793449716350
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793450173299
+      }
+    ],
+    "1.7 Bug 7 - User-Agent Variation exploration test": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443894659
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793450178672
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793452424889
+      }
+    ],
+    "1.8 Bug 8 - ETag Handling exploration test": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443894730
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793452430028
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793452915862
+      }
+    ],
+    "1.9 Bug 9 - Case Normalization exploration test": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443894802
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793452922254
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793455089184
+      }
+    ],
+    "1.10 Bug 10 - Brotli Detection exploration test": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443894893
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793455094170
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793455310588
+      }
+    ],
+    "1.11 Bug 11 - Test Fixtures exploration test": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443894957
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793455317669
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793455926003
+      }
+    ],
+    "1.12 Bug 12 - Deadlock Prevention exploration test": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895013
+      },
+      {
+        "executionId": "d464bbc9-b1a5-4a86-b024-bfa04ba3ad92",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793455931222
+      },
+      {
+        "executionId": "4de15f45-6a95-4691-a40a-d2f56f9d770e",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793536131895
+      },
+      {
+        "executionId": "4de15f45-6a95-4691-a40a-d2f56f9d770e",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793536706224
+      }
+    ],
+    "1.13 Bug 13 - PHPDoc Accuracy exploration test": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895072
+      },
+      {
+        "executionId": "4de15f45-6a95-4691-a40a-d2f56f9d770e",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793536711095
+      },
+      {
+        "executionId": "cb895c9c-5a54-4c08-a73a-768cce79c6ac",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793538141121
+      },
+      {
+        "executionId": "cb895c9c-5a54-4c08-a73a-768cce79c6ac",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793538398098
+      }
+    ],
+    "2.1 Preservation - Normal Vary header addition": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895130
+      },
+      {
+        "executionId": "cb895c9c-5a54-4c08-a73a-768cce79c6ac",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793538409678
+      },
+      {
+        "executionId": "cb895c9c-5a54-4c08-a73a-768cce79c6ac",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793538929479
+      }
+    ],
+    "2.2 Preservation - Single compression application": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895189
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550111873
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550574593
+      }
+    ],
+    "2.3 Preservation - No existing encoding path": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895243
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550614412
+      }
+    ],
+    "2.4 Preservation - Positive quality values": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895304
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550616608
+      }
+    ],
+    "2.5 Preservation - Status 200 responses": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895392
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550616920
+      }
+    ],
+    "2.6 Preservation - Single-encoding mode": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895445
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550617057
+      }
+    ],
+    "2.7 Preservation - Empty User-Agent skip lists": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895510
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550617611
+      }
+    ],
+    "2.8 Preservation - Weak ETag and no ETag": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895562
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550625033
+      }
+    ],
+    "2.9 Preservation - Lowercase encoding names": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895614
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550625308
+      }
+    ],
+    "2.10 Preservation - Non-empty brotli content": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895673
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550625574
+      }
+    ],
+    "2.11 Preservation - Existing validation checks": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895732
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550625719
+      }
+    ],
+    "2.12 Preservation - Identity encoding": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895790
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550626172
+      }
+    ],
+    "2.13 Preservation - Configuration validation": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895846
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550626940
+      }
+    ],
+    "2.14 Preservation - Gate compliance": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895905
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550627760
+      }
+    ],
+    "3.1 Bug 13 - PHPDoc Accuracy (trivial documentation fix)": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443895963
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550635408
+      },
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550915590
+      }
+    ],
+    "3.2 Bug 10 - Brotli Detection (simple logic fix)": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896023
+      },
+      {
+        "executionId": "3dda286c-0da3-41e8-8fa4-bbca95d9e889",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793551148696
+      },
+      {
+        "executionId": "3dda286c-0da3-41e8-8fa4-bbca95d9e889",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793551801999
+      }
+    ],
+    "3.3 Bug 9 - Case Normalization (single-line fix)": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896078
+      },
+      {
+        "executionId": "3dda286c-0da3-41e8-8fa4-bbca95d9e889",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793551819652
+      },
+      {
+        "executionId": "3dda286c-0da3-41e8-8fa4-bbca95d9e889",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793552543237
+      }
+    ],
+    "3.4 Bug 1 - Vary Header Preservation (encoder changes)": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896140
+      },
+      {
+        "executionId": "3dda286c-0da3-41e8-8fa4-bbca95d9e889",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793552554927
+      },
+      {
+        "executionId": "85dc7254-fcea-4311-859f-fa0a39132846",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793556193485
+      }
+    ],
+    "3.5 Bug 8 - ETag Handling (builds on Bug 1 encoder changes)": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896208
+      },
+      {
+        "executionId": "5aa4d5ea-b8d5-4490-8cee-350567651372",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793556704233
+      }
+    ],
+    "3.6 Bug 3 - Pre-Compression Detection (validation guard)": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896268
+      }
+    ],
+    "3.7 Bug 5 - Partial Response Handling (validation guard)": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896321
+      }
+    ],
+    "3.8 Bug 4 - Quality Zero Handling (validation logic)": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896376
+      }
+    ],
+    "3.9 Bug 2 - Multiple Encoding Loop (control flow fix)": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896435
+      }
+    ],
+    "3.10 Bug 7 - User-Agent Variation (tracking and header)": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896496
+      }
+    ],
+    "3.11 Bug 6 - Fallback Gating (handle() refactor)": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896556
+      }
+    ],
+    "3.12 Bug 11 - Test Fixtures (update test infrastructure)": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896652
+      }
+    ],
+    "3.13 Bug 12 - Deadlock Prevention (pipe draining)": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896709
+      }
+    ],
+    "3.14 Verify bug condition exploration tests now pass": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896771
+      }
+    ],
+    "3.15 Verify preservation tests still pass": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896839
+      }
+    ],
+    "4. Checkpoint - Ensure all tests pass and gates green": [
+      {
+        "executionId": "9813e5fb-7b4a-4483-98fd-f10601edde38",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793443896897
+      }
+    ],
+    "1. Write bug condition exploration tests (BEFORE implementing fixes)": [
+      {
+        "executionId": "cb895c9c-5a54-4c08-a73a-768cce79c6ac",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793538398199
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing fixes)": [
+      {
+        "executionId": "39b14f1a-5717-48dd-a1ef-c0e1f8f36486",
+        "chatSessionId": "sess_e7e4d28c-920b-45fd-a848-83ef979d0110",
+        "timestamp": 1793550627884
+      }
+    ]
+  }
+}
