@@ -308,6 +308,34 @@ it('should skip a configured encoding the client does not accept', function (): 
         ->and(Enc::isZstdEncoded($result->getContent()))->toBeTrue();
 });
 
+it('should accept a wildcard in multiple-encoding mode', function (): void {
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', 'br,zstd,gzip');
+    config()->set('response-compression.algorithm', 'br');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => '*']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBe('br')
+        ->and(Enc::isBrotliEncoded($result->getContent()))->toBeTrue();
+});
+
+it('should walk the configured order when the client names only a later candidate', function (): void {
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', 'br,gzip');
+    config()->set('response-compression.algorithm', 'br');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBe('gzip')
+        ->and(Enc::isGzipEncoded($result->getContent()))->toBeTrue();
+});
+
 it('should leave the response alone when no configured encoding is accepted', function (): void {
     config()->set('response-compression.try_multiple_encodings', true);
     config()->set('response-compression.multiple_encodings_order', 'br');

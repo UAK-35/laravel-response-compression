@@ -455,7 +455,7 @@ final class ReleaseRepo
             $output = (string) stream_get_contents($pipes[1]);
             fclose($pipes[1]);
             $exitCode = proc_close($process);
-            $error = self::capture($stderr);
+            $error = $this->capture($stderr);
         } finally {
             self::remove($stderr);
         }
@@ -653,7 +653,7 @@ final class ReleaseRepo
      * with the child, so its absence is a start that never happened, which `start()` has already
      * thrown on.
      */
-    private static function capture(string $path): string
+    private function capture(string $path): string
     {
         return is_file($path) ? (string) file_get_contents($path) : '';
     }

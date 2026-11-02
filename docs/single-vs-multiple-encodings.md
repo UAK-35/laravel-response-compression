@@ -19,28 +19,29 @@ The two modes also fail differently, which is worth knowing before switching:
 | Client must accept | that one encoding | any entry in the list |
 | Effort | one `match` | one pass over the list, each candidate re-checked against the client |
 
-## How the request is gated — and the limitation that follows
+## How the request is gated
 
-`handle()` validates the request against the configured `algorithm` *before* the
-response is produced, in both modes:
+`handle()` asks the acceptance rule about the encodings it would actually try, before the
+response is produced: that one encoding when `algorithm` is the mode, and each entry of
+`multiple_encodings_order` in turn when `try_multiple_encodings` is on. The request is
+gated on the first entry the client accepts.
 
 ```php
-if (! $this->validateRequest($request)) {
+if (! $this->acceptsAnyEncoding($request, $requestUri)) {
     return $next($request);
 }
 ```
 
-So in multiple mode a request must **also** accept `algorithm` for the order list to be
-consulted at all. A client that accepts `gzip` while `algorithm` is `br` is refused
-before the list is ever read, even if `gzip` is in the list.
-
-**Recorded, not fixed.** The consequence is a configuration rule rather than a bug to
-patch quietly: set `algorithm` to the encoding you expect most of your clients to
-accept, and the list covers the rest. The alternative — gating on "any entry the client
-accepts" in multiple mode — is a behaviour change with its own tests to write, and the
-suite currently pins the present behaviour by setting `algorithm` to a value each
-multiple-mode test's request does accept.
+What that buys is consistency between the gate and the walk: a client that accepts
+`gzip` while `algorithm` is `br` is served `gzip` when the list holds it, and
+`Accept-Encoding: *` is served the first entry of the list. The wildcard is the case
+that says why the question goes to the acceptance rule rather than to the request's list
+of names — no candidate is spelt `*`, so a name match finds nothing and refuses a client
+whose header accepts everything. The same rule then decides each candidate again once
+the response exists, so the two cannot disagree.
 
 Covered by `it should use the first configured encoding the client accepts`,
-`it should skip a configured encoding the client does not accept`, and
+`it should skip a configured encoding the client does not accept`,
+`it should accept a wildcard in multiple-encoding mode`,
+`it should walk the configured order when the client names only a later candidate`, and
 `it should leave the response alone when no configured encoding is accepted`.

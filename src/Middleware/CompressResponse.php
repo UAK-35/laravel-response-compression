@@ -53,7 +53,7 @@ final class CompressResponse
         $this->logDebugStatus(Diagnostic::CompressionChecking, ['uri' => $requestUri]);
 
         // early exit if compression is not allowed for this request
-        if (! $this->validateRequest($request, $requestUri)) {
+        if (! $this->acceptsAnyEncoding($request, $requestUri)) {
             $this->logDebugStatus(Diagnostic::CompressionNotAllowed);
 
             return $this->vary($next($request));
@@ -116,17 +116,8 @@ final class CompressResponse
 
         // Add User-Agent if the flag indicates we consulted it
         if ($this->userAgentConsulted) {
-            $existingVary = $response->headers->get('Vary', '');
-            $varyValues = array_filter(array_map('trim', explode(',', $existingVary)));
-
-            // Only add User-Agent if not already present
-            $hasUserAgent = false;
-            foreach ($varyValues as $value) {
-                if (strcasecmp($value, 'User-Agent') === 0) {
-                    $hasUserAgent = true;
-                    break;
-                }
-            }
+            $varyValues = array_filter(array_map(trim(...), explode(',', (string) $response->headers->get('Vary', ''))));
+            $hasUserAgent = array_any($varyValues, static fn (string $value): bool => strcasecmp($value, 'User-Agent') === 0);
 
             if (! $hasUserAgent) {
                 $varyValues[] = 'User-Agent';
@@ -249,15 +240,42 @@ final class CompressResponse
      */
     private function shouldCompressForAlgo(string $compressionAlgorithm, SymfonyRequest $request, Response $response, string $requestUri): bool
     {
-        $requestAccepts = $this->validateRequestPerAlgoAndUserAgent(
-            $compressionAlgorithm,
+        return $this->acceptsEncoding($compressionAlgorithm, $request, $requestUri)
+            && $this->validateResponse($response, $requestUri);
+    }
+
+    /**
+     * Whether the client accepted any encoding this walk would try.
+     *
+     * Multiple-encoding mode walks `multiple_encodings_order` rather than the configured
+     * `algorithm`, so the acceptance rule has to be asked of each candidate: a client that
+     * names only `gzip` is served by a walk configured `gzip,br` even when the single
+     * algorithm is `br`. `Accept-Encoding: *` accepts every candidate, which is why the
+     * question is put to the acceptance rule and not by looking for each candidate's name in
+     * the request - no candidate is spelt `*`, so a name match finds nothing and refuses a
+     * client whose header accepts everything.
+     */
+    private function acceptsAnyEncoding(SymfonyRequest $request, string $requestUri): bool
+    {
+        if (! $this->tryMultipleEncodings()) {
+            return $this->validateRequest($request, $requestUri);
+        }
+
+        return array_any($this->encodingOrder(), fn (string $encoding): bool => $this->acceptsEncoding($encoding, $request, $requestUri));
+    }
+
+    /**
+     * Whether the client accepts one encoding and comes from an agent that can decode it.
+     */
+    private function acceptsEncoding(string $encoding, SymfonyRequest $request, string $requestUri): bool
+    {
+        return $this->validateRequestPerAlgoAndUserAgent(
+            $encoding,
             $request->getEncodings(),
             $request->headers->get('Accept-Encoding'),
             $request->headers->get('user-agent'),
             $requestUri,
         );
-
-        return $requestAccepts && $this->validateResponse($response, $requestUri);
     }
 
     /**
@@ -312,7 +330,7 @@ final class CompressResponse
         // wildcard are different requests: Symfony reads a missing Accept-Encoding as an
         // empty list, while `*` is the client saying it accepts anything.
         // Normalize both sides to lowercase for case-insensitive comparison per HTTP spec (Bug 9 fix).
-        $requestEncodings = array_map('strtolower', $requestEncodings);
+        $requestEncodings = array_map(strtolower(...), $requestEncodings);
         if (! in_array('*', $requestEncodings, true) && ! in_array(strtolower($compressionAlgorithm), $requestEncodings, true)) {
             $this->logDebugStatus(Diagnostic::EncodingNotAccepted, ['uri' => $requestUri]);
 
