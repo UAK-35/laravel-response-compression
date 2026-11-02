@@ -319,6 +319,21 @@ final class CompressResponse
             return false;
         }
 
+        $preferences = AcceptEncoding::preferences($acceptEncoding);
+        $quality = $preferences[$compressionAlgorithm]
+            ?? $preferences[AcceptEncoding::ANY]
+            ?? 1.0;
+
+        if ($quality <= 0.0) {
+            $this->logDebugStatus(Diagnostic::EncodingNotAccepted, [
+                'encoding' => $compressionAlgorithm,
+                'quality' => (string) $quality,
+                'uri' => $requestUri,
+            ]);
+
+            return false;
+        }
+
         // A user agent identified by a common prefix is known to decode this encoding
         // badly over a non-secure connection, so it is served the body as-is. `array_all`
         // is the PHP 8.4 spelling of "none of these match".
