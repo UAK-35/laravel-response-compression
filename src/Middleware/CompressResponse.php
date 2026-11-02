@@ -311,7 +311,9 @@ final class CompressResponse
         // A request that names no encoding has not asked for one. An absent header and a
         // wildcard are different requests: Symfony reads a missing Accept-Encoding as an
         // empty list, while `*` is the client saying it accepts anything.
-        if (! in_array('*', $requestEncodings, true) && ! in_array($compressionAlgorithm, $requestEncodings, true)) {
+        // Normalize both sides to lowercase for case-insensitive comparison per HTTP spec (Bug 9 fix).
+        $requestEncodings = array_map('strtolower', $requestEncodings);
+        if (! in_array('*', $requestEncodings, true) && ! in_array(strtolower($compressionAlgorithm), $requestEncodings, true)) {
             $this->logDebugStatus(Diagnostic::EncodingNotAccepted, ['uri' => $requestUri]);
 
             return false;
