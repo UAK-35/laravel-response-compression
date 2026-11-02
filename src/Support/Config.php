@@ -249,6 +249,9 @@ final class Config
 
         self::commaList('response-compression.multiple_encodings_order', 'br,zstd,gzip');
 
+        self::stringOr('response-compression.fallback_behavior', 'ignore');
+        self::stringOr('response-compression.fallback_encoding', '');
+
         self::intInRange('response-compression.gzip.level', -1, 9, 5);
         self::intInRange('response-compression.br.level', 0, 11, 5);
         self::intInRange('response-compression.zstd.level', 1, 22, 3);

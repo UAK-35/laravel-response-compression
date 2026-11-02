@@ -336,6 +336,135 @@ it('should walk the configured order when the client names only a later candidat
         ->and(Enc::isGzipEncoded($result->getContent()))->toBeTrue();
 });
 
+it('should skip a configured encoding it cannot produce and use the next one', function (): void {
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', 'lz4,gzip');
+    config()->set('response-compression.algorithm', 'br');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => '*']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBe('gzip')
+        ->and(Enc::isGzipEncoded($result->getContent()))->toBeTrue();
+});
+
+it('should mark a response whose order list holds nothing it can produce', function (): void {
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', 'lz4');
+    config()->set('response-compression.algorithm', 'gzip');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => '*']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getContent())->toBe(getLongContent())
+        ->and($result->getVary())->toBe(['Accept-Encoding']);
+});
+
+it('falls back to the configured encoding when the order list holds nothing', function (): void {
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', '');
+    config()->set('response-compression.fallback_behavior', 'compress');
+    config()->set('response-compression.fallback_encoding', 'gzip');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBe('gzip')
+        ->and(Enc::isGzipEncoded($result->getContent()))->toBeTrue();
+});
+
+it('leaves the body alone when the order list is empty and the fallback is ignored', function (): void {
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', '');
+    config()->set('response-compression.fallback_behavior', 'ignore');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getContent())->toBe(getLongContent());
+});
+
+it('ignores a compression fallback it cannot produce, and says why', function (): void {
+    // `compress` is a promise the configuration cannot always keep, and the answer is a line in the
+    // debug output rather than a failed response: the body is left alone exactly as `ignore` would
+    // leave it, and the line names the encoding that could not be produced.
+    config()->set('response-compression.enable_logging', true);
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', '');
+    config()->set('response-compression.fallback_behavior', 'compress');
+    config()->set('response-compression.fallback_encoding', 'lz4');
+
+    $handler = new Monolog\Handler\TestHandler;
+    Log::swap(new Monolog\Logger('compression', [$handler]));
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/api/trips', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => '*']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getVary())->toBe(['Accept-Encoding']);
+
+    $messages = array_column($handler->getRecords(), 'message');
+
+    expect($messages)->toContain(Diagnostic::FallbackIgnored->line([
+        'reason' => "'lz4' is not one this package can produce",
+        'uri' => '/api/trips',
+    ]));
+});
+
+it('falls back to another encoding when the user agent refuses the primary one', function (): void {
+    // The other half of the fallback the audit named: a client that accepts both encodings still
+    // serves br badly through axios, so the walk has to reach gzip rather than stop at the first
+    // entry the client accepted. `Vary: User-Agent` is what says the response was chosen for that
+    // request's agent, and it is the marker a cache needs to not hand this body to another one.
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', 'br,gzip');
+    config()->set('response-compression.algorithm', 'br');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], [
+            'HTTP_ACCEPT_ENCODING' => 'br, gzip',
+            'HTTP_USER_AGENT' => 'axios/1.7.2',
+        ]),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBe('gzip')
+        ->and(Enc::isGzipEncoded($result->getContent()))->toBeTrue()
+        ->and($result->getVary())->toContain('Accept-Encoding')
+        ->and($result->getVary())->toContain('User-Agent');
+});
+
+it('serves the first configured encoding to a user agent that can decode it', function (): void {
+    // The same request from an agent br is fine for, so the gzip above is the refusal's doing and
+    // not the order list's: without this, a walk that always reached gzip would pass the test above.
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', 'br,gzip');
+    config()->set('response-compression.algorithm', 'br');
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], [
+            'HTTP_ACCEPT_ENCODING' => 'br, gzip',
+            'HTTP_USER_AGENT' => 'Mozilla/5.0',
+        ]),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBe('br')
+        ->and(Enc::isBrotliEncoded($result->getContent()))->toBeTrue();
+});
+
 it('should leave the response alone when no configured encoding is accepted', function (): void {
     config()->set('response-compression.try_multiple_encodings', true);
     config()->set('response-compression.multiple_encodings_order', 'br');
@@ -391,6 +520,29 @@ it('should log every compression decision when enable_logging is on', function (
     Log::shouldHaveReceived('debug')
         ->withArgs(fn (string $message, array $context = []): bool => $message === Diagnostic::EncodingCompressing->line(['encoding' => 'gzip', 'uri' => '/api/trips']))
         ->once();
+});
+
+it('records an encoding it cannot produce without claiming it compressed', function (): void {
+    // The configuration can name an encoding no encoder answers for. The body is left as it is, so
+    // the invalid-encoding line is the only one allowed: "compressing with lz4" beside it would say
+    // the opposite of what the response holds, in the one output enable_logging exists to produce.
+    config()->set('response-compression.enable_logging', true);
+    config()->set('response-compression.algorithm', 'lz4');
+
+    $handler = new Monolog\Handler\TestHandler;
+    Log::swap(new Monolog\Logger('compression', [$handler]));
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/api/trips', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => '*']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull();
+
+    $messages = array_column($handler->getRecords(), 'message');
+
+    expect($messages)->toContain(Diagnostic::EncodingUnknown->line(['uri' => '/api/trips']))
+        ->and($messages)->not->toContain(Diagnostic::EncodingCompressing->line(['encoding' => 'lz4', 'uri' => '/api/trips']));
 });
 
 it('should write no log line at all when enable_logging is off', function (): void {

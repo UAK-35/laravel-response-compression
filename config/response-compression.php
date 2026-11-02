@@ -81,6 +81,20 @@ return [
     'multiple_encodings_order' => env('RESPONSE_COMPRESSION_MULTIPLE_ENCODINGS_ORDER', 'br,zstd,gzip'),
 
     /**
+     * What to do when `try_multiple_encodings` is on and the order list holds nothing this
+     * package can produce that the client accepts: `ignore` leaves the body as it is, `compress`
+     * compresses with `fallback_encoding` instead. See docs/single-vs-multiple-encodings.md.
+     */
+    'fallback_behavior' => env('RESPONSE_COMPRESSION_FALLBACK_BEHAVIOR', 'ignore'),
+
+    /**
+     * The encoding `fallback_behavior: compress` falls back to: `gzip`, `br` or `zstd`. Empty, or
+     * a name this package cannot produce, turns `compress` into `ignore` and says so in the debug
+     * log rather than stopping the response.
+     */
+    'fallback_encoding' => env('RESPONSE_COMPRESSION_FALLBACK_ENCODING', ''),
+
+    /**
      * Enable or disable the debug logging of every compression decision.
      *
      * Off by default, and a diagnostic rather than a feature: the middleware runs on every API

@@ -81,6 +81,9 @@ enum Diagnostic: string
     /** The body was compressed, with the encoding that produced it. */
     case EncodingCompressing = 'encoding.compressing';
 
+    /** A configured compression fallback could not be honoured, so the body was left alone. */
+    case FallbackIgnored = 'fallback.ignored';
+
     /** What every line starts with, so the middleware's output can be found and filtered. */
     public const string PREFIX = '[COMPR-RESP] ';
 
@@ -103,6 +106,7 @@ enum Diagnostic: string
             self::ResponseSkipped => 'Response compression skipped - uri: {uri}',
             self::EncodingUnknown => 'Invalid encoding - Response compression skipped - uri: {uri}',
             self::EncodingCompressing => '>> Compressing response using first available encoding = {encoding} - uri: {uri}',
+            self::FallbackIgnored => 'Response compression fallback ignored ({reason}) - Response compression skipped - uri: {uri}',
         };
     }
 

@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use Uak35\ResponseCompression\Encoders\BrotliEncoder;
 use Uak35\ResponseCompression\Encoders\GzipEncoder;
 use Uak35\ResponseCompression\Encoders\ZstdEncoder;
+use Uak35\ResponseCompression\Exceptions\InvalidConfigurationException;
 use Uak35\ResponseCompression\Support\AcceptEncoding;
 use Uak35\ResponseCompression\Support\Config;
 use Uak35\ResponseCompression\Support\Diagnostic;
@@ -27,6 +28,22 @@ use Uak35\ResponseCompression\Support\Diagnostic;
  */
 final class CompressResponse
 {
+    /**
+     * The encodings this package can produce, in the spelling the configuration uses.
+     *
+     * `multiple_encodings_order` is a configuration list rather than a closed set, so it can name
+     * something no encoder here answers for. Such a name is not a candidate - see produces().
+     *
+     * @var list<string>
+     */
+    private const array PRODUCIBLE = ['gzip', 'br', 'zstd'];
+
+    /** The fallback behaviour that compresses with `fallback_encoding` instead of leaving the body. */
+    private const string FALLBACK_COMPRESS = 'compress';
+
+    /** The fallback behaviour that leaves the body alone, which is the shipped default. */
+    private const string FALLBACK_IGNORE = 'ignore';
+
     private bool $userAgentConsulted = false;
 
     /**
@@ -52,8 +69,12 @@ final class CompressResponse
 
         $this->logDebugStatus(Diagnostic::CompressionChecking, ['uri' => $requestUri]);
 
-        // early exit if compression is not allowed for this request
-        if (! $this->acceptsAnyEncoding($request, $requestUri)) {
+        // The encoding is decided before the response exists, because every rule that decides it
+        // is about the request. The response then has one question of its own - is it a body worth
+        // coding - and the encoding chosen here is the one it is coded with.
+        $encoding = $this->selectEncoding($request, $requestUri);
+
+        if ($encoding === null) {
             $this->logDebugStatus(Diagnostic::CompressionNotAllowed);
 
             return $this->vary($next($request));
@@ -61,24 +82,13 @@ final class CompressResponse
 
         $response = $next($request);
 
-        if ($this->tryMultipleEncodings()) {
-            foreach ($this->encodingOrder() as $encoding) {
-                if ($this->shouldCompressForAlgo($encoding, $request, $response, $requestUri)) {
-                    $response = $this->encode($encoding, $response, $requestUri);
-                    break;
-                }
-            }
-
-            return $this->vary($response);
-        }
-
         if (! $this->validateResponse($response, $requestUri)) {
             $this->logDebugStatus(Diagnostic::ResponseSkipped, ['uri' => $requestUri]);
 
             return $this->vary($response);
         }
 
-        return $this->vary($this->encode($this->algorithm(), $response, $requestUri));
+        return $this->vary($this->encode($encoding, $response, $requestUri));
     }
 
     /**
@@ -236,32 +246,108 @@ final class CompressResponse
     }
 
     /**
-     * Whether the response should be compressed for one of the configured encodings.
+     * Whether this package can produce an encoding at all.
+     *
+     * A name the walk cannot produce is skipped rather than chosen: the encoders answer only for
+     * `gzip`, `br` and `zstd`, so choosing any other name returns the body untouched, and because
+     * the walk stops at the first encoding that compressed the body, that would end it with
+     * nothing compressed while a later entry was both accepted and producible - which is what a
+     * client sending `Accept-Encoding: *` used to be served when the list began with one.
      */
-    private function shouldCompressForAlgo(string $compressionAlgorithm, SymfonyRequest $request, Response $response, string $requestUri): bool
+    private function produces(string $encoding): bool
     {
-        return $this->acceptsEncoding($compressionAlgorithm, $request, $requestUri)
-            && $this->validateResponse($response, $requestUri);
+        return in_array($encoding, self::PRODUCIBLE, true);
     }
 
     /**
-     * Whether the client accepted any encoding this walk would try.
+     * The encoding this request is served with, or null when it is served as it is.
      *
-     * Multiple-encoding mode walks `multiple_encodings_order` rather than the configured
-     * `algorithm`, so the acceptance rule has to be asked of each candidate: a client that
-     * names only `gzip` is served by a walk configured `gzip,br` even when the single
-     * algorithm is `br`. `Accept-Encoding: *` accepts every candidate, which is why the
-     * question is put to the acceptance rule and not by looking for each candidate's name in
-     * the request - no candidate is spelt `*`, so a name match finds nothing and refuses a
-     * client whose header accepts everything.
+     * Single-encoding mode asks the acceptance rule about the configured `algorithm` and nothing
+     * else. Multiple-encoding mode walks `multiple_encodings_order` and answers with the first
+     * entry that is both producible and accepted - which is why `Accept-Encoding: *` is served the
+     * first entry rather than refused, and why a name no encoder here answers for is skipped
+     * instead of ending the walk. When that walk finds nothing, the configured fallback decides:
+     * `compress` names one encoding to try, `ignore` leaves the body alone.
      */
-    private function acceptsAnyEncoding(SymfonyRequest $request, string $requestUri): bool
+    private function selectEncoding(SymfonyRequest $request, string $requestUri): ?string
     {
         if (! $this->tryMultipleEncodings()) {
-            return $this->validateRequest($request, $requestUri);
+            return $this->validateRequest($request, $requestUri) ? $this->algorithm() : null;
         }
 
-        return array_any($this->encodingOrder(), fn (string $encoding): bool => $this->acceptsEncoding($encoding, $request, $requestUri));
+        foreach ($this->encodingOrder() as $encoding) {
+            if ($this->produces($encoding) && $this->acceptsEncoding($encoding, $request, $requestUri)) {
+                return $encoding;
+            }
+        }
+
+        return $this->fallbackEncoding($request, $requestUri);
+    }
+
+    /**
+     * The encoding the configured fallback names, or null when the body is served as it is.
+     *
+     * `fallback_behavior: compress` is a promise to compress with one named encoding when the
+     * order list has nothing to offer, and a promise that cannot be kept is a log line rather than
+     * a failed response: an unset, empty or unproducible `fallback_encoding`, or one the client
+     * does not accept, turns the answer into `ignore` and says which of those it was.
+     */
+    private function fallbackEncoding(SymfonyRequest $request, string $requestUri): ?string
+    {
+        if ($this->fallbackBehavior() !== self::FALLBACK_COMPRESS) {
+            return null;
+        }
+
+        $encoding = $this->configuredFallbackEncoding();
+
+        if (! $this->produces($encoding)) {
+            $this->logDebugStatus(Diagnostic::FallbackIgnored, [
+                'reason' => $encoding === ''
+                    ? 'no fallback encoding is configured'
+                    : sprintf("'%s' is not one this package can produce", $encoding),
+                'uri' => $requestUri,
+            ]);
+
+            return null;
+        }
+
+        if (! $this->acceptsEncoding($encoding, $request, $requestUri)) {
+            $this->logDebugStatus(Diagnostic::FallbackIgnored, [
+                'reason' => sprintf("the client does not accept '%s'", $encoding),
+                'uri' => $requestUri,
+            ]);
+
+            return null;
+        }
+
+        return $encoding;
+    }
+
+    /**
+     * What the configured fallback asks for, refused rather than defaulted when it is a word this
+     * package does not know.
+     */
+    private function fallbackBehavior(): string
+    {
+        $behavior = strtolower(Config::stringOr('response-compression.fallback_behavior', self::FALLBACK_IGNORE));
+
+        if (! in_array($behavior, [self::FALLBACK_COMPRESS, self::FALLBACK_IGNORE], true)) {
+            throw InvalidConfigurationException::unreadable(
+                'response-compression.fallback_behavior',
+                "one of the strings 'compress' or 'ignore'",
+                $behavior,
+            );
+        }
+
+        return $behavior;
+    }
+
+    /**
+     * The encoding the fallback names, lowercase and trimmed, or an empty string when none is set.
+     */
+    private function configuredFallbackEncoding(): string
+    {
+        return strtolower(trim(Config::stringOr('response-compression.fallback_encoding', '')));
     }
 
     /**
@@ -284,20 +370,20 @@ final class CompressResponse
      */
     private function encode(string $encoding, Response $response, string $requestUri): Response
     {
-        $encoded = match ($encoding) {
+        if (! $this->produces($encoding)) {
+            $this->logDebugStatus(Diagnostic::EncodingUnknown, ['uri' => $requestUri]);
+
+            return $response;
+        }
+
+        $this->logDebugStatus(Diagnostic::EncodingCompressing, ['encoding' => $encoding, 'uri' => $requestUri]);
+
+        return match ($encoding) {
             'gzip' => app(GzipEncoder::class)->handle($response),
             'br' => app(BrotliEncoder::class)->handle($response),
             'zstd' => app(ZstdEncoder::class)->handle($response),
             default => $response,
         };
-
-        if (! in_array($encoding, ['gzip', 'br', 'zstd'])) {
-            $this->logDebugStatus(Diagnostic::EncodingUnknown, ['uri' => $requestUri]);
-        }
-
-        $this->logDebugStatus(Diagnostic::EncodingCompressing, ['encoding' => $encoding, 'uri' => $requestUri]);
-
-        return $encoded;
     }
 
     /**
