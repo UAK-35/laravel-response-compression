@@ -298,9 +298,13 @@ it('should use the first configured encoding the client accepts', function (): v
 });
 
 it('should skip a configured encoding the client does not accept', function (): void {
+    // `algorithm` is a coding the client refuses and the list is where the answer must come from:
+    // set to the accepted one, this spec passed even if the walk never read the list, because the
+    // single-encoding mode would have served the same body (bug 11's second defect). br is skipped
+    // and zstd served, which neither mode answers unless the list is walked.
     config()->set('response-compression.try_multiple_encodings', true);
     config()->set('response-compression.multiple_encodings_order', 'br,zstd');
-    config()->set('response-compression.algorithm', 'zstd');
+    config()->set('response-compression.algorithm', 'gzip');
 
     $result = runCompressResponseMiddleware(
         Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'zstd']),
