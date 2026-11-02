@@ -776,6 +776,36 @@ it('keeps an existing Vary value beside Accept-Encoding rather than replacing it
     expect($result->getVary())->toBe(['Origin', 'Accept-Encoding']);
 });
 
+it('keeps the values of every Vary field when it adds User-Agent', function (): void {
+    // The defect bug 1 is about: a `Vary` written over two fields was read with `get()`, which
+    // answers with the first field alone, so the branch that adds User-Agent rebuilt the header
+    // from that half and dropped the rest. Both fields here have to survive, in the order the app
+    // wrote them, with this middleware's two markers after them.
+    config()->set('response-compression.algorithm', 'br');
+
+    $response = new Response(getLongContent(), 200, ['Content-Type' => 'text/plain', 'Vary' => 'Origin']);
+    $response->headers->set('Vary', 'Accept-Language', false);
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'br', 'HTTP_USER_AGENT' => 'axios/1.7.2']),
+        $response
+    );
+
+    expect($result->getVary())->toBe(['Origin', 'Accept-Language', 'Accept-Encoding', 'User-Agent']);
+});
+
+it('leaves a Vary wildcard exactly as the app wrote it', function (): void {
+    // `Vary: *` says the response varies on every request header, so naming one beside it is a
+    // header that contradicts itself. The wildcard is the app's answer and this middleware's job is
+    // not to have a second one.
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain', 'Vary' => '*'])
+    );
+
+    expect($result->getVary())->toBe(['*']);
+});
+
 it('does not repeat Accept-Encoding when the response already varies by it', function (): void {
     $result = runCompressResponseMiddleware(
         Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'identity']),

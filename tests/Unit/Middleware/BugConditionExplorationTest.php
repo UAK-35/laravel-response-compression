@@ -1179,8 +1179,11 @@ describe('Bug 11 - Test Fixtures', function (): void {
         // However, the fixture used (getLongContent()) compresses below the min_length
         // threshold of 2048 bytes, so the guard is never actually exercised.
 
-        // Get the fixture used in the pre-compressed test
-        $fixture = getLongContent(); // str_repeat('Hello World', 1000)
+        // The fixture the pre-compressed test now uses: content that does not compress, so its
+        // gzipped body still clears min_length and the Content-Encoding guard is what the test
+        // exercises. `getLongContent()` compresses to 73 bytes, which the size check would skip
+        // first - the defect this probe was written to show, and why the real test moved off it.
+        $fixture = incompressibleContent(3000);
 
         // Examine uncompressed fixture size
         $uncompressedSize = strlen($fixture);
@@ -1193,12 +1196,8 @@ describe('Bug 11 - Test Fixtures', function (): void {
         // Get the min_length configuration (default 2048 bytes)
         $minLength = config('response-compression.min_length', 2048);
 
-        // Assert: The compressed fixture should exceed min_length to exercise the guard
-        // EXPECTED ON UNFIXED CODE: FAILS
-        // The fixture compresses to less than 2048 bytes, so even if the middleware
-        // tried to compress it again, it would be skipped due to size constraints.
-        // The test passes for the wrong reason - the size check prevents double
-        // compression, not the pre-compression detection logic.
+        // Assert: The compressed fixture exceeds min_length, so the guard, and not the floor,
+        // is what leaves the body alone.
         expect($compressedSize)->toBeGreaterThan($minLength,
             "Pre-compressed test fixture compresses to {$compressedSize} bytes, ".
             "below min_length threshold of {$minLength} bytes. ".
@@ -1316,21 +1315,14 @@ describe('Bug 11 - Test Fixtures', function (): void {
         );
         expect($resultWithCompression->headers->get('Content-Encoding'))->toBe('gzip');
 
-        // Assert: Test if Vary header is preserved when compression ACTUALLY occurs
-        // EXPECTED ON UNFIXED CODE: This would FAIL due to Bug 1
-        // The encoder's headers->add() call replaces Vary instead of appending
+        // Assert: Vary is preserved when compression ACTUALLY occurs - the app's Origin beside
+        // this middleware's Accept-Encoding, which is what bug 1 was about. The sentence this
+        // expectation used to carry was passed as a second needle: Pest's toContain() is variadic,
+        // so it required the header to contain the explanation as well as the value.
         $varyWithCompression = $resultWithCompression->headers->get('Vary');
 
-        // This documents what SHOULD happen (and what Bug 1 breaks):
-        // Vary should contain BOTH Origin (original) and Accept-Encoding (added)
-        expect($varyWithCompression)->toContain('Origin',
-            "Vary preservation test should request compression (e.g., 'gzip'), ".
-            "not 'identity'. Tests that request 'identity' never exercise the ".
-            "encoder's Vary header logic because no compression occurs. ".
-            'They pass for the wrong reason - the middleware preserves Vary '.
-            "when skipping compression, but that doesn't test the encoder's behavior."
-        );
-        expect($varyWithCompression)->toContain('Accept-Encoding');
+        expect($varyWithCompression)->toContain('Origin')
+            ->and($varyWithCompression)->toContain('Accept-Encoding');
     })->group('bug-exploration', 'bug-11');
 });
 

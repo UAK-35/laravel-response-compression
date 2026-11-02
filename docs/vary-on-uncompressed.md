@@ -47,11 +47,15 @@ than to one response - the middleware is the negotiation point for every respons
 so a cache that learned to key on it after a large response does not have to unlearn it when a small
 one follows.
 
-The check is idempotent, which is what lets it be applied where an encoder may already have run.
-`Vary` is appended to rather than rewritten, so an application's own `Vary: Origin` survives beside
-it, and a response an encoder has already marked is not marked twice. The encoders still set the
-header for the bodies they compress; this is the other half of that sentence, and it removes a
-dependence on which of the two ran first.
+The check is idempotent, which is what lets it be applied where an encoder may already have run: a
+response an encoder has already marked is not marked twice. The header is read across **every** field
+it arrives in - `HeaderBag::get()` answers with the first field alone, which is how a `Vary` split
+over two fields came to be read in halves and had the second half dropped - and written back as a
+single field, so an application's own `Vary: Origin` survives beside `Accept-Encoding` rather than
+being replaced or split away. A `Vary: *` is returned exactly as written: the wildcard already says
+the response varies on every request header, and naming one beside it would contradict it. The
+encoders still set the header for the bodies they compress; this is the other half of that sentence,
+and it removes a dependence on which of the two ran first.
 
 ## Alternatives that were refused
 

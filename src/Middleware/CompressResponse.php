@@ -103,39 +103,76 @@ final class CompressResponse
      * the body alone.
      *
      * It is idempotent, which is what lets it be applied where an encoder may already have run:
-     * an existing `Accept-Encoding` entry is left alone, and an app's other `Vary` values are
-     * kept rather than replaced - the header is appended to, never rewritten.
+     * an existing `Accept-Encoding` entry is left alone, and an app's other `Vary` values are kept
+     * rather than replaced.
+     *
+     * The header is read across *every* field it arrives in and written back as one. A header
+     * written twice is equivalent HTTP to the comma-joined form, but `HeaderBag::get()` answers
+     * with the first field alone - so a `Vary` split over two fields was read in halves here, and
+     * the half that named `User-Agent` rebuilt the header from the other half and dropped the
+     * rest. `Vary: *` is left exactly as the app wrote it: the wildcard already says the response
+     * varies on every request header, which naming `Accept-Encoding` beside it would contradict.
      */
     private function vary(Response $response): Response
     {
-        // Check if Accept-Encoding is already present
-        $hasAcceptEncoding = false;
-        foreach ($response->headers->all('Vary') as $header) {
-            foreach (explode(',', (string) $header) as $value) {
-                if (strcasecmp(trim($value), 'Accept-Encoding') === 0) {
-                    $hasAcceptEncoding = true;
-                    break 2;
+        $values = $this->varyValues($response);
+
+        // `Vary: *` already says the response varies on every request header, so it is the whole
+        // answer: an encoder that appended `Accept-Encoding` beside it is rewritten out, because a
+        // wildcard and a named header in one `Vary` contradict each other.
+        if ($this->varyCarries($values, '*')) {
+            $response->headers->set('Vary', '*');
+
+            return $response;
+        }
+
+        if (! $this->varyCarries($values, 'Accept-Encoding')) {
+            $values[] = 'Accept-Encoding';
+        }
+
+        if ($this->userAgentConsulted && ! $this->varyCarries($values, 'User-Agent')) {
+            $values[] = 'User-Agent';
+        }
+
+        $response->headers->set('Vary', implode(', ', $values));
+
+        return $response;
+    }
+
+    /**
+     * Every header the response's `Vary` names, across all of its fields, in the order it names them.
+     *
+     * Read from `HeaderBag::all()` rather than `get()`: a value written into a second field is just
+     * as much a `Vary` value as one in the first, and only `all()` answers with both. A value named
+     * twice is one value, which is what writing it twice is.
+     *
+     * @return list<string>
+     */
+    private function varyValues(Response $response): array
+    {
+        $values = [];
+
+        foreach ($response->headers->all('Vary') as $field) {
+            foreach (explode(',', (string) $field) as $value) {
+                $value = trim($value);
+
+                if ($value !== '' && ! $this->varyCarries($values, $value)) {
+                    $values[] = $value;
                 }
             }
         }
 
-        // Add Accept-Encoding if not present
-        if (! $hasAcceptEncoding) {
-            $response->setVary('Accept-Encoding', false);
-        }
+        return $values;
+    }
 
-        // Add User-Agent if the flag indicates we consulted it
-        if ($this->userAgentConsulted) {
-            $varyValues = array_filter(array_map(trim(...), explode(',', (string) $response->headers->get('Vary', ''))));
-            $hasUserAgent = array_any($varyValues, static fn (string $value): bool => strcasecmp($value, 'User-Agent') === 0);
-
-            if (! $hasUserAgent) {
-                $varyValues[] = 'User-Agent';
-                $response->headers->set('Vary', implode(', ', $varyValues));
-            }
-        }
-
-        return $response;
+    /**
+     * Whether one of the values names this header, case-insensitively.
+     *
+     * @param  list<string>  $values
+     */
+    private function varyCarries(array $values, string $header): bool
+    {
+        return array_any($values, static fn (string $value): bool => strcasecmp($value, $header) === 0);
     }
 
     /**
