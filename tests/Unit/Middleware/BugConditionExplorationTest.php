@@ -1171,39 +1171,24 @@ describe('Bug 10 - Brotli Detection', function (): void {
 
 describe('Bug 11 - Test Fixtures', function (): void {
 
-    it('demonstrates pre-compressed test fixture compresses below min_length threshold', function (): void {
-        // This test examines the existing pre-compressed test fixture to show it doesn't
-        // exercise the claimed guard behavior.
-        //
-        // The test claims to verify that pre-compressed content is not compressed again.
-        // However, the fixture used (getLongContent()) compresses below the min_length
-        // threshold of 2048 bytes, so the guard is never actually exercised.
-
-        // The fixture the pre-compressed test now uses: content that does not compress, so its
-        // gzipped body still clears min_length and the Content-Encoding guard is what the test
-        // exercises. `getLongContent()` compresses to 73 bytes, which the size check would skip
-        // first - the defect this probe was written to show, and why the real test moved off it.
+    it('demonstrates the pre-compressed fixture clears the size floor before the guard is asked', function (): void {
+        // This probe was written against the old fixture, which gzipped to 73 bytes: the size check
+        // left the body alone before the Content-Encoding guard was reached, so the test beside it
+        // was green for the wrong reason. What it holds now is the property the repaired fixture has
+        // to keep - the gzipped body still above min_length - so the floor cannot be the thing that
+        // answers instead of the guard.
         $fixture = incompressibleContent(3000);
 
-        // Examine uncompressed fixture size
-        $uncompressedSize = strlen($fixture);
-        expect($uncompressedSize)->toBeGreaterThan(0);
-
-        // Compress the fixture with maximum compression (what the test does)
         $compressed = gzencode($fixture, 9);
         $compressedSize = strlen($compressed);
 
-        // Get the min_length configuration (default 2048 bytes)
+        // The floor the suite configures: `tests/TestCase.php` sets 1024, not the shipped default.
         $minLength = config('response-compression.min_length', 2048);
 
-        // Assert: The compressed fixture exceeds min_length, so the guard, and not the floor,
-        // is what leaves the body alone.
         expect($compressedSize)->toBeGreaterThan($minLength,
-            "Pre-compressed test fixture compresses to {$compressedSize} bytes, ".
-            "below min_length threshold of {$minLength} bytes. ".
-            "This means the test doesn't exercise the pre-compression detection guard - ".
-            'it passes because the size check prevents compression, not because the '.
-            'Content-Encoding header is detected.'
+            "The pre-compressed fixture compresses to {$compressedSize} bytes, at or below the ".
+            "configured min_length of {$minLength} bytes, so the size check would leave the body ".
+            'alone before the Content-Encoding guard is asked anything.'
         );
     })->group('bug-exploration', 'bug-11');
 
@@ -1231,14 +1216,13 @@ describe('Bug 11 - Test Fixtures', function (): void {
             ->and($result->getContent())->not->toBe($content);
     })->group('bug-exploration', 'bug-11');
 
-    it('demonstrates vary-preservation test requests identity encoding', function (): void {
-        // This test examines tests that claim to verify Vary header preservation.
-        // The bug is that these tests request 'identity' encoding (or no compression),
-        // so the encoder never runs and never has the opportunity to overwrite Vary headers.
-        // The test passes because no compression happens, not because Vary is preserved.
+    it('demonstrates a Vary-preservation test has to compress to measure anything', function (): void {
+        // The vary-preservation test used to request 'identity', so no encoder ran and nothing
+        // could have overwritten Vary - it was green because nothing happened. This probe holds
+        // both halves: the identity request that proves nothing about header writes, and the
+        // compressed one where the encoder and this middleware both write the header.
 
-        // Example of what the buggy test might do:
-        // 1. Create response with existing Vary header
+        // 1. The shape the old test had: an existing Vary header and a request for no encoding
         $content = getLongContent();
         $response = new Response($content, 200, [
             'Content-Type' => 'text/plain',
@@ -1264,7 +1248,7 @@ describe('Bug 11 - Test Fixtures', function (): void {
         // Note: When identity is requested, middleware adds Accept-Encoding to Vary
         // but encoders never run, so this doesn't test encoder Vary handling
 
-        // 3. To ACTUALLY test Vary preservation, compression must be applied
+        // 2. The request the test needs: compression, so the encoder's own write is in play
         $response2 = new Response($content, 200, [
             'Content-Type' => 'text/plain',
             'Vary' => 'Origin',
