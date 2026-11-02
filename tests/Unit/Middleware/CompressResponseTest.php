@@ -281,12 +281,15 @@ it('should not compress for a user agent that cannot decode brotli', function ()
 });
 
 it('should use the first configured encoding the client accepts', function (): void {
+    // Two candidates, named in the client's order the other way round: one coding leaves nothing to
+    // select, and a walk that followed the header's order would answer zstd. The configured order
+    // is what decides, which is the property the name claims and what bug 11 found untested.
     config()->set('response-compression.try_multiple_encodings', true);
     config()->set('response-compression.multiple_encodings_order', 'br,zstd,gzip');
     config()->set('response-compression.algorithm', 'br');
 
     $result = runCompressResponseMiddleware(
-        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'br']),
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'zstd, br']),
         new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
     );
 

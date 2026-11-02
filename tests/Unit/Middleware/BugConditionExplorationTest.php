@@ -1207,61 +1207,28 @@ describe('Bug 11 - Test Fixtures', function (): void {
         );
     })->group('bug-exploration', 'bug-11');
 
-    it('demonstrates first-candidate test does not offer multiple accepted encodings', function (): void {
-        // This test examines tests that claim to exercise first-candidate selection
-        // (choosing the first encoding from a list when multiple are accepted).
-        //
-        // Search the test suite for tests that supposedly test multiple encoding selection.
-        // The bug is that these tests only offer ONE accepted encoding, so there's no
-        // actual selection happening - the middleware just uses the only option available.
-
-        // Simulate what a "first candidate" test should do:
-        // 1. Configure multiple encodings in order
+    it('demonstrates first-candidate selection needs two accepted encodings to happen', function (): void {
+        // The suite's spec named one coding, so nothing was selected and the walk was never
+        // exercised - bug 11's first defect. This holds the shape that does exercise it: two codings
+        // the client accepts, named in its own order the other way round, so the answer is the
+        // configured first entry and a walk that read the header's order would answer zstd.
         config()->set('response-compression.try_multiple_encodings', true);
-        config()->set('response-compression.multiple_encodings_order', 'gzip,br,zstd');
+        config()->set('response-compression.multiple_encodings_order', 'br,zstd');
         config()->set('response-compression.min_length', 1024);
 
-        // 2. Create content that will compress
         $content = str_repeat('First candidate test content. ', 200); // ~6KB
-        $response = new Response($content, 200, ['Content-Type' => 'text/plain']);
 
-        // 3. The bug: tests that claim to verify first-candidate selection only accept ONE encoding
-        // Example: Accept-Encoding: gzip
-        // This doesn't test selection because there's nothing to select from!
-        $requestSingleEncoding = Request::create('/', 'GET', [], [], [], [
-            'HTTP_ACCEPT_ENCODING' => 'gzip',
+        $request = Request::create('/', 'GET', [], [], [], [
+            'HTTP_ACCEPT_ENCODING' => 'zstd, br',
         ]);
 
-        $resultSingleEncoding = runCompressResponseMiddleware($requestSingleEncoding, $response);
-
-        // With only one accepted encoding, the middleware has no choice
-        expect($resultSingleEncoding->headers->get('Content-Encoding'))->toBe('gzip');
-
-        // 4. To ACTUALLY test first-candidate selection, the test needs MULTIPLE accepted encodings
-        // Example: Accept-Encoding: gzip, br, zstd
-        $requestMultipleEncodings = Request::create('/', 'GET', [], [], [], [
-            'HTTP_ACCEPT_ENCODING' => 'gzip, br, zstd',
-        ]);
-
-        $response2 = new Response($content, 200, ['Content-Type' => 'text/plain']);
-        $resultMultipleEncodings = runCompressResponseMiddleware($requestMultipleEncodings, $response2);
-
-        // Now the middleware must SELECT which encoding to use
-        // It should pick the first one in the configured order that the client accepts
-        // In this case: gzip (first in 'gzip,br,zstd' order)
-        $selectedEncoding = $resultMultipleEncodings->headers->get('Content-Encoding');
-
-        // Assert: The test suite should include tests where multiple encodings are accepted
-        // EXPECTED: This assertion documents what SHOULD be tested
-        // The existing tests only accept one encoding at a time, never exercising
-        // the selection logic that picks the first from multiple candidates.
-        expect($selectedEncoding)->toBe('gzip',
-            'First-candidate selection test should accept MULTIPLE encodings '.
-            "(e.g., 'gzip, br, zstd') to exercise the selection logic. ".
-            "Tests that only accept a single encoding (e.g., 'gzip' alone) ".
-            "don't test selection - they just test that the middleware can ".
-            'compress with that one encoding.'
+        $result = runCompressResponseMiddleware(
+            $request,
+            new Response($content, 200, ['Content-Type' => 'text/plain'])
         );
+
+        expect($result->headers->get('Content-Encoding'))->toBe('br')
+            ->and($result->getContent())->not->toBe($content);
     })->group('bug-exploration', 'bug-11');
 
     it('demonstrates vary-preservation test requests identity encoding', function (): void {
