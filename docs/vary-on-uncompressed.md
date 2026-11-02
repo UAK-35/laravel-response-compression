@@ -72,6 +72,7 @@ and it removes a dependence on which of the two ran first.
 ## What proves it
 
 `tests/Unit/Middleware/CompressResponseTest.php` drives every path above and asserts that the header
-is present, that a pre-existing `Vary` value is kept, that `Accept-Encoding` is not repeated, and
-that a disabled middleware adds nothing - the last one because a feature that is off has considered
-nothing.
+is present, that a pre-existing `Vary` value is kept, that `Accept-Encoding` is not repeated - on a
+body an encoder marked as well as on one it left alone, and as one header field rather than two -
+and that a disabled middleware adds nothing, the last one because a feature that is off has
+considered nothing.

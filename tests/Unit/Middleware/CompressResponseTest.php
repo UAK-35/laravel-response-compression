@@ -842,3 +842,20 @@ it('leaves a compressed response varying by Accept-Encoding exactly once', funct
     expect($result->headers->get('Content-Encoding'))->toBe('gzip')
         ->and($result->getVary())->toBe(['Accept-Encoding']);
 });
+
+it('does not repeat Accept-Encoding when a compressed response already varies by it', function (): void {
+    // The encoders write the marker with `setVary(..., false)`, which appends a field rather than
+    // replacing one, so a response that already varies by `Accept-Encoding` is marked twice before
+    // this middleware reads it. The merge is what turns that into one value in one field - bug 11's
+    // compression-path duplicate, which the identity case above cannot reach because no encoder
+    // runs. `all()` is asserted as well as `getVary()`, because two fields carrying the same value
+    // read as one value to `getVary()` and as a duplicated header to a cache.
+    $result = runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain', 'Vary' => 'Accept-Encoding'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBe('gzip')
+        ->and($result->headers->all('Vary'))->toHaveCount(1)
+        ->and($result->getVary())->toBe(['Accept-Encoding']);
+});
