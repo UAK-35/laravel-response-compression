@@ -65,6 +65,7 @@ final class CompressResponse
             foreach ($this->encodingOrder() as $encoding) {
                 if ($this->shouldCompressForAlgo($encoding, $request, $response, $requestUri)) {
                     $response = $this->encode($encoding, $response, $requestUri);
+                    break;
                 }
             }
 
