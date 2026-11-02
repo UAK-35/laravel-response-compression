@@ -204,6 +204,15 @@ final class CompressResponse
             return false;
         }
 
+        if ($response->getStatusCode() === 206 || $response->headers->has('Content-Range')) {
+            $this->logDebugStatus(Diagnostic::ResponseSkipped, [
+                'reason' => 'partial_content',
+                'uri' => $requestUri,
+            ]);
+
+            return false;
+        }
+
         $content = $response->getContent();
 
         if (! is_string($content)) {
