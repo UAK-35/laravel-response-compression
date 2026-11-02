@@ -417,17 +417,50 @@ final class ReleaseRepo
     {
         $command = [PHP_BINARY, ...$this->coverage(), $this->path($script), ...$arguments];
 
+        // stderr goes to a file rather than a pipe, and that is the whole fix. A pipe is a buffer
+        // of a fixed size with no obligation on anybody to drain it in time: this process cannot
+        // read stderr until stdout reaches EOF, so a child that fills the stderr buffer before it
+        // writes a byte of stdout blocks in `fwrite()` while this process blocks in `fread()` —
+        // neither side can move, whatever either of them meant. A file has no buffer to fill, so
+        // the volume and the order the child writes in stop mattering.
+        //
+        // The drain loop that used to sit here tried to make both pipes non-blocking, and it
+        // cannot work on Windows: `stream_set_blocking()` answers `false` for a `proc_open` pipe
+        // whose stream is `STDIO`, `stream_set_timeout()` is refused the same way, and
+        // `stream_select()` reports such a pipe readable whether or not a byte is there — all
+        // three measured on this machine. A file needs none of that, which is why this is one
+        // code path rather than a platform check that leaves Linux on a different mechanism.
+        //
+        // stdout stays a pipe, and that is deliberate: it is read *while* the child runs, so it
+        // cannot fill, and a pipe keeps the order a child's own children inherit. Capturing
+        // stdout to a file instead loses the parent's earlier lines as soon as the child hands
+        // its `STDOUT` to a grandchild — `bin/bootstrap.php` does exactly that for composer and
+        // the verifier, and the second writer starts at the file's first byte rather than where
+        // the first one stopped, so a file there is content silently replaced rather than a
+        // deadlock fixed.
+        //
+        // The capture file is a sibling of the tree rather than a file in it: the fixture is
+        // committed and diffed by git, so a capture written inside it would be a dirty tree the
+        // releaser refuses. It is removed as soon as the run has been read.
+        $stderr = $this->path.'.stderr';
+
         [$process, $pipes] = $this->start(
             $command,
-            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['file', $stderr, 'w']],
         );
 
         fclose($pipes[0]);
-        [$output, $error] = $this->drainPipes($pipes);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
 
-        return new ReleaseRun(proc_close($process), $output, $error, implode(' ', $command));
+        try {
+            $output = (string) stream_get_contents($pipes[1]);
+            fclose($pipes[1]);
+            $exitCode = proc_close($process);
+            $error = self::capture($stderr);
+        } finally {
+            self::remove($stderr);
+        }
+
+        return new ReleaseRun($exitCode, $output, $error, implode(' ', $command));
     }
 
     public function git(string ...$arguments): string
@@ -614,76 +647,15 @@ final class ReleaseRepo
     }
 
     /**
-     * Drain stdout and stderr concurrently to prevent deadlock.
+     * What the child wrote to one of its two capture files, read once it has exited.
      *
-     * @param  resource[]  $pipes
-     * @return array{string, string} [$stdout, $stderr]
+     * A file that is not there reads as an empty stream rather than as a failure: both are created
+     * with the child, so its absence is a start that never happened, which `start()` has already
+     * thrown on.
      */
-    private function drainPipes(array $pipes): array
+    private static function capture(string $path): string
     {
-        $stdout = '';
-        $stderr = '';
-
-        // Set both pipes to non-blocking mode
-        stream_set_blocking($pipes[1], false);
-        stream_set_blocking($pipes[2], false);
-
-        // Keep reading until both pipes reach EOF
-        dump('drainPipes: Starting to read pipes');
-        $iterations = 0;
-        $maxIterations = 10000; // Safety limit
-
-        dump('Before while loop');
-        while ($iterations++ < $maxIterations) {
-            if ($iterations === 1) {
-                dump('drainPipes: FIRST iteration starting');
-            }
-            if ($iterations % 100 === 0) {
-                dump("drainPipes: iteration $iterations");
-            }
-            $hasData = false;
-
-            // Try reading from stdout
-            if ($iterations === 1) {
-                dump('Before stdout read');
-            }
-            if (! feof($pipes[1])) {
-                $chunk = fread($pipes[1], 8192);
-                if ($iterations === 1) {
-                    dump('After stdout fread, got '.strlen($chunk ?? '').' bytes');
-                }
-                if ($chunk !== false && $chunk !== '') {
-                    $stdout .= $chunk;
-                    $hasData = true;
-                }
-            }
-            if ($iterations === 1) {
-                dump('After stdout block');
-            }
-
-            // Try reading from stderr
-            if (! feof($pipes[2])) {
-                $chunk = fread($pipes[2], 8192);
-                if ($chunk !== false && $chunk !== '') {
-                    $stderr .= $chunk;
-                    $hasData = true;
-                }
-            }
-
-            // If both pipes are at EOF, we're done
-            if (feof($pipes[1]) && feof($pipes[2])) {
-                break;
-            }
-
-            // If no data was read in this iteration, sleep briefly to avoid busy-waiting
-            if (! $hasData) {
-                usleep(1000); // 1ms
-            }
-        }
-
-        dump("Exiting drainPipes after $iterations iterations");
-
-        return [$stdout, $stderr];
+        return is_file($path) ? (string) file_get_contents($path) : '';
     }
 
     /**

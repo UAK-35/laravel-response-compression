@@ -6,56 +6,37 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 
 /*
 |--------------------------------------------------------------------------
-| Bug 12 - Deadlock Prevention Exploration Test
+| A child's output is captured whatever order and volume it writes in
 |--------------------------------------------------------------------------
 |
-| BUG CONDITION: ReleaseRepo::script() reads stdout to EOF before reading stderr (lines 438-439).
-| When a child process writes large output (>64KB) to stderr before stdout, the stderr pipe
-| buffer fills up, the child blocks waiting for the pipe to be drained, and the parent blocks
-| waiting for stdout EOF. This creates a deadlock.
+| WHAT WENT WRONG: `ReleaseRepo::script()` gave the child stdout and stderr pipes and read stdout
+| to EOF before it read stderr. A child that fills the stderr pipe buffer — a few KB — before it
+| writes a byte of stdout blocks in `fwrite()`, this process blocks in `fread()` waiting for that
+| first stdout byte, and neither side can move. The fix that shipped beside this test was
+| `stream_set_blocking()` on both pipes, which does nothing on Windows: a `proc_open` pipe is a
+| `STDIO` stream there and the wrapper refuses the option, so it answers `false`, leaves the
+| stream blocked, and the drain loop is a blocking read that never reaches its iteration cap.
+| Measured on this machine: the call returns `false`, `stream_get_meta_data()['blocked']` is still
+| `true`, and the first `fread()` on stdout was where a run of this case stopped, permanently.
 |
-| MANUAL VERIFICATION RESULTS:
-| - Test was executed without skip() modifier
-| - Confirmed to hang/timeout after 15 seconds
-| - This proves the deadlock bug exists on unfixed code
-|
-| COUNTEREXAMPLE: Child process writing 1MB to stderr before stdout causes indefinite hang
-|
-| Requirements: 1.12 (Bug Condition 12), 2.12 (Expected Behavior 12)
+| WHAT IS TESTED NOW: the two streams are temporary files beside the fixture, which have no buffer
+| to fill, so a child may write either one first and write any volume. This case is the one that
+| starved the pipe — a megabyte on stderr before a byte on stdout — so it holds the shape as a
+| regression rather than describing a bug that is still there.
 |
 | @guards-index test
 */
 
 /**
- * Bug Exploration Test 12 - Deadlock Prevention
- *
- * Bug Condition: ReleaseRepo::script() reads stdout sequentially (line 438-439), causing deadlock
- * when child writes >64KB to stderr before stdout.
- *
- * Manual Verification: Confirmed timeout/hang on unfixed code
- * Expected on Fixed Code: Test passes - both streams captured without deadlock
- *
- * Validates: Requirements 1.12, 2.12
+ * The volume a pipe buffer cannot hold, in the order that used to leave this process waiting for a
+ * byte the child could not get to: the first assertion is that the call returns at all.
  */
-it('detects deadlock when child writes 1MB to stderr before stdout', function (): void {
-    // This test is marked to skip because it causes a hang on unfixed code.
-    // It was manually verified to reproduce the deadlock.
-    //
-    // To reproduce the bug manually:
-    // 1. Remove the skip() call below
-    // 2. Run: vendor/bin/pest tests/Unit/Support/ReleaseRepoDeadlockTest.php
-    // 3. Observe: Test hangs/times out after 15+ seconds
-    // 4. This confirms the deadlock exists
-    //
-    // The test will be enabled (skip removed) after Bug 12 fix is implemented.
-
+it('captures a megabyte of stderr written before stdout, which no pipe buffer could hold', function (): void {
     $repo = ReleaseRepo::plain();
 
-    // Create a test script that writes 1MB to stderr before stdout
-    // This exceeds typical pipe buffer size (~64KB) and triggers deadlock on unfixed code
     $testScript = <<<'PHP'
 <?php
-// Write 1MB of data to stderr to fill the pipe buffer
+// The volume a pipe buffer cannot hold, written before stdout is touched at all
 $chunk = str_repeat('E', 1024); // 1KB chunk
 for ($i = 0; $i < 1024; $i++) {
     fwrite(STDERR, $chunk);
@@ -68,15 +49,15 @@ PHP;
 
     $repo->write('test-stderr-large.php', $testScript);
 
-    // On UNFIXED code: This call will hang indefinitely
-    // Parent blocks at stream_get_contents($pipes[1]) waiting for stdout
-    // Child blocks trying to write to full stderr pipe
-    // Result: DEADLOCK
     $run = $repo->script('test-stderr-large.php');
 
-    // On FIXED code: Both streams are captured concurrently without deadlock
-    expect($run->exitCode)->toBe(0, 'Script should complete successfully')
-        ->and($run->output)->toContain('Done', 'Stdout should be captured')
-        ->and($run->error)->not->toBeEmpty('Stderr should be captured')
-        ->and(strlen($run->error))->toBeGreaterThanOrEqual(1024 * 1024, 'Should capture all 1MB of stderr');
+    // Both streams whole: the capture is a file, so nothing here depends on which stream the child
+    // filled first, and a run that returned is the half a deadlocked read could never reach. The
+    // expectations carry no sentence of their own because `toContain()` is variadic — it asserts
+    // every argument it is handed — so a message there is read as a second needle, and the run's
+    // own streams are in the failure output either way.
+    expect($run->exitCode)->toBe(0, $run->describe())
+        ->and($run->output)->toContain('Done')
+        ->and($run->error)->not->toBeEmpty()
+        ->and(strlen($run->error))->toBeGreaterThanOrEqual(1024 * 1024);
 });
