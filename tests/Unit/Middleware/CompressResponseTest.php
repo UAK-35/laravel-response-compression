@@ -530,8 +530,11 @@ it('marks a response it left alone for a user agent it refuses', function (): vo
         new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
     );
 
+    // The refusal was the user agent's doing, so the representation varies by it as well as by
+    // Accept-Encoding: this is the case Bug 7's fix is about, and the older expectation predates
+    // the marker it adds.
     expect($result->headers->get('Content-Encoding'))->toBeNull()
-        ->and($result->getVary())->toBe(['Accept-Encoding']);
+        ->and($result->getVary())->toBe(['Accept-Encoding', 'User-Agent']);
 });
 
 it('marks a response it left alone below the configured minimum length', function (): void {

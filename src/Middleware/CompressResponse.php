@@ -194,6 +194,15 @@ final class CompressResponse
             return false;
         }
 
+        if ($response->headers->has('Content-Encoding')) {
+            $this->logDebugStatus(Diagnostic::ResponseSkipped, [
+                'reason' => 'already_encoded',
+                'uri' => $requestUri,
+            ]);
+
+            return false;
+        }
+
         $content = $response->getContent();
 
         if (! is_string($content)) {
