@@ -10,6 +10,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Uak35\ResponseCompression\Exceptions\InvalidConfigurationException;
 use Uak35\ResponseCompression\Support\Diagnostic;
 use Uak35\ResponseCompression\Support\Enc;
 use Uak35\ResponseCompression\Tests\Support\ResponseWithNoReadableContent;
@@ -428,6 +429,81 @@ it('ignores a compression fallback it cannot produce, and says why', function ()
         'reason' => "'lz4' is not one this package can produce",
         'uri' => '/api/trips',
     ]));
+});
+
+it('leaves the body alone when the fallback names no encoding, and says so', function (): void {
+    // `compress` names the behaviour and `fallback_encoding` names the encoding, and the second is
+    // the one piece that cannot be defaulted: choosing one here would decide the client's
+    // Content-Encoding from nothing, which is the trade the fallback exists to refuse.
+    config()->set('response-compression.enable_logging', true);
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', '');
+    config()->set('response-compression.fallback_behavior', 'compress');
+    config()->set('response-compression.fallback_encoding', '');
+
+    $handler = new Monolog\Handler\TestHandler;
+    Log::swap(new Monolog\Logger('compression', [$handler]));
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/api/trips', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => '*']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getContent())->toBe(getLongContent());
+
+    $messages = array_column($handler->getRecords(), 'message');
+
+    expect($messages)->toContain(Diagnostic::FallbackIgnored->line([
+        'reason' => 'no fallback encoding is configured',
+        'uri' => '/api/trips',
+    ]));
+});
+
+it('leaves the body alone when the client refuses the fallback encoding, and says why', function (): void {
+    // The other condition `compress` cannot meet: the order list found nothing, the fallback names
+    // an encoding this package produces, and the request never asked for it. Compressing anyway
+    // would send a Content-Encoding the client did not say it could read.
+    config()->set('response-compression.enable_logging', true);
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', '');
+    config()->set('response-compression.fallback_behavior', 'compress');
+    config()->set('response-compression.fallback_encoding', 'gzip');
+
+    $handler = new Monolog\Handler\TestHandler;
+    Log::swap(new Monolog\Logger('compression', [$handler]));
+
+    $result = runCompressResponseMiddleware(
+        Request::create('/api/trips', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'br']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    );
+
+    expect($result->headers->get('Content-Encoding'))->toBeNull()
+        ->and($result->getContent())->toBe(getLongContent());
+
+    $messages = array_column($handler->getRecords(), 'message');
+
+    expect($messages)->toContain(Diagnostic::FallbackIgnored->line([
+        'reason' => "the client does not accept 'gzip'",
+        'uri' => '/api/trips',
+    ]));
+});
+
+it('refuses a fallback behaviour it does not know, rather than guessing one', function (): void {
+    // `compress` and `ignore` are the two answers this package can carry out. A third word is a
+    // configuration that reads as neither, and a default would answer a question the configuration
+    // asked — the same reason every other key here is refused rather than replaced.
+    config()->set('response-compression.try_multiple_encodings', true);
+    config()->set('response-compression.multiple_encodings_order', '');
+    config()->set('response-compression.fallback_behavior', 'sometimes');
+
+    expect(fn () => runCompressResponseMiddleware(
+        Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
+        new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
+    ))->toThrow(
+        InvalidConfigurationException::class,
+        "is set to the string 'sometimes', which is not one of the strings 'compress' or 'ignore'",
+    );
 });
 
 it('falls back to another encoding when the user agent refuses the primary one', function (): void {
