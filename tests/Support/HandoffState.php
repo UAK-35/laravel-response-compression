@@ -133,15 +133,13 @@ final class HandoffState
         // its own location, so the relative name is the whole of what it needs.
         //
         // A refused start is waited out, because under a pool Windows answers `CreateProcess failed`
-        // before the child exists — this reading is one of the places it was measured. The waiting is
-        // `Processes`', so this one and every other spawning fixture are answered in the same place.
-        $started = Processes::attempt(
-            ['bash', self::SCRIPT],
-            [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-            $root,
-        );
+        // before the child exists — this reading is one of the places it was measured. The waiting
+        // and the deadline are `Processes`', so this one and every other spawning fixture are
+        // answered in the same place: a `state.sh` whose git waits on a lock is stopped there rather
+        // than read to an EOF that a child of the script can hold open.
+        $run = Processes::bounded(['bash', self::SCRIPT], $root);
 
-        if ($started === null) {
+        if (! $run instanceof ReleaseRun) {
             throw new RuntimeException(sprintf(
                 'Could not start bash for %s in %s: %s',
                 self::SCRIPT,
@@ -150,13 +148,9 @@ final class HandoffState
             ));
         }
 
-        [$process, $pipes] = $started;
-
-        $output = (string) stream_get_contents($pipes[1]);
-        $error = (string) stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        $exit = proc_close($process);
+        $output = $run->output;
+        $error = $run->error;
+        $exit = $run->exitCode;
 
         if ($exit !== 0) {
             throw new RuntimeException(sprintf(

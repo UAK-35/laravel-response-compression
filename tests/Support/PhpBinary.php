@@ -197,24 +197,15 @@ final readonly class PhpBinary
         }
 
         // An empty report is this reading's answer to a resolver that could not be asked, so a
-        // refused start — waited out by `Processes` — comes back as `null` rather than as a throw.
-        $started = Processes::attempt(
-            [self::shell(), $resolver, '--report'],
-            [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'w']],
-            $root,
-        );
+        // refused start — waited out, and bounded, by `Processes` — comes back as `''` rather than
+        // as a throw.
+        $run = Processes::bounded([self::shell(), $resolver, '--report'], $root);
 
-        if ($started === null) {
+        if (! $run instanceof ReleaseRun) {
             return '';
         }
 
-        [$process, $pipes] = $started;
-
-        $report = trim((string) stream_get_contents($pipes[1]));
-        fclose($pipes[1]);
-        proc_close($process);
-
-        return $report;
+        return trim($run->output);
     }
 
     /**

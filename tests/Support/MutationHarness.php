@@ -1282,18 +1282,21 @@ final class MutationHarness
 
         // A refused start is waited out rather than read as a hold that did not run: the harness's own
         // runs are children too, and a pool refusing one says nothing about the rewrite under test.
-        [$process, $pipes] = Processes::start(
-            $command,
-            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]],
-            self::package(),
-            $environment,
-        );
+        // The bound is the point here rather than a precaution: this child is Pest, which starts
+        // workers of its own, so a hold that hangs would otherwise stall the harness that asked for
+        // it for as long as the machine allowed. A stopped run answers `TIMED_OUT`, and the hold
+        // reports that instead of waiting.
+        $run = Processes::bounded($command, self::package(), $environment);
 
-        fclose($pipes[0]);
-        $output = (string) stream_get_contents($pipes[1]);
-        fclose($pipes[1]);
+        if (! $run instanceof ReleaseRun) {
+            throw new RuntimeException(sprintf(
+                'Could not start %s: %s',
+                implode(' ', $command),
+                Processes::reason(),
+            ));
+        }
 
-        return ['exit' => proc_close($process), 'output' => $output];
+        return ['exit' => $run->exitCode, 'output' => $run->output.$run->error];
     }
 
     /**
@@ -1635,14 +1638,21 @@ final class MutationHarness
     {
         $command = ['git', '-C', $root, ...$arguments];
 
-        // The same descriptors `MachinePaths::files()` opens: a pipe for the output, the error
-        // stream folded into it, and no stdin for a command that never reads one.
-        [$process, $pipes] = Processes::start($command, [1 => ['pipe', 'w'], 2 => ['redirect', 1]]);
+        // The same two streams `MachinePaths::files()` reads, folded together as they were: a git
+        // that starts and then waits on a lock is stopped at the deadline rather than read to an
+        // EOF that a child of it can hold open.
+        $run = Processes::bounded($command, $root);
 
-        $output = (string) stream_get_contents($pipes[1]);
-        fclose($pipes[1]);
+        if (! $run instanceof ReleaseRun) {
+            throw new RuntimeException(sprintf(
+                'Could not start %s: %s',
+                implode(' ', $command),
+                Processes::reason(),
+            ));
+        }
 
-        $exit = proc_close($process);
+        $output = $run->output.$run->error;
+        $exit = $run->exitCode;
 
         if ($exit !== 0) {
             throw new RuntimeException(sprintf(

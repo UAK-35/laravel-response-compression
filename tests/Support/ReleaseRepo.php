@@ -100,24 +100,6 @@ final class ReleaseRepo
      */
     private const float DEADLINE = 300.0;
 
-    /** How long a stopped child is given to be gone before the caller carries on, in seconds. */
-    private const float GRACE = 5.0;
-
-    /** How long the wait is between two looks at a running child, in microseconds. */
-    private const int POLL = 10_000;
-
-    /** The exit status a stopped run reports: the one `timeout(1)` uses for the same thing. */
-    private const int TIMED_OUT = 124;
-
-    /**
-     * The reader program: copy stdin to the capture file, and end when the pipe closes.
-     *
-     * One line of PHP rather than a class, because it must not be this class: it has to run in a
-     * process of its own, with the pipe as its stdin, for the read to be a wait this process is
-     * not in.
-     */
-    private const string READER = 'stream_copy_to_stream(STDIN, fopen($argv[1], "w"));';
-
     /** One planted repository per tag and body, copied for every test that asks. */
     private static array $templates = [];
 
@@ -462,72 +444,22 @@ final class ReleaseRepo
     {
         $command = [PHP_BINARY, ...$this->coverage(), $this->path($script), ...$arguments];
 
-        // stdout is drained by a child of this process, and stderr goes to a file. A pipe could not
-        // be read without blocking on Windows — `stream_set_blocking()` answers `false` for a
-        // `proc_open` pipe, `stream_get_meta_data()` still says `blocked`, and a first `fread()` on
-        // an empty one waited 2.1 seconds for the byte it was waiting for — which is why a deadline
-        // could not be enforced from here before: the read *was* the wait.
-        //
-        // So the wait moves one process out. The reader copies the pipe to the capture file and
-        // blocks, which is its whole job; this process only polls `proc_get_status()`, and a poll is
-        // the one wait that can look at a clock. Two measurements made a reader necessary rather
-        // than an obvious file descriptor. stdout cannot be a file: `bin/bootstrap.php` starts
-        // composer and the verifier with `1 => STDOUT`, and the write that lands last in that run
-        // was measured starting at the capture file's first byte — `bin/bootstrap.php: done.` in
-        // front of the lines its children had written — so a second writer does not append whatever
-        // mode the file was opened in. And the pipe's order has to survive, because the tests read
-        // the program's own lines beside its children's. A reader that writes the file as the bytes
-        // arrive keeps both: the pipe is exactly what it was, and the file has one writer.
-        //
-        // The capture files are siblings of the tree rather than files in it: the fixture is
-        // committed and diffed by git, so a capture written inside it would be a dirty tree the
-        // releaser refuses. They are removed as soon as the run has been read.
-        $stdout = $this->path.'.stdout';
-        $stderr = $this->path.'.stderr';
+        // The bound is `Processes::bounded()`'s: a run that never ends, or one whose grandchild
+        // holds the pipe after the child is gone, is stopped there and its tree with it. What stays
+        // here is the two things a release run has of its own — a deadline a test can lower with
+        // `within()`, and the note that the fixture's script is run under the coverage flags when
+        // the floor is being measured.
+        $run = Processes::bounded($command, $this->path, $this->environment(), $this->deadline);
 
-        self::remove($stdout);
-        self::remove($stderr);
-
-        [$process, $pipes] = $this->start(
-            $command,
-            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['file', $stderr, 'w']],
-        );
-
-        fclose($pipes[0]);
-
-        // The reader is handed the pipe itself, not a copy of a file: a duplicate is what makes EOF
-        // arrive when the last writer closes it — the child, or a grandchild that inherited `STDOUT`
-        // — and it is why this process closes its own handle before it waits.
-        [$reader] = $this->start(
-            [PHP_BINARY, '-r', self::READER, $stdout],
-            [0 => $pipes[1], 1 => $this->discard(), 2 => $this->discard()],
-        );
-
-        fclose($pipes[1]);
-
-        $timedOut = false;
-
-        try {
-            $exitCode = $this->await($process, $reader);
-            $timedOut = $exitCode === null;
-
-            $output = $this->capture($stdout);
-            $error = $this->capture($stderr);
-        } finally {
-            proc_close($reader);
-            proc_close($process);
-            self::remove($stdout);
-            self::remove($stderr);
+        if (! $run instanceof ReleaseRun) {
+            throw new RuntimeException(sprintf(
+                'Could not start %s: %s',
+                implode(' ', $command),
+                Processes::reason(),
+            ));
         }
 
-        return new ReleaseRun(
-            $timedOut ? self::TIMED_OUT : (int) $exitCode,
-            $output,
-            $error,
-            implode(' ', $command),
-            $timedOut,
-            $this->deadline,
-        );
+        return $run;
     }
 
     public function git(string ...$arguments): string
@@ -714,183 +646,6 @@ final class ReleaseRepo
     }
 
     /**
-     * Wait for one child, and answer its exit status — or `null` when the deadline stopped it.
-     *
-     * The clock is the point of this method. `proc_get_status()` is the one call that asks about a
-     * child without waiting on it, so a loop that asks it is a loop that can decide a run has taken
-     * too long; the blocking read lives in the reader, which is why this process never enters one.
-     *
-     * @param  resource  $process
-     * @param  resource  $reader
-     */
-    private function await($process, $reader): ?int
-    {
-        $deadline = microtime(true) + $this->deadline;
-
-        while (true) {
-            $status = proc_get_status($process);
-
-            if (! $status['running']) {
-                $this->settle($reader);
-
-                return (int) $status['exitcode'];
-            }
-
-            if (microtime(true) >= $deadline) {
-                $this->stop($process);
-                $this->settle($reader);
-
-                return null;
-            }
-
-            usleep(self::POLL);
-        }
-    }
-
-    /**
-     * Give the reader the bounded time it needs to finish the capture, then end it.
-     *
-     * A child that has exited can leave a grandchild holding the pipe, so the reader is waited on
-     * rather than assumed finished; past the grace it is ended and whatever it has written is read
-     * as the output, which is a partial capture rather than a hang.
-     *
-     * @param  resource  $reader
-     */
-    private function settle($reader): void
-    {
-        $until = microtime(true) + self::GRACE;
-
-        while (proc_get_status($reader)['running'] && microtime(true) < $until) {
-            usleep(self::POLL);
-        }
-
-        proc_terminate($reader);
-    }
-
-    /**
-     * Stop a child that has run past its deadline, and everything it started.
-     *
-     * The tree is the half `proc_terminate()` cannot answer: a release script's children are `git`,
-     * and the bootstrap fixture's are composer and the verifier, and a bound that left those
-     * running would leave them writing into a tree the next test copies — the cleanup the report's
-     * finding asked for, rather than only the clock. Windows has `taskkill /T` for it, and there it
-     * goes first: `/T` finds a child's descendants through the parent that is still there, so
-     * stopping the child first would leave nothing to enumerate the tree by. Elsewhere the process
-     * table is walked downwards, because `proc_open()` starts no process group for `kill -pid` to
-     * name.
-     *
-     * @param  resource  $process
-     */
-    private function stop($process): void
-    {
-        $pid = (int) proc_get_status($process)['pid'];
-
-        if ($pid > 0 && PHP_OS_FAMILY === 'Windows') {
-            exec(sprintf('taskkill /F /T /PID %d 2>NUL', $pid));
-        } elseif ($pid > 0) {
-            foreach (array_reverse($this->descendants($pid)) as $descendant) {
-                $this->signal($descendant);
-            }
-
-            $this->signal($pid);
-        }
-
-        proc_terminate($process);
-
-        // A kill is a request; this waits, bounded, for it to have been carried out. Without it the
-        // wait is `proc_close()` in the caller, and that one has no clock — the same shape as the
-        // read the deadlock was made of.
-        $until = microtime(true) + self::GRACE;
-
-        while (proc_get_status($process)['running'] && microtime(true) < $until) {
-            usleep(self::POLL);
-        }
-    }
-
-    /**
-     * A descriptor that throws away what is written to it, for a process whose output is not the
-     * subject.
-     *
-     * @return array{0: string, 1: string, 2: string}
-     */
-    private function discard(): array
-    {
-        return ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'w'];
-    }
-
-    /**
-     * Kill one process, through `posix` where the extension answers and through `kill` where it is
-     * not installed — Windows never reaches this, because `taskkill` is the whole tree there.
-     */
-    private function signal(int $pid): void
-    {
-        if (function_exists('posix_kill')) {
-            @posix_kill($pid, 9);
-
-            return;
-        }
-
-        exec(sprintf('kill -9 %d 2>/dev/null', $pid));
-    }
-
-    /**
-     * Every process below one, breadth first, read from the machine's own process table.
-     *
-     * `ps -e -o pid=,ppid=` is the form both Linux and macOS answer, and a machine that cannot be
-     * asked answers with an empty list rather than failing: the direct child is stopped by
-     * `proc_terminate()` either way, so what an unreadable table costs is the tree, not the stop.
-     *
-     * @return list<int>
-     */
-    private function descendants(int $pid): array
-    {
-        $listing = @shell_exec('ps -e -o pid=,ppid= 2>/dev/null');
-
-        if (! is_string($listing)) {
-            return [];
-        }
-
-        /** @var array<int, int> $parents pid => ppid */
-        $parents = [];
-
-        foreach (preg_split('/\R/', $listing) ?: [] as $line) {
-            if (preg_match('/^\s*(\d+)\s+(\d+)\s*$/', $line, $match) !== 1) {
-                continue;
-            }
-
-            $parents[(int) $match[1]] = (int) $match[2];
-        }
-
-        $found = [];
-        $queue = [$pid];
-
-        while ($queue !== []) {
-            $parent = array_shift($queue);
-
-            foreach ($parents as $child => $ppid) {
-                if ($ppid === $parent) {
-                    $found[] = $child;
-                    $queue[] = $child;
-                }
-            }
-        }
-
-        return $found;
-    }
-
-    /**
-     * What the child wrote to one of its two capture files, read once it has exited.
-     *
-     * A file that is not there reads as an empty stream rather than as a failure: both are created
-     * with the child, so its absence is a start that never happened, which `start()` has already
-     * thrown on.
-     */
-    private function capture(string $path): string
-    {
-        return is_file($path) ? (string) file_get_contents($path) : '';
-    }
-
-    /**
      * The flags a spawned script is run with when the suite is being measured, and nothing at all
      * when it is not.
      *
@@ -1051,41 +806,29 @@ PHP;
     }
 
     /**
-     * Start one child in this fixture's tree and with its environment, waiting out a refused start.
-     *
-     * The waiting itself is `Processes`', because it is a fact about this machine rather than about
-     * the release rails: the reading that could not start `git` and the one that could not start
-     * `bash` fail the same way, and both are answered in one place.
-     *
-     * @param  list<string>  $command
-     * @param  array<int, array<int, string>|resource>  $descriptors
-     * @return array{0: resource, 1: array<int, resource>}
-     */
-    private function start(array $command, array $descriptors): array
-    {
-        return Processes::start($command, $descriptors, $this->path, $this->environment());
-    }
-
-    /**
      * @param  list<string>  $arguments
      */
     private function run(array $arguments): string
     {
-        // All three streams are declared, stdin included, rather than left to be inherited: with no
-        // descriptor 0 the child is handed whatever handle the runner gave this process, and a
-        // parallel runner spawns its workers with pipes of its own. No child here reads stdin, so
-        // the write end of its pipe is closed as soon as the process exists.
-        [$process, $pipes] = $this->start(
-            ['git', ...$arguments],
-            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]],
-        );
+        // The descriptors used to be written here: stdout and stderr on one pipe, stdin declared and
+        // closed at once. `Processes::bounded()` keeps that split and adds the clock, so a git that
+        // starts and then waits on a lock is answered rather than waited on.
+        $command = ['git', ...$arguments];
 
-        fclose($pipes[0]);
-        $output = (string) stream_get_contents($pipes[1]);
-        fclose($pipes[1]);
-        $exit = proc_close($process);
+        $run = Processes::bounded($command, $this->path, $this->environment());
 
-        if ($exit !== 0) {
+        if (! $run instanceof ReleaseRun) {
+            throw new RuntimeException(sprintf(
+                'Could not start %s in %s: %s',
+                implode(' ', $command),
+                $this->path,
+                Processes::reason(),
+            ));
+        }
+
+        $output = $run->output.$run->error;
+
+        if ($run->exitCode !== 0) {
             throw new RuntimeException(sprintf(
                 "git %s failed in %s:\n%s",
                 implode(' ', $arguments),

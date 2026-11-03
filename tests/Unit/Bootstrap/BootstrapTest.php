@@ -147,19 +147,15 @@ function bootstrapRenderer(ReleaseRepo $checkout, string ...$arguments): Release
 
     // `Processes` rather than `proc_open()`: under a pool this machine refuses a start outright, and
     // a fixture tree that never got its child is a test that reports the machine instead of the gate.
-    [$process, $pipes] = Processes::start(
-        $command,
-        [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-        $checkout->path,
-    );
+    // The bound is the other half: a renderer that starts and then blocks is stopped at the runner's
+    // deadline rather than read to an EOF that never comes.
+    $run = Processes::bounded($command, $checkout->path);
 
-    fclose($pipes[0]);
-    $output = (string) stream_get_contents($pipes[1]);
-    $error = (string) stream_get_contents($pipes[2]);
-    fclose($pipes[1]);
-    fclose($pipes[2]);
+    if (! $run instanceof ReleaseRun) {
+        throw new RuntimeException(sprintf('Could not start %s: %s', implode(' ', $command), Processes::reason()));
+    }
 
-    return new ReleaseRun(proc_close($process), $output, $error, implode(' ', $command));
+    return $run;
 }
 
 /**
@@ -414,19 +410,11 @@ it('runs this package\'s own program as a program, which is the half a fixture c
     // checkout that is running the suite.
     $command = [PHP_BINARY, ReleaseRepo::package().'/bin/bootstrap.php', '--dry-run'];
 
-    [$process, $pipes] = Processes::start(
-        $command,
-        [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-        ReleaseRepo::package(),
-    );
+    $run = Processes::bounded($command, ReleaseRepo::package());
 
-    fclose($pipes[0]);
-    $output = (string) stream_get_contents($pipes[1]);
-    $error = (string) stream_get_contents($pipes[2]);
-    fclose($pipes[1]);
-    fclose($pipes[2]);
-
-    $run = new ReleaseRun(proc_close($process), $output, $error, implode(' ', $command));
+    if (! $run instanceof ReleaseRun) {
+        throw new RuntimeException(sprintf('Could not start %s: %s', implode(' ', $command), Processes::reason()));
+    }
 
     expect($run->exitCode)->toBe(0, $run->describe())
         ->and($run->output)->toContain('nothing was changed');

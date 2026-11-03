@@ -73,19 +73,13 @@ function toolRun(string ...$arguments): ReleaseRun
 
     // `Processes` rather than `proc_open()`: a start this machine refused under a pool is not a
     // finding about the tool it was asked to run.
-    [$process, $pipes] = Processes::start(
-        $command,
-        [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-        packageRoot(),
-    );
+    $run = Processes::bounded($command, packageRoot());
 
-    fclose($pipes[0]);
-    $output = (string) stream_get_contents($pipes[1]);
-    $error = (string) stream_get_contents($pipes[2]);
-    fclose($pipes[1]);
-    fclose($pipes[2]);
+    if (! $run instanceof ReleaseRun) {
+        throw new RuntimeException(sprintf('Could not start %s: %s', implode(' ', $command), Processes::reason()));
+    }
 
-    return new ReleaseRun(proc_close($process), $output, $error, implode(' ', $command));
+    return $run;
 }
 
 it('runs the entry file the manifest names, from the package root, and returns its exit code', function (): void {

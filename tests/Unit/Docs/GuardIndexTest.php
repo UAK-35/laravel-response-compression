@@ -774,18 +774,13 @@ function indexRun(string ...$arguments): ReleaseRun
 
     // `Processes` rather than `proc_open()`: a start this machine refused under a pool would read
     // as an index that could not be rendered.
-    [$process, $pipes] = Processes::start(
-        $command,
-        [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-        packageRoot(),
-    );
+    $run = Processes::bounded($command, packageRoot());
 
-    $output = (string) stream_get_contents($pipes[1]);
-    $error = (string) stream_get_contents($pipes[2]);
-    fclose($pipes[1]);
-    fclose($pipes[2]);
+    if (! $run instanceof ReleaseRun) {
+        throw new RuntimeException(sprintf('Could not start %s: %s', implode(' ', $command), Processes::reason()));
+    }
 
-    return new ReleaseRun(proc_close($process), $output, $error, implode(' ', $command));
+    return $run;
 }
 
 /**

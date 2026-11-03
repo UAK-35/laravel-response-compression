@@ -677,15 +677,12 @@ final class MachineShape
             ));
         }
 
-        // The start is `Processes`', so a refusal under a pool is waited out rather than reported as
-        // a machine whose settings could not be rendered.
-        $started = Processes::attempt(
-            ['python', $renderer, ...$arguments],
-            [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-            $root,
-        );
+        // The start and the bound are `Processes`', so a refusal under a pool is waited out rather
+        // than reported as a machine whose settings could not be rendered — and a renderer that
+        // starts and then waits is stopped instead of read to an EOF that never comes.
+        $run = Processes::bounded(['python', $renderer, ...$arguments], $root);
 
-        if ($started === null) {
+        if (! $run instanceof ReleaseRun) {
             throw new RuntimeException(sprintf(
                 'Could not start python in %s: %s',
                 $root,
@@ -693,14 +690,7 @@ final class MachineShape
             ));
         }
 
-        [$process, $pipes] = $started;
-
-        $output = (string) stream_get_contents($pipes[1]);
-        $error = (string) stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-
-        return ['exit' => proc_close($process), 'out' => $output, 'err' => $error];
+        return ['exit' => $run->exitCode, 'out' => $run->output, 'err' => $run->error];
     }
 
     /**

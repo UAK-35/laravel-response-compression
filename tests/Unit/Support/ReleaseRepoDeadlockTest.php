@@ -40,7 +40,10 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 | stopping the child *and its descendants* when a run reaches it. The second case holds both
 | halves: the call comes back, and the grandchild the fixture started — it announces itself, so the
 | absence of its later marker is a tree that was stopped rather than a tree that never appeared —
-| never writes.
+| never writes. `taskkill /T` enumerates the tree before it terminates it, so a descendant spawned
+| while that is happening is not in the list and outlives the parent; the stop therefore sweeps what
+| is still parented to the dead child, and this case waits from the grandchild's own start rather
+| than from the moment the run returned, so a late spawn cannot read as an absent one.
 |
 | @guards-index test
 */
@@ -182,10 +185,18 @@ it('stops a script that never ends, and the child it started with it', function 
         ->and(file_exists($mark.'.grandchild-started'))->toBeTrue()
         ->and(file_exists($mark.'.finished'))->toBeFalse();
 
-    // Past the grandchild's own six seconds: a stop that killed only the direct child would
-    // leave this written, and the next test to copy the tree would inherit a process still working
-    // in it — the cleanup half of the bound, which is the half a kill of the child alone misses.
-    usleep(6_000_000);
+    // Past the grandchild's own six seconds, counted from when it says it started rather than from
+    // when this run came back: under the gate's workers the child can take seconds to boot, so the
+    // grandchild may be spawned most of the deadline late, and a wait measured from here would
+    // check while it was still asleep — an orphan this case is about would read as absent. A stop
+    // that killed only the direct child leaves the later marker written, and the next test to copy
+    // the tree inherits a process still working in it: the cleanup half of the bound, which is the
+    // half a kill of the child alone misses.
+    $since = (float) filemtime($mark.'.grandchild-started') + 7.0 - microtime(true);
+
+    if ($since > 0) {
+        usleep((int) ($since * 1_000_000));
+    }
 
     expect(file_exists($mark.'.grandchild'))->toBeFalse();
 

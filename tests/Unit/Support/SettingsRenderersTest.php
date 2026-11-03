@@ -94,19 +94,13 @@ function settingsRun(ReleaseRepo $tree, string $program, string ...$arguments): 
     $command = ['python', $tree->path($program)];
     array_push($command, ...$arguments);
 
-    [$process, $pipes] = Processes::start(
-        $command,
-        [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-        $tree->path,
-    );
+    $run = Processes::bounded($command, $tree->path);
 
-    fclose($pipes[0]);
-    $output = (string) stream_get_contents($pipes[1]);
-    $error = (string) stream_get_contents($pipes[2]);
-    fclose($pipes[1]);
-    fclose($pipes[2]);
+    if (! $run instanceof ReleaseRun) {
+        throw new RuntimeException(sprintf('Could not start %s: %s', implode(' ', $command), Processes::reason()));
+    }
 
-    return new ReleaseRun(proc_close($process), $output, $error, implode(' ', $command));
+    return $run;
 }
 
 it('refuses a template naming a placeholder nothing resolves, and writes nothing for it', function (): void {

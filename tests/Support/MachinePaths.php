@@ -336,14 +336,12 @@ final class MachinePaths
      */
     private static function listing(string $root, array $arguments): array
     {
-        // The start is `Processes`', so a refusal under a pool is waited out rather than reported as
-        // a commit scope that could not be asked for.
-        $started = Processes::attempt(
-            ['git', '-C', $root, 'ls-files', ...$arguments, '-z'],
-            [1 => ['pipe', 'w'], 2 => ['redirect', 1]],
-        );
+        // The start and the bound are `Processes`': a refusal under a pool is waited out, and a git
+        // that starts and then blocks — on a lock, or with a child holding the pipe open — is stopped
+        // at a deadline rather than read to an EOF that never comes.
+        $run = Processes::bounded(['git', '-C', $root, 'ls-files', ...$arguments, '-z'], $root);
 
-        if ($started === null) {
+        if (! $run instanceof ReleaseRun) {
             throw new RuntimeException(sprintf(
                 'Could not ask git for the files a commit would carry in %s: %s',
                 $root,
@@ -351,11 +349,8 @@ final class MachinePaths
             ));
         }
 
-        [$process, $pipes] = $started;
-
-        $output = (string) stream_get_contents($pipes[1]);
-        fclose($pipes[1]);
-        $exit = proc_close($process);
+        $output = $run->output.$run->error;
+        $exit = $run->exitCode;
 
         if ($exit !== 0) {
             throw new RuntimeException('`git ls-files` failed in '.$root.":\n".$output);

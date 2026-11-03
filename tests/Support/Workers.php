@@ -139,21 +139,11 @@ final class Workers
     private static function shell(array $command): string
     {
         // No output is this reading's answer to a shell that could not be asked, so a refused start —
-        // waited out by `Processes` — comes back as an empty count rather than as a throw.
-        $started = Processes::attempt($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']]);
+        // waited out, and bounded, by `Processes` — comes back as an empty count rather than as a
+        // throw. The bound matters here more than it looks: this call passes no stdin descriptor, so
+        // the child inherits whatever the pool gave this process.
+        $run = Processes::bounded($command);
 
-        if ($started === null) {
-            return '';
-        }
-
-        [$process, $pipes] = $started;
-
-        $output = (string) stream_get_contents($pipes[1]);
-
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        proc_close($process);
-
-        return $output;
+        return $run instanceof ReleaseRun ? $run->output : '';
     }
 }

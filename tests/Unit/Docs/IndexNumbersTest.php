@@ -280,14 +280,13 @@ function indexNumbersGit(string $root, array $arguments): void
 {
     // `Processes` rather than `proc_open()`: a refused start under a pool would read as a planted
     // tree that could not be committed to.
-    [$process, $pipes] = Processes::start(
-        ['git', '-C', $root, ...$arguments],
-        [1 => ['pipe', 'w'], 2 => ['redirect', 1]],
-    );
+    $run = Processes::bounded(['git', '-C', $root, ...$arguments], $root);
 
-    fclose($pipes[1]);
+    if (! $run instanceof Uak35\ResponseCompression\Tests\Support\ReleaseRun) {
+        throw new RuntimeException(sprintf('Could not start git in %s: %s', $root, Processes::reason()));
+    }
 
-    if (proc_close($process) !== 0) {
-        throw new RuntimeException('`git '.implode(' ', $arguments).'` failed in '.$root);
+    if ($run->exitCode !== 0) {
+        throw new RuntimeException('`git '.implode(' ', $arguments).'` failed in '.$root.': '.trim($run->output.$run->error));
     }
 }

@@ -412,7 +412,7 @@ the table at the top.
 | File | What it is |
 |---|---|
 | [`../tests/Support/Notes.php`](../tests/Support/Notes.php) | the channel a reading writes to when it declines to ask a question, so that a skip is printed where a clean answer and a question nobody could ask would otherwise look the same |
-| [`../tests/Support/Processes.php`](../tests/Support/Processes.php) | one place a fixture starts a child: a start this machine refused is tried again, and the reason it gave is kept |
+| [`../tests/Support/Processes.php`](../tests/Support/Processes.php) | one place a fixture starts a child: a start this machine refused is tried again, the reason it gave is kept, and a start that succeeds and then blocks is stopped at a deadline with its tree |
 | [`../tests/Support/ReleaseRepo.php`](../tests/Support/ReleaseRepo.php) | a throwaway git repository with a real tag and a real remote, holding this package's release script |
 | [`../tests/Support/ReleaseRun.php`](../tests/Support/ReleaseRun.php) | what one run of a `bin/` script did: its exit code and the two streams, kept apart on purpose |
 | [`../tests/Support/ResponseWithNoReadableContent.php`](../tests/Support/ResponseWithNoReadableContent.php) | a response that reports a body it will not hand over |
