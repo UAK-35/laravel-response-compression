@@ -23,7 +23,9 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 | and stdout is the pipe it always was, drained into a second file by a reader child so that this
 | process never blocks on it. A child may therefore write either stream first and write any volume.
 | This case is the one that starved the pipe — a megabyte on stderr before a byte on stdout — so it
-| holds the shape as a regression rather than describing a bug that is still there. (stdout could
+| holds the shape as a regression rather than describing a bug that is still there, and a second
+| case holds the volume on both sides at once — a megabyte each, written in turn — because a case
+| that fills one stream only is the half the finding asked for. (stdout could
 | not become a file: `bin/bootstrap.php` hands `STDOUT` to composer and the verifier, and a run's
 | last write landed at the capture file's first byte — measured, `bin/bootstrap.php: done.` in
 | front of its children's lines — so a second writer does not append whatever mode it is opened
@@ -76,6 +78,50 @@ PHP;
         ->and($run->output)->toContain('Done')
         ->and($run->error)->not->toBeEmpty()
         ->and(strlen($run->error))->toBeGreaterThanOrEqual(1024 * 1024);
+});
+
+/**
+ * Both streams at their limit rather than one: a megabyte on stdout and a megabyte on stderr, a
+ * kilobyte at a time in turn, which is the "large output on each stream" the finding asked for and
+ * the shape the first case could not reach. Every turn is one write each, so whichever stream the
+ * child fills first, the other is already past its pipe buffer when it comes back to it — the old
+ * read made that a deadlock in both directions rather than one.
+ */
+it('captures a megabyte on each stream at once, written in turn', function (): void {
+    $repo = ReleaseRepo::plain();
+
+    $testScript = <<<'PHP'
+<?php
+// A kilobyte each way, a thousand and twenty-four times: at the end of every turn both streams are
+// over a pipe buffer's worth of unread bytes.
+$out = str_repeat('O', 1024);
+$err = str_repeat('E', 1024);
+
+for ($i = 0; $i < 1024; $i++) {
+    fwrite(STDOUT, $out);
+    fwrite(STDERR, $err);
+}
+
+fwrite(STDOUT, "Done\n");
+exit(0);
+PHP;
+
+    $repo->write('test-both-large.php', $testScript);
+
+    $began = microtime(true);
+    $run = $repo->script('test-both-large.php');
+    $elapsed = microtime(true) - $began;
+
+    // Whole on both sides rather than each one reaching some threshold: a capture that lost either
+    // tail is a read that stopped early, and a read that stops early is what this case is for. The
+    // clock is asserted too, generously, because the failure this replaced was a wait with no end
+    // in it rather than a slow answer.
+    expect($run->exitCode)->toBe(0, $run->describe())
+        ->and($run->timedOut)->toBe(false)
+        ->and(strlen($run->output))->toBe(1024 * 1024 + strlen("Done\n"))
+        ->and(strlen($run->error))->toBe(1024 * 1024)
+        ->and(str_ends_with($run->output, "Done\n"))->toBeTrue()
+        ->and($elapsed)->toBeLessThan(60.0);
 });
 
 /**
