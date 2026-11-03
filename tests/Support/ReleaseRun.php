@@ -17,11 +17,17 @@ namespace Uak35\ResponseCompression\Tests\Support;
  */
 final readonly class ReleaseRun
 {
+    /**
+     * @param  bool  $timedOut  whether the run was stopped at its deadline rather than ending
+     * @param  float  $deadline  the bound it was stopped at, in seconds, for the failed assertion
+     */
     public function __construct(
         public int $exitCode,
         public string $output,
         public string $error,
         public string $command = '',
+        public bool $timedOut = false,
+        public float $deadline = 0.0,
     ) {}
 
     /**
@@ -50,13 +56,21 @@ final readonly class ReleaseRun
         return str_contains($this->error, $needle);
     }
 
-    /** The whole run, for the message of a failed assertion. */
+    /**
+     * The whole run, for the message of a failed assertion.
+     *
+     * A stopped run says so in the line that reports its status, because the exit code of a killed
+     * child is the machine's answer rather than the script's: a reader who saw only `124` beside a
+     * run that printed nothing would have no way to tell a bound from a program that failed.
+     */
     public function describe(): string
     {
         return sprintf(
-            "%s\nexit %d\n--- stdout ---\n%s\n--- stderr ---\n%s",
+            "%s\n%s\n--- stdout ---\n%s\n--- stderr ---\n%s",
             $this->command,
-            $this->exitCode,
+            $this->timedOut
+                ? sprintf('stopped after %.1fs, because the run did not end on its own', $this->deadline)
+                : sprintf('exit %d', $this->exitCode),
             $this->output,
             $this->error,
         );

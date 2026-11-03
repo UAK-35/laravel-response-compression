@@ -19,10 +19,26 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 | Measured on this machine: the call returns `false`, `stream_get_meta_data()['blocked']` is still
 | `true`, and the first `fread()` on stdout was where a run of this case stopped, permanently.
 |
-| WHAT IS TESTED NOW: the two streams are temporary files beside the fixture, which have no buffer
-| to fill, so a child may write either one first and write any volume. This case is the one that
-| starved the pipe — a megabyte on stderr before a byte on stdout — so it holds the shape as a
-| regression rather than describing a bug that is still there.
+| WHAT IS TESTED NOW: stderr is a temporary file beside the fixture, which has no buffer to fill,
+| and stdout is the pipe it always was, drained into a second file by a reader child so that this
+| process never blocks on it. A child may therefore write either stream first and write any volume.
+| This case is the one that starved the pipe — a megabyte on stderr before a byte on stdout — so it
+| holds the shape as a regression rather than describing a bug that is still there. (stdout could
+| not become a file: `bin/bootstrap.php` hands `STDOUT` to composer and the verifier, and a run's
+| last write landed at the capture file's first byte — measured, `bin/bootstrap.php: done.` in
+| front of its children's lines — so a second writer does not append whatever mode it is opened
+| in.)
+|
+| AND HOW LONG A RUN MAY TAKE: moving the streams to files removed the starvation and left the
+| wait with no clock in it — `stream_get_contents()` to EOF, then `proc_close()`, either of which
+| a child that never exits holds forever. That read cannot simply be made non-blocking either
+| (measured: `stream_set_blocking()` answers `false` for a `proc_open` pipe and the first `fread()`
+| still waited for its byte), so `script()` moves the read into a reader child and polls
+| `proc_get_status()` here against a deadline — 300 seconds, or whatever `within()` asks for —
+| stopping the child *and its descendants* when a run reaches it. The second case holds both
+| halves: the call comes back, and the grandchild the fixture started — it announces itself, so the
+| absence of its later marker is a tree that was stopped rather than a tree that never appeared —
+| never writes.
 |
 | @guards-index test
 */
@@ -60,4 +76,74 @@ PHP;
         ->and($run->output)->toContain('Done')
         ->and($run->error)->not->toBeEmpty()
         ->and(strlen($run->error))->toBeGreaterThanOrEqual(1024 * 1024);
+});
+
+/**
+ * A bound nobody can outlast here: the fixture sleeps for thirty seconds, the deadline is three,
+ * and the grandchild would write at six — so a run that returned is a run that was stopped, and a
+ * grandchild marker that is absent is a tree that was stopped with it.
+ *
+ * The three seconds are headroom for the fixture's own start rather than part of what is asserted:
+ * the deadline counts from `proc_open()` of the child, while the grandchild exists only once that
+ * child's PHP has booted and started it, which under the gate's eight workers was measured taking
+ * more than the one second this case first asked for — the tree the stop was meant to catch had not
+ * been started yet, and the run was stopped before there was anything to stop. So the deadline is
+ * generous, the grandchild announces itself the moment it exists, and that announcement is asserted
+ * beside the first marker: the later marker's absence then means a tree was stopped, not that a
+ * tree had yet to appear.
+ */
+it('stops a script that never ends, and the child it started with it', function (): void {
+    $repo = ReleaseRepo::plain();
+    $mark = $repo->path.'.mark';
+
+    $script = <<<'PHP_WRAP'
+    <?php
+    $mark = $argv[1];
+    file_put_contents($mark.'.started', 'yes');
+    
+    // A grandchild that outlives the fixture unless the whole tree is stopped: it says it exists at
+    // once, then writes six seconds in — three seconds past the deadline this test hands the run —
+    // and its stdout goes to the null device because nothing here reads it.
+    proc_open(
+        [PHP_BINARY, '-r', 'file_put_contents($argv[1].".grandchild-started", "yes"); usleep(6000000); file_put_contents($argv[1].".grandchild", "yes");', $mark],
+        [
+            0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'],
+            1 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'w'],
+            2 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'w'],
+        ],
+        $pipes,
+    );
+    
+    usleep(30000000);
+    file_put_contents($mark.'.finished', 'yes');
+    PHP_WRAP;
+
+    $repo->write('test-never-ends.php', $script);
+
+    $began = microtime(true);
+    $run = $repo->within(3.0)->script('test-never-ends.php', $mark);
+    $elapsed = microtime(true) - $began;
+
+    // The status the run reports is the bound's rather than the script's, and the message says so:
+    // a reader who saw `124` beside an empty stream would have no way to tell a stop from a failure.
+    expect($run->timedOut)->toBe(true, $run->describe())
+        ->and($run->exitCode)->toBe(124)
+        ->and($elapsed)->toBeLessThan(20.0)
+        ->and($run->describe())->toContain('stopped after 3.0s')
+
+        // It got as far as its first marker and its grandchild's, and never reached its last one.
+        ->and(file_exists($mark.'.started'))->toBeTrue()
+        ->and(file_exists($mark.'.grandchild-started'))->toBeTrue()
+        ->and(file_exists($mark.'.finished'))->toBeFalse();
+
+    // Past the grandchild's own six seconds: a stop that killed only the direct child would
+    // leave this written, and the next test to copy the tree would inherit a process still working
+    // in it — the cleanup half of the bound, which is the half a kill of the child alone misses.
+    usleep(6_000_000);
+
+    expect(file_exists($mark.'.grandchild'))->toBeFalse();
+
+    foreach (['.started', '.finished', '.grandchild-started', '.grandchild'] as $suffix) {
+        ReleaseRepo::remove($mark.$suffix);
+    }
 });
