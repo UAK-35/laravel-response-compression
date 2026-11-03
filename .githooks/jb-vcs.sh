@@ -4,22 +4,23 @@
 #
 # WHY THIS EXISTS
 # ---------------
-# `.idea/vcs.xml` is tracked, and the editor rewrites it. Open this checkout while `build/` holds
-# scratch copies that are themselves git repositories — which is what a killed `verify.py --selftest`
-# leaves behind — and the editor registers one `<mapping>` per copy, so the file a commit carries
-# names directories that existed for the length of one run. The tracked artifact is the template
-# beside this script: the one mapping that is true in every checkout, the repository itself. This
-# script is what turns it back into the file the editor reads.
+# `.idea/vcs.xml` is the editor's own file and is not tracked: the editor rewrites it, and while
+# `build/` holds scratch copies that are themselves git repositories — which is what a killed
+# `verify.py --selftest` leaves behind — it registers one `<mapping>` per copy. Left alone that is a
+# file of directories that existed for the length of one run, read back as if they were checkouts.
+# The artifact this repository carries is the template beside this script: the one mapping that is
+# true in every checkout, the repository itself. This script writes the editor's copy back from it,
+# and the `.idea` rule in `.gitignore` keeps that copy out of a commit.
 #
 # It lives in `.githooks/` because that is the directory this checkout already points git at, and it
 # is named `jb-vcs.sh` rather than after a hook: a file in that directory that is not a hook name is
 # never executed by git, and this is a program a person runs rather than a step of a checkout. The
 # template sits beside it, so the two move together.
 #
-# The template is copied byte for byte rather than rebuilt from parts. The rendered file has to be
-# the file the editor wrote, or the next render is a diff of its own making — which is also why the
-# template carries no trailing newline: today's `.idea/vcs.xml` ends at `>`, and a template that
-# ended with a newline would make every run a one-byte change.
+# The template is copied byte for byte rather than rebuilt from parts, so a render with nothing to
+# do is one `cmp` rather than a rewrite. That is also why the template carries no trailing newline:
+# the editor writes this file ending at `>`, and a template that ended with a newline would make
+# every run a one-byte change to a file nobody reads for its bytes.
 #
 # WHAT IT REFUSES
 # ---------------

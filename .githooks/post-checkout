@@ -6,12 +6,13 @@
 #
 #     git config core.hooksPath .githooks
 #
-# `.idea/vcs.xml` is a tracked file that the editor rewrites: every git repository it can see under
-# `build/` — the scratch copies a killed `verify.py --selftest` leaves behind — becomes a `<mapping>`
-# line in it, so a file a commit carries can name nine directories that existed for the length of
-# one run. `.githooks/jb-vcs.sh` is what renders it back from `.githooks/vcs.xml.template`, and this
-# hook is when that happens: a checkout is the moment the tree changes underneath an editor that is
-# already open.
+# `.idea/vcs.xml` is the editor's own file, and it rewrites it: every git repository it can see
+# under `build/` — the scratch copies a killed `verify.py --selftest` leaves behind — becomes a
+# `<mapping>` line in it, so the editor reads nine directories that existed for the length of one run
+# as checkouts. The file is not tracked, so nothing here is about a commit; it is about a tree whose
+# editor agrees with it. `.githooks/jb-vcs.sh` writes it back from `.githooks/vcs.xml.template`, and
+# this hook is when that happens: a checkout is the moment the tree changes underneath an editor that
+# is already open.
 #
 # The three arguments git passes — the previous HEAD, the new one, and whether this was a branch
 # checkout — are not read. The render is the same either way, and the renderer compares before it
