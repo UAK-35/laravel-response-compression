@@ -23,7 +23,7 @@ There are two ways in, and only the first of them is automatic:
   being guessed at. The marker is the user saying "this is an RC plan", so it *is* the confirmation
   and nothing is asked first. A prompt that carries the marker never reaches the second rule.
 - **A prompt that does not begin with a marker, but asks for a plan, asks one question before
-  anything else.** The three phrases that lead here are *create a plan*, *plan the* and *need a plan*.
+  anything else.** The four phrases that lead here are *create a plan*, *prepare a plan*, *plan the* and *need a plan*.
   Ask, exactly:
 
   > Is this an RC plan?
@@ -32,7 +32,7 @@ There are two ways in, and only the first of them is automatic:
   and answer the prompt as any other.
 
 The marker is read first, so the question is only ever asked of a prompt that does not carry it. Those
-three phrases are the only triggers that lead to the question; a prompt that merely mentions a plan
+four phrases are the only triggers that lead to the question; a prompt that merely mentions a plan
 without asking for one is not this skill's.
 
 ## Commands
@@ -123,4 +123,5 @@ neither is expected of it. It is the order the work will take, rather than a dec
 - `/rc-plan plan the move of the release programs under the rc names`
 - *create a plan for moving the machine file checks into the gate* — this asks the question first, and
   proceeds only on yes.
+- *prepare a plan to fix syntax errors as per last prompt's response.*
 - *need a plan for the next release* — the same question, the same rule.
