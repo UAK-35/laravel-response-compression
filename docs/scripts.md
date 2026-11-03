@@ -86,10 +86,13 @@ the platform makes it necessary.
 | [`../bin/composer-link.cmd`](../bin/composer-link.cmd) | links a package that lives on this machine into a Laravel application and requires it at its dev version, so the application runs the working copy on disk — the CMD port of a published `composer-link` shell function, guard for guard | `bin\composer-link.cmd <path-to-package-directory> [composer require args]`, run **from the application**; `COMPOSER_LINK_PHP`, `COMPOSER_LINK_COMPOSER` and `COMPOSER_LINK_JQ` override what it detects |
 
 | [`../bin/workbench.sh`](../bin/workbench.sh) | a throwaway copy of this checkout with a vendor of its own, so a reading taken on it belongs to the tree it was taken on: the files a commit would carry and never `vendor/`, the clone's `origin` removed, a link among the carried paths refused by name, and the installed vendor read back to prove it resolves inside the copy | `bash bin/workbench.sh [--into DIR] [-- composer install args…]` — `--into` names an empty directory outside this checkout, and the copy's path is the last line it prints |
+| [`../bin/wsl-linux-php.ps1`](../bin/wsl-linux-php.ps1) | a Linux PHP for the paths that only run off Windows: it fetches static-php-cli's prebuilt CLI on the Windows side, into `%TEMP%` and never into the distribution, and runs a bash line inside WSL with that interpreter first on `PATH` — judging the version against `composer.json` and naming the extensions no published preset carries rather than failing a POSIX run for them | `pwsh -File bin\wsl-linux-php.ps1`, `-Check` (judge, download nothing), `-Setup`, `-Tool 'pest tests/Unit/Support'` (a repository tool under the fetched interpreter), `-Run '<bash line>'`; `bin\env.local.cmd`, which sets `PHP_VERSION`, is where the build is pinned, and `-PhpVersion` overrides it for one run |
 
-The last three rows are not reached by a composer name: they are conveniences a maintainer starts
-by hand, `.gitattributes` `export-ignore`s all three, and each asks this checkout for the interpreter
-and the Composer it runs before falling back to `PATH`.
+The last four rows are not reached by a composer name: they are conveniences a maintainer starts by
+hand, and `.gitattributes` `export-ignore`s all four. The three above the last ask this checkout for
+the interpreter and the Composer it runs before falling back to `PATH`; the WSL wrapper asks the
+distribution instead — `wslpath` resolves both of its roots, so no mount prefix is written down —
+and `bin/env.local.cmd`, `export-ignore`d with it, is where the build it fetches is pinned.
 
 ## The gate, the hook and the runner
 
