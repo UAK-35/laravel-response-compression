@@ -112,8 +112,8 @@
 # fallback, and the `/dev/null` halves of the programs in `bin/` — can be run on a workstation
 # rather than only on a runner. An installer has no WSL distribution and no checkout to point it
 # at, so neither it nor the environment file that pins the build is shipped.
-/bin/wsl-linux-php.ps1 export-ignore
-/bin/env.local.cmd    export-ignore
+/bin/windows/wsl-linux-php.ps1 export-ignore
+/bin/windows/env.local.cmd    export-ignore
 
 # Runbooks are procedures a maintainer follows, not records of why the middleware behaves as it
 # does — which is exactly why the `docs/` records are left in and these are not.

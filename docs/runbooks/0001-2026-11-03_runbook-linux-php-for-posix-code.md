@@ -15,7 +15,7 @@ Created: 2026-11-03 (Asia/Karachi). Runbook: 0001.
 The three files arrived under `ext/`, which `.gitignore` holds, from a checkout of a different
 repository: their paths named `scripts/windows/`, their measured table named that project's suites,
 and their preset reasoning assumed a manifest with no `ext-brotli` or `ext-zstd`. They now live at
-`bin/wsl-linux-php.ps1`, `bin/env.local.cmd` and here, and the reasoning below is this package's.
+`bin/windows/wsl-linux-php.ps1`, `bin/windows/env.local.cmd` and here, and the reasoning below is this package's.
 
 ## When this runbook is used
 
@@ -63,10 +63,10 @@ guard refuses, and the guards read this script and this runbook.
 ### 1. Pin the build, then fetch it
 
 ```powershell
-cmd /c "call bin\env.local.cmd && pwsh -File bin\wsl-linux-php.ps1 -Setup"
+cmd /c "call bin\windows\env.local.cmd && pwsh -File bin\windows\wsl-linux-php.ps1 -Setup"
 ```
 
-`bin/env.local.cmd` is one line, `set "PHP_VERSION=8.4.23"`, and `PHP_VERSION` is the environment
+`bin/windows/env.local.cmd` is one line, `set "PHP_VERSION=8.4.23"`, and `PHP_VERSION` is the environment
 variable the wrapper reads as `-PhpVersion`'s default. The ladder is `-PhpVersion`, then
 `PHP_VERSION`, then the pin inside the script; a run that names none of them still works.
 
@@ -84,7 +84,7 @@ network, which is the half the distribution cannot cover either.
 ### 2. Judge the interpreter
 
 ```powershell
-pwsh -File bin\wsl-linux-php.ps1 -Check
+pwsh -File bin\windows\wsl-linux-php.ps1 -Check
 ```
 
 **What it proves:** the version is at least `composer.json`'s constraint, and every extension a run
@@ -95,7 +95,7 @@ does not cover**.
 ### 3. Run the POSIX code
 
 ```powershell
-pwsh -File bin\wsl-linux-php.ps1 -Tool 'pest tests/Unit/Support/ProcessesBoundedTest.php tests/Unit/Support/ProcessesTest.php'
+pwsh -File bin\windows\wsl-linux-php.ps1 -Tool 'pest tests/Unit/Support/ProcessesBoundedTest.php tests/Unit/Support/ProcessesTest.php'
 ```
 
 `-Tool` changes into the repository root and runs `bin/tool.php` under the interpreter this script
@@ -115,7 +115,7 @@ bounded grace, and the grandchild's later write is not in the capture.
 ### 4. Widen to every helper that spawns a child
 
 ```powershell
-pwsh -File bin\wsl-linux-php.ps1 -Tool 'pest tests/Unit/Support'
+pwsh -File bin\windows\wsl-linux-php.ps1 -Tool 'pest tests/Unit/Support'
 ```
 
 **What it proves:** the same for `ReleaseRepo`, `Ignored`, `MachinePaths`, `Handoff`, `PhpBinary`,
@@ -125,7 +125,7 @@ pwsh -File bin\wsl-linux-php.ps1 -Tool 'pest tests/Unit/Support'
 ### 5. (optional) Ask the distribution which PHP it finds
 
 ```powershell
-pwsh -File bin\wsl-linux-php.ps1 -Run 'php -v'
+pwsh -File bin\windows\wsl-linux-php.ps1 -Run 'php -v'
 ```
 
 `-Run` is the general half: it exports the mount ahead of `PATH`, changes into the repository root,

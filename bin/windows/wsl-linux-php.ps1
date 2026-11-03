@@ -26,7 +26,7 @@
     than failing a run that never needed it. What the interpreter does answer is every POSIX path
     this package has.
 
-    `bin/env.local.cmd` is where the patch build is pinned, through the `PHP_VERSION` environment
+    `bin/windows/env.local.cmd` is where the patch build is pinned, through the `PHP_VERSION` environment
     variable; `-PhpVersion` overrides it for one run. The version is worth pinning: static-php-cli
     publishes one directory per release train and deletes the rest, so a version that is not there
     is a 404 rather than a slightly newer interpreter.
@@ -57,7 +57,7 @@
     `bulk` (default) or `common`. See the description — `bulk` is what carries brotli and zstd.
 
 .PARAMETER PhpVersion
-    The static-php-cli patch build to fetch. Defaults to `PHP_VERSION`, which `bin/env.local.cmd`
+    The static-php-cli patch build to fetch. Defaults to `PHP_VERSION`, which `bin/windows/env.local.cmd`
     sets; the pin in this file answers when neither is given.
 
 .PARAMETER Arch
@@ -70,16 +70,16 @@
     Download again even when a usable build is already there.
 
 .EXAMPLE
-    pwsh -File .\bin\wsl-linux-php.ps1
+    pwsh -File .\bin\windows\wsl-linux-php.ps1
 
 .EXAMPLE
-    pwsh -File .\bin\wsl-linux-php.ps1 -Check
+    pwsh -File .\bin\windows\wsl-linux-php.ps1 -Check
 
 .EXAMPLE
-    pwsh -File .\bin\wsl-linux-php.ps1 -Tool 'pest tests/Unit/Support'
+    pwsh -File .\bin\windows\wsl-linux-php.ps1 -Tool 'pest tests/Unit/Support'
 
 .EXAMPLE
-    pwsh -File .\bin\wsl-linux-php.ps1 -Run 'php -v'
+    pwsh -File .\bin\windows\wsl-linux-php.ps1 -Run 'php -v'
 #>
 [CmdletBinding()]
 param(
@@ -101,7 +101,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 # The version ladder, spelled once: `-PhpVersion` where a run names one, then `PHP_VERSION` where
-# `bin/env.local.cmd` exported it, then the pin. The pin is the newest build the publisher still
+# `bin/windows/env.local.cmd` exported it, then the pin. The pin is the newest build the publisher still
 # serves; the directory listing is the authority for that, not this number.
 if (-not $PhpVersion) {
     $PhpVersion = '8.4.23'
@@ -109,9 +109,10 @@ if (-not $PhpVersion) {
 
 # --- where things are --------------------------------------------------------
 # Both roots are derived from this file's own location, so the wrapper runs the checkout it lives
-# in. This file is one directory below the repository root, which is why the climb is one level: a
-# path that left the checkout would be a path the guards read as somebody else's tree.
-$appRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+# in. This file sits two directories below the repository root, in `bin/windows/`, which is why the
+# climb is two levels: a path that left the checkout would be a path the guards read as somebody
+# else's tree.
+$appRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $composerJson = Join-Path $appRoot 'composer.json'
 
 if (-not $InstallDir) {
@@ -442,5 +443,5 @@ if ($Check -and $problems -gt 0) {
 }
 
 Write-Host ''
-Write-Host "Next:  pwsh -File .\bin\wsl-linux-php.ps1 -Tool 'pest tests/Unit/Support'"
+Write-Host "Next:  pwsh -File .\bin\windows\wsl-linux-php.ps1 -Tool 'pest tests/Unit/Support'"
 exit 0
