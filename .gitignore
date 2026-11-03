@@ -11,6 +11,12 @@ build
 /vendor/
 *.swp
 *.swo
+/apply_bugs_2_6.py
+/apply_bugs_3_5.py
+/apply_bugs_4_9.py
+/BUG7-FIX-SUMMARY.md
+/fix_bug6_normalization.py
+/ext/
 
 # A session's leavings are named here, not matched by extension. `*.txt` used to sit at this point,
 # and its reach was the problem rather than its purpose: it held `AGENTS.md.txt` — a copy of a file
