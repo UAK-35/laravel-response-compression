@@ -17,6 +17,12 @@ build
 /BUG7-FIX-SUMMARY.md
 /fix_bug6_normalization.py
 /ext/
+/BUGFIX-COMPLETE.md
+/BUGFIX-FINAL-SUMMARY.md
+/BUGFIX-STATUS-FINAL.txt
+/CompressResponse-10-fixes.patch
+/HANDOFF-bugfix-20261101-231057.txt
+/STATUS-REPORT-bugfix-implementation.txt
 
 # A session's leavings are named here, not matched by extension. `*.txt` used to sit at this point,
 # and its reach was the problem rather than its purpose: it held `AGENTS.md.txt` — a copy of a file
