@@ -1,0 +1,38 @@
+#!/bin/sh
+# =============================================================================
+# .githooks/post-checkout — put the editor's VCS file back after a checkout
+# =============================================================================
+# Enable once per clone, with the rest of this directory:
+#
+#     git config core.hooksPath .githooks
+#
+# `.idea/vcs.xml` is a tracked file that the editor rewrites: every git repository it can see under
+# `build/` — the scratch copies a killed `verify.py --selftest` leaves behind — becomes a `<mapping>`
+# line in it, so a file a commit carries can name nine directories that existed for the length of
+# one run. `.githooks/jb-vcs.sh` is what renders it back from `.githooks/vcs.xml.template`, and this
+# hook is when that happens: a checkout is the moment the tree changes underneath an editor that is
+# already open.
+#
+# The three arguments git passes — the previous HEAD, the new one, and whether this was a branch
+# checkout — are not read. The render is the same either way, and the renderer compares before it
+# writes, so a checkout that moved no file costs one `cmp`.
+#
+# It never fails a checkout and it says nothing. Git ignores a post-checkout's exit status, so a
+# refusal here would be a line nobody acts on, and a clone with no `.idea/` has nothing to put back —
+# that is the case this skips rather than creates.
+# =============================================================================
+
+set -u
+
+root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$root" || exit 0
+
+[ -d "$root/.idea" ] || exit 0
+[ -f "$root/.githooks/jb-vcs.sh" ] || exit 0
+command -v bash >/dev/null 2>&1 || exit 0
+
+# Quietly, because the file being right is the whole of what this hook is for, and a checkout is not
+# the place to report that it already was.
+bash "$root/.githooks/jb-vcs.sh" >/dev/null 2>&1 || true
+
+exit 0

@@ -99,6 +99,8 @@ and `bin/windows/env.local.cmd`, `export-ignore`d with it, is where the build it
 | Tool | What it is | How it runs |
 |---|---|---|
 | [`../.githooks/pre-commit`](../.githooks/pre-commit) | the gate's narrow half: `bin/checks.php --staged`, plus `verify.py --layer` when the commit carries an agentic file — and it skips rather than blocking when there is no PHP or no Python | `git config core.hooksPath .githooks`, then git runs it |
+| [`../.githooks/post-checkout`](../.githooks/post-checkout) | puts the editor's VCS file back after every checkout, by running `.githooks/jb-vcs.sh`: the editor registers one `<mapping>` per scratch repository it finds under `build/`, and this is what keeps nine of them out of a commit | git runs it once `core.hooksPath` is `.githooks`; it is silent, skips a checkout with no `.idea/` to write into, and never fails one |
+| [`../.githooks/jb-vcs.sh`](../.githooks/jb-vcs.sh) and [`../.githooks/vcs.xml.template`](../.githooks/vcs.xml.template) | renders `.idea/vcs.xml` from the template beside it — the template holds the one mapping that is true in every checkout, the repository itself | `bash .githooks/jb-vcs.sh`; `--check` reports the drift and writes nothing |
 | [`../.github/workflows/main.yml`](../.github/workflows/main.yml) | the gate on the runner: `composer checks -- --require-all` and then `composer test:unit` for the floor, with the PHP version read from `php-bin.sh --matrix` rather than written into the file | GitHub, on a push to `main` or `development`, on a `v*` tag, on a pull request to `main`, monthly, and on demand |
 
 ## The composer names
