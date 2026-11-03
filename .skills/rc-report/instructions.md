@@ -19,7 +19,7 @@ There are two ways in, and only the first of them is automatic:
   the confirmation and nothing is asked first. A prompt that carries the marker never reaches the
   second rule.
 - **A prompt that does not begin with a marker, but asks for a report, asks one question before
-  anything else.** The three phrases that lead here are *create a report*, *report the* and *need a
+  anything else.** The three phrases that lead here are *create a report*, *output a report*, *report the* and *need a
   report*. Ask, exactly:
 
   > Is this an RC report?
@@ -121,5 +121,6 @@ sets down what a prompt's response established.
 - `/rc-report report the state of the guard index against tests/Support/`
 - *create a report on what changed in the encoder this week* — this asks the question first, and
   proceeds only on yes.
+- *output a report containing the findings after running syntax check*
 - *need a report on the coverage floor after the last three commits* — the same question, the same
   rule.
