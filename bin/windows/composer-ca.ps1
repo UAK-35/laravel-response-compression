@@ -43,10 +43,10 @@
     `install`, `update`, `test`, `release -- --weigh`.
 
 .EXAMPLE
-    pwsh -File bin/composer-ca.ps1 install
-    pwsh -File bin/composer-ca.ps1 update
-    pwsh -File bin/composer-ca.ps1 -- test
-    pwsh -File bin/composer-ca.ps1 validate --no-check-publish
+    pwsh -File bin/windows/composer-ca.ps1 install
+    pwsh -File bin/windows/composer-ca.ps1 update
+    pwsh -File bin/windows/composer-ca.ps1 -- test
+    pwsh -File bin/windows/composer-ca.ps1 validate --no-check-publish
 
 .NOTES
     The bundle is written to %TEMP% and is machine-local: never commit it, and
@@ -61,9 +61,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# `bin/` is this file's own directory, so the package root is the level above it -- the
-# relationship every program in `bin/` has to the package it belongs to.
-$packageRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+# `bin/windows/` is this file's own directory, so the package root is two levels above it: the
+# conveniences are kept out of `bin/` so that directory is the programs and nothing else, which is
+# one level more than every program in `bin/` has to climb.
+$packageRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 if (-not (Test-Path (Join-Path $packageRoot 'composer.json'))) {
     throw "No composer.json at $packageRoot -- run this from the package checkout."
 }

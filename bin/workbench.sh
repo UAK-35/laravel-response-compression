@@ -9,7 +9,7 @@
 # something only while the tree it was taken on is the tree it is attributed to.
 # A copy is how that is arranged, and two things quietly break it:
 #
-#   * a vendor/ that is not the copy's own. `bin/composer-link.cmd` leaves a
+#   * a vendor/ that is not the copy's own. `bin/windows/composer-link.cmd` leaves a
 #     directory junction in an application, and a checkout that has been linked —
 #     or whose vendor was shared with another tree to save an install — has a
 #     vendor that resolves somewhere else. A copy carrying it would read that

@@ -62,8 +62,8 @@
 # at this checkout. Both are started by hand, on Windows, by whoever is working on this repository —
 # an installer has neither the platform nor the checkout they assume, and neither script is reachable
 # from anything under `src/`.
-/bin/composer-ca.ps1   export-ignore
-/bin/composer-link.cmd export-ignore
+/bin/windows/composer-ca.ps1   export-ignore
+/bin/windows/composer-link.cmd export-ignore
 
 # A copy of this checkout with a vendor of its own, for a reading that has to belong to the tree it
 # was taken on: a maintainer's experiment, started by hand, and neither reachable from `src/` nor

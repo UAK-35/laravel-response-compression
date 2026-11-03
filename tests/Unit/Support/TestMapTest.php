@@ -88,8 +88,8 @@ it('reads the files it is a claim about, so an empty answer is not agreement', f
         ->and($files)->not->toContain('src/Middleware/CompressResponse.php.txt')
         // A convenience for a machine is not a program: the listing names the two extensions it can
         // answer for, so the two Windows files beside the scripts are not rows waiting to happen.
-        ->and($files)->not->toContain('bin/composer-link.cmd')
-        ->and($files)->not->toContain('bin/composer-ca.ps1');
+        ->and($files)->not->toContain('bin/windows/composer-link.cmd')
+        ->and($files)->not->toContain('bin/windows/composer-ca.ps1');
 });
 
 it('reads the files a commit carries into the tests that cover them', function (): void {

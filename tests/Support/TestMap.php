@@ -159,7 +159,8 @@ final class TestMap
      *
      * What counts is the extension of a program rather than the language it is written in: `.php`
      * and `.sh`, because a shell script under `bin/` is a program a commit can carry, and the gate's
-     * syntax and style rows pass it by. `composer-ca.ps1` and `composer-link.cmd` are deliberately
+     * syntax and style rows pass it by. `bin/windows/composer-ca.ps1` and `bin/windows/composer-link.cmd`
+     * are deliberately
      * not ones — they are conveniences for a machine rather than programs this package runs, and
      * both are `export-ignore`d — so the walk names the two extensions it can answer for rather
      * than every file in the directory.

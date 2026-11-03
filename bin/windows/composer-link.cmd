@@ -1,6 +1,6 @@
 @echo off
 rem ===========================================================================
-rem  bin\composer-link.cmd
+rem  bin\windows\composer-link.cmd
 rem
 rem  Link this package into a Laravel application and require it, so the
 rem  application runs the working copy on disk instead of a tagged release. Edit
@@ -61,8 +61,8 @@ rem  resolves when cmd was handed the path to the shim.
 rem
 rem  USAGE  (run it FROM the Laravel application, never from the package)
 rem  -------------------------------------------------------------------
-rem      bin\composer-link.cmd packages\laravel-response-compression
-rem      bin\composer-link.cmd path\to\another-package --dry-run
+rem      bin\windows\composer-link.cmd packages\laravel-response-compression
+rem      bin\windows\composer-link.cmd path\to\another-package --dry-run
 rem
 rem  The first argument is the package directory. Anything after it is forwarded
 rem  verbatim to `composer require`, so --dry-run, -W, --no-scripts and
@@ -268,7 +268,7 @@ rem defined` reads as an unset variable, so the next candidate is tried.
 set "PHP_CMD="
 if defined COMPOSER_LINK_PHP set "PHP_CMD=%COMPOSER_LINK_PHP%"
 if defined PHP_CMD goto :eof
-if exist "%~dp0..\.agents\render_local.py" for /f "usebackq delims=" %%P in (`python "%~dp0..\.agents\render_local.py" --value __PHP_EXE__ 2^>nul`) do if not defined PHP_CMD set "PHP_CMD=%%P"
+if exist "%~dp0..\..\.agents\render_local.py" for /f "usebackq delims=" %%P in (`python "%~dp0..\..\.agents\render_local.py" --value __PHP_EXE__ 2^>nul`) do if not defined PHP_CMD set "PHP_CMD=%%P"
 if defined PHP_CMD goto :eof
 for %%P in (php) do set "PHP_CMD=%%~$PATH:P"
 if defined PHP_CMD goto :eof
@@ -297,8 +297,8 @@ if defined COMPOSER_LINK_COMPOSER set "COMPOSER_CMD=%COMPOSER_LINK_COMPOSER%"
 if defined COMPOSER_CMD goto :eof
 for %%C in (composer) do set "COMPOSER_CMD=%%~$PATH:C"
 if defined COMPOSER_CMD goto :eof
-if exist "%~dp0..\composer.phar" if defined PHP_CMD set "COMPOSER_CMD=%PHP_CMD%"
-if defined COMPOSER_CMD if exist "%~dp0..\composer.phar" set "COMPOSER_PREFIX="%~dp0..\composer.phar""
+if exist "%~dp0..\..\composer.phar" if defined PHP_CMD set "COMPOSER_CMD=%PHP_CMD%"
+if defined COMPOSER_CMD if exist "%~dp0..\..\composer.phar" set "COMPOSER_PREFIX="%~dp0..\..\composer.phar""
 goto :eof
 
 rem -- usage -----------------------------------------------------------------
@@ -314,11 +314,11 @@ endlocal & exit /b 1
 echo composer-link - run a local package inside a Laravel application.
 echo.
 echo Usage:
-echo   bin\composer-link.cmd ^<path-to-package-directory^> [composer require args]
+echo   bin\windows\composer-link.cmd ^<path-to-package-directory^> [composer require args]
 echo.
 echo Examples:
-echo   bin\composer-link.cmd packages\laravel-response-compression
-echo   bin\composer-link.cmd path\to\another-package --dry-run
+echo   bin\windows\composer-link.cmd packages\laravel-response-compression
+echo   bin\windows\composer-link.cmd path\to\another-package --dry-run
 echo.
 echo The directory is registered as a path repository in the application's
 echo composer.json under the name `local`, the package is required at its dev
