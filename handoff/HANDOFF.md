@@ -53,7 +53,8 @@ A standalone Composer package (`src/`, `config/response-compression.php`, a Pest
 `tests/Unit/` with the readings in `tests/Support/`, the records in `docs/`), with an agentic layer
 of its own and no dependency on anything beside it.
 
-- branch `development`. `HEAD` and how far ahead of `origin/development` it is move with every
+- branch `development` — the lane `.release-lane` holds and `bin/release.php` cuts from, not the ref a
+  tag checkout is on. `HEAD` and how far ahead of `origin/development` it is move with every
   commit, so `bash handoff/state.sh` is where they are read rather than here: measured 2026-10-25,
   this was `ccdb8b5`, **90 ahead and 0 behind**, with nothing pushed;
 - gate: the hook this package ships is `.githooks/pre-commit`, and a clone runs it by naming

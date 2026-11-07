@@ -15,6 +15,28 @@ whoever cuts the release — which is why it sits in the repository rather than 
 
 ## Unreleased
 
+### Fixed
+
+- **The handoff's state section is held to the release lane rather than to the branch this clone has
+  checked out, so a tag rail can be green on a detached checkout.** `v0.1.0-alpha1`'s tag run was red
+  on the preamble: a tag is built from a detached checkout, where `handoff/state.sh` answers `HEAD`
+  for the branch and `no upstream configured` for its position, while §1 states `development` — and
+  the reading compared the document's sentence with the ref the clone happened to have. That is the
+  shape the reading already refuses for `core.hooksPath`: a tree fact held to a clone's setting, where
+  the clone's answer is the half that is not the tree's. The sentence is now held to `.release-lane`,
+  the one file `bin/release.php` reads as the branch a release is cut from, through
+  `ReleaseLane::lane()` rather than a second reader of the file. `measured()` carries the lane beside
+  what the script prints, and a tree without the file answers `null` so the fixture built around the
+  script alone still measures; the finding names the file the lane comes from and says a tag's
+  detached `HEAD` agrees with a section that states the lane. The tag workflow is deliberately
+  unchanged — checking the branch out there would hide the comparison rather than make it right, since
+  the sentence is about the lane and a tag is not on one. `HandoffStateTest` gains the tag's answer as
+  a case, where the section is green and a branch that is not the lane is still named, and the
+  mutation harness gains the hold for that sentence, because a reading whose answer changed has to be
+  shown still looking. `docs/guards.md`'s two rows are re-rendered from the file's own headers.
+  Measured: `HandoffStateTest` and the harness hold 16 passed (56 assertions); PHPStan at max, Pint in
+  test mode and Rector's dry run clean; `bin/index.php --check` quiet.
+
 ## [v0.1.0-alpha2] - 2026-11-07
 
 ### Fixed

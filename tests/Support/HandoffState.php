@@ -7,7 +7,7 @@ namespace Uak35\ResponseCompression\Tests\Support;
 use RuntimeException;
 
 /**
- * the state section of the handoff, held to what `handoff/state.sh` measures: its branch, the hook this package ships and the setting a clone names for it, its changelog endings, and the date every count and colour it states was measured on.
+ * the state section of the handoff, held to what `handoff/state.sh` measures and `.release-lane` states: the lane it releases from, the hook this package ships and the setting a clone names for it, its changelog endings, and the date every count and colour it states was measured on.
  *
  * WHY THIS EXISTS
  * ---------------
@@ -24,10 +24,15 @@ use RuntimeException;
  * anything is committed, which is the ordinary state of this checkout. So the split is made where
  * the facts actually divide:
  *
- *   - the ones that do not move with work in progress are held to the script, now: the branch, the hook
- *     this package ships and the setting a clone has to name for it to run, and `CHANGELOG.md`'s line
- *     endings, which is a fact about the tree rather than about the moment and the one
- *     `bin/commit.php` reads;
+ *   - the ones that do not move with work in progress are held to the script, now: the lane the
+ *     package releases from, the hook this package ships and the setting a clone has to name for it
+ *     to run, and `CHANGELOG.md`'s line endings, which is a fact about the tree rather than about the
+ *     moment and the one `bin/commit.php` reads. The lane is the branch a release is cut from, and
+ *     that is the tree's answer in `.release-lane` rather than the ref a clone has checked out: a
+ *     tag is built from a detached checkout that answers `HEAD` and has no branch at all, which is
+ *     what made the first tag rail report an untouched handoff as stale. Holding the section's
+ *     sentence to the checkout is the same shape as holding it to `core.hooksPath` — a tree fact
+ *     compared with a clone's setting — and it is the checkout's answer that yields;
  *   - the one that moves with the *clone* rather than with the work is the setting this checkout has
  *     its gate wired through, and the script prints it and nothing is compared with it: `core.hooksPath`
  *     is local configuration, in `.git/config` rather than in a commit, so a section carried by the
@@ -46,9 +51,9 @@ use RuntimeException;
  * `bash handoff/state.sh` is run — the program, in the tree it is asked about, so the parse is a
  * reading of what the script prints rather than a second implementation of the queries it runs. The
  * document is then read for the five claims above, each found by the words it is written with: the
- * `branch` bullet of §1, the `core.hooksPath` claim beside it and the sentence that would name this
- * checkout's own setting, the `CHANGELOG.md` bullet of §3.1, and every bullet that states a `HEAD`
- * or how far ahead it is. What comes back is one finding per
+ * `branch` bullet of §1, held to the lane `.release-lane` states, the `core.hooksPath` claim beside it
+ * and the sentence that would name this checkout's own setting, the `CHANGELOG.md` bullet of §3.1, and
+ * every bullet that states a `HEAD` or how far ahead it is. What comes back is one finding per
  * disagreement, naming the file and the line, which is the form the rest of this package's readings
  * answer in.
  *
@@ -97,8 +102,13 @@ final class HandoffState
     /**
      * What `handoff/state.sh` measured, run in the tree it is asked about.
      *
+     * The lane is not the script's: it is read from `.release-lane`, the one file a release names its
+     * branch in, and it is here because it is the other half of what the section's branch sentence
+     * states.
+     *
      * @return array{
      *     branch: string,
+     *     lane: string|null,
      *     staged: int,
      *     index: string,
      *     listed: int,
@@ -162,7 +172,15 @@ final class HandoffState
             ));
         }
 
-        return self::parsed($output);
+        $measured = self::parsed($output);
+
+        // The script prints the branch this clone has; the section states the lane a release is cut
+        // from, and a tag checkout has no branch to print. The file is read where it is there, and a
+        // tree built around the script alone answers `null` rather than a guess, so a fixture that is
+        // about the script's parsing still measures.
+        $measured['lane'] = is_file($root.'/'.ReleaseLane::LANE) ? ReleaseLane::lane($root) : null;
+
+        return $measured;
     }
 
     /**
@@ -269,15 +287,20 @@ final class HandoffState
         }
 
         $branch = $stated['branch'];
+        $lane = $measured['lane'] ?? null;
 
-        if ($branch !== null && $branch['value'] !== $measured['branch']) {
+        // The branch the section states is the lane a release is cut from, which is the tree's answer
+        // in `.release-lane` and not this checkout's `HEAD`: a tag is built from a detached checkout
+        // that answers `HEAD` and has no branch at all, so holding the sentence to the ref the clone
+        // happens to have reported an untouched handoff as stale on the first tag rail (v0.1.0-alpha1).
+        if ($branch !== null && is_string($lane) && $branch['value'] !== $lane) {
             $findings[] = sprintf(
-                '%s:%d: names the branch `%s`, and %s answers `%s` in this checkout.',
+                '%s:%d: names the branch `%s`, and `%s` names `%s` as the lane this package releases from — the sentence states the lane, so any checkout of the right commit agrees with it, a tag\'s detached `HEAD` included.',
                 self::DOCUMENT,
                 $branch['line'],
                 $branch['value'],
-                self::SCRIPT,
-                $measured['branch'],
+                ReleaseLane::LANE,
+                $lane,
             );
         }
 

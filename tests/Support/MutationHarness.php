@@ -870,6 +870,28 @@ final class MutationHarness
                 },
                 'read' => static fn (string $root): array => HandoffState::stale($root, HandoffState::measured(self::package())),
             ],
+            [
+                'guard' => "the handoff's state section, on a branch that is not the release lane",
+                'test' => 'tests/Unit/Support/HandoffStateTest.php',
+                'plant' => static function (string $root): string {
+                    // The lane renamed in the section while `.release-lane` keeps it. A tag rail made
+                    // this drift visible rather than introduced it: a detached checkout has no branch
+                    // to compare with, so a reading holding the sentence to the checkout's ref
+                    // reported the untouched handoff as stale the moment a tag was built. The lane is
+                    // the tree's answer, and it is the one the section has to state.
+                    $lane = ReleaseLane::lane(self::package());
+                    $other = $lane === 'main' ? 'release' : 'main';
+
+                    self::replace($root, HandoffState::DOCUMENT, static fn (string $text): string => str_replace(
+                        '- branch `'.$lane.'`',
+                        '- branch `'.$other.'`',
+                        $text,
+                    ));
+
+                    return 'names the branch `'.$other.'`';
+                },
+                'read' => static fn (string $root): array => HandoffState::stale($root, HandoffState::measured(self::package())),
+            ],
         ];
 
         return self::held($mutations, $test, 'mutation');

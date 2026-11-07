@@ -15,10 +15,13 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 | bullet into while it is LF" for five days after the writer started taking the ending from the
 | heading it matched, and the script contradicted it on every run. A snapshot cannot be held to the
 | tree it was taken from — the live `HEAD` moves with every commit — so what is held is the half that
-| does not move (the branch, the hook this package ships and the setting a clone names for it, the
-| changelog's endings), and the half that does has to say when it looked.
+| does not move (the lane `.release-lane` states, the hook this package ships and the setting a clone
+| names for it, the changelog's endings), and the half that does has to say when it looked.
 |
-| One fact moves with neither of those: the setting *this* clone has its gate wired through. That is
+| The lane is the tree's answer and the checkout's branch is not: a tag is built from a detached
+| checkout, where `handoff/state.sh` answers `HEAD` and no upstream, and the first tag rail
+| (`v0.1.0-alpha1`) was red because the section's lane was compared with that ref. One fact moves
+| with neither of those: the setting *this* clone has its gate wired through. That is
 | local configuration, in `.git/config` rather than in a commit, so a section carried by the tree can
 | state only the setting a clone has to set — and the value a checkout actually has is refused by
 | name. It is the sentence a runner was red on: CI has no hook wired, the section said the gate was
@@ -31,7 +34,7 @@ use Uak35\ResponseCompression\Tests\Support\ReleaseRepo;
 /**
  * @guards-index guard the handoff's state section
  *
- * the state section of the handoff, held to what `handoff/state.sh` measures: its branch, the hook this package ships and the setting a clone names for it, its changelog endings, every count and colour it states dated to the moment it was measured, and a section that says the script outranks it — never the setting this checkout happens to have, which is local configuration no commit carries, so the snapshot a reader is handed cannot go on saying what the checkout has stopped doing
+ * the state section of the handoff, held to what `handoff/state.sh` measures and `.release-lane` states: the lane it releases from, the hook this package ships and the setting a clone names for it, its changelog endings, every count and colour it states dated to the moment it was measured, and a section that says the script outranks it — never the setting this checkout happens to have, which is local configuration no commit carries, so the snapshot a reader is handed cannot go on saying what the checkout has stopped doing
  */
 it('holds the state section to the script, and reports nothing where the two agree', function (): void {
     $root = str_replace('\\', '/', packageRoot());
@@ -43,6 +46,7 @@ it('holds the state section to the script, and reports nothing where the two agr
     $measured = HandoffState::measured($root);
 
     expect($measured['branch'])->not->toBe('')
+        ->and($measured['lane'])->not->toBeNull()
         ->and($measured['gate'])->not->toBeNull()
         ->and($measured['hooks'])->not->toBeNull()
         ->and($measured['files'])->toHaveCount(13)
@@ -62,7 +66,7 @@ it('reads the three claims out of the document rather than keeping a copy of the
     //
     // What the document may not say is what this checkout has wired, and that half is asserted the
     // other way — `asserted` has to be null, or the section is stating local configuration.
-    expect($stated['branch']['value'])->toBe($measured['branch'])
+    expect($stated['branch']['value'])->toBe($measured['lane'])
         ->and($stated['gate']['value'])->toBe($measured['gate'])
         ->and($stated['asserted'])->toBeNull()
         ->and($stated['changelog']['cr'])->toBe($measured['changelog']['cr'])
@@ -166,19 +170,45 @@ it('names a section that has stopped saying the script outranks it, and one that
         ->toContain('does not say when it was measured');
 });
 
-it('names a branch this checkout is not on, and a gate this package does not ship', function (): void {
+it('holds the branch to the release lane, in a checkout whose HEAD is detached', function (): void {
+    // A tag is built from a detached checkout: `handoff/state.sh` answers `HEAD` for the branch and
+    // `no upstream configured` for its position, and the section still states the lane the package
+    // releases from. Holding the sentence to the checkout's ref made the first tag rail
+    // (`v0.1.0-alpha1`) report the untouched handoff as stale, on a commit the branch run had already
+    // passed. The measurement is this checkout's with the one answer a tag changes.
+    $tag = handoffStateMeasured();
+    $tag['branch'] = 'HEAD';
+
+    expect($tag['branch'])->toBe('HEAD')
+        ->and(HandoffState::stale(str_replace('\\', '/', packageRoot()), $tag))->toBe([]);
+
+    // And the reading has not stopped looking: a branch that is not the lane is still named under
+    // the same detached answer, so the empty list above is the sentence agreeing with the tree
+    // rather than a comparison that was skipped.
+    $drifted = handoffStateTree(static fn (string $text): string => str_replace(
+        '- branch `development`',
+        '- branch `main`',
+        $text,
+    ));
+
+    expect(implode(PHP_EOL, HandoffState::stale($drifted->path, $tag)))
+        ->toContain('names the branch `main`')
+        ->toContain('names `development` as the lane');
+});
+
+it('names a branch that is not the release lane, and a gate this package does not ship', function (): void {
     // The section's own words are edited rather than the file's wrapping: the sentence is one
     // statement and the line it is broken at is the editor's business, so a plant that quoted a
     // whole wrapped sentence would stop editing anything the day the paragraph was reflowed.
     $tree = handoffStateTree(static fn (string $text): string => str_replace(
-        ['- branch `development`.', '`.githooks` as its `core.hooksPath`'],
-        ['- branch `main`.', '`.husky` as its `core.hooksPath`'],
+        ['- branch `development`', '`.githooks` as its `core.hooksPath`'],
+        ['- branch `main`', '`.husky` as its `core.hooksPath`'],
         $text,
     ));
 
     $findings = implode(PHP_EOL, HandoffState::stale($tree->path, handoffStateMeasured()));
 
-    // Both are facts about the tree rather than about the moment — the branch it is on, and the
+    // Both are facts about the tree rather than about the moment — the lane it releases from, and the
     // setting a clone has to name for the hook it ships to run — and both make the section's
     // sentence false without changing a word of it.
     expect($findings)->toContain('names the branch `main`')
