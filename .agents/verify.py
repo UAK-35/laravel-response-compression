@@ -1308,42 +1308,48 @@ def step_tokens(root: Path) -> list[str]:
     # genuinely needs a repository is the ignore rule above, which asks git.
     renderer = root / ".agents" / "render_local.py"
     if renderer.is_file():
-        if (root / ".agents" / "machine.local.json").is_file():
-            answer = capture(root, sys.executable, str(renderer), "--check")
-            before = len(findings)
+        answer = capture(root, sys.executable, str(renderer), "--check")
+        before = len(findings)
+        machine = (root / ".agents" / "machine.local.json").is_file()
 
-            # One pass over the lines, each read for the prefix that says which kind it is: a
-            # `[FAIL]` is a finding, and a `[NOTE]` is carried into this run's report. Every note,
-            # not only the summary: the summary says which state the record is in, and the lines
-            # under it name the sections still empty and what each one is for - which is the half a
-            # session needs to finish the file, and the half it would otherwise have to know to ask
-            # `--check` for. None of it fails the run: a fresh `--init` opens every section it
-            # cannot fill, so `bin/bootstrap.php` would go red on the file its own first step wrote.
-            for line in answer.output.splitlines():
-                stripped = line.strip()
+        # One pass over the lines, each read for the prefix that says which kind it is: a
+        # `[FAIL]` is a finding, and a `[NOTE]` is carried into this run's report. Every note,
+        # not only the summary: the summary says which state the record is in, and the lines
+        # under it name the sections still empty and what each one is for - which is the half a
+        # session needs to finish the file, and the half it would otherwise have to know to ask
+        # `--check` for. None of it fails the run: a fresh `--init` opens every section it
+        # cannot fill, so `bin/bootstrap.php` would go red on the file its own first step wrote.
+        #
+        # A clone with no machine record is the state `--init` has not been run in, and the
+        # renderer says so by naming the values it has none of. Those lines are that state rather
+        # than a fault, so on such a tree they are not findings - but every other `[FAIL]` is,
+        # because a template that does not parse is wrong on every machine.
+        for line in answer.output.splitlines():
+            stripped = line.strip()
 
-                if stripped.startswith("[FAIL]"):
+            if stripped.startswith("[FAIL]"):
+                if machine or "no value for" not in stripped:
                     findings.append(stripped)
-                elif stripped.startswith("[NOTE]"):
-                    NOTES.append(stripped)
+            elif stripped.startswith("[NOTE]"):
+                NOTES.append(stripped)
 
-            # The status is judged as well, and judged separately from the lines it printed: reading
-            # only the prefixes made a renderer that raised before printing anything - a syntax
-            # error, an import that is not there - identical to a renderer with nothing to report.
-            # A non-zero status that already produced a finding is not counted twice; one that
-            # produced none is exactly the crash this reading exists for.
-            last = (answer.output.strip().splitlines() or [""])[-1]
+        # The status is judged as well, and judged separately from the lines it printed: reading
+        # only the prefixes made a renderer that raised before printing anything - a syntax
+        # error, an import that is not there - identical to a renderer with nothing to report.
+        # A non-zero status that already produced a finding is not counted twice; one that
+        # produced none is exactly the crash this reading exists for. Without a record, status 1
+        # is the missing-values answer above and anything else is a crash.
+        last = (answer.output.strip().splitlines() or [""])[-1]
 
-            if answer.code is None:
-                findings.append(".agents/render_local.py --check: could not be run")
-            elif answer.code != 0 and len(findings) == before:
-                findings.append(
-                    f".agents/render_local.py --check: exited {answer.code} without naming a file - "
-                    f"{last or 'no output'}"
-                )
-        else:
-            # A machine that has not been set up is a machine, not a defect in this commit. Saying so
-            # is the point: the alternative is a green run that silently judged nothing.
+        if answer.code is None:
+            findings.append(".agents/render_local.py --check: could not be run")
+        elif answer.code != 0 and len(findings) == before and (machine or answer.code != 1):
+            findings.append(
+                f".agents/render_local.py --check: exited {answer.code} without naming a file - "
+                f"{last or 'no output'}"
+            )
+
+        if not machine:
             NOTES.append(
                 "tokens: no .agents/machine.local.json here, so the rendered settings were not judged "
                 "- run python .agents/render_local.py --init"
