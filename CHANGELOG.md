@@ -15,6 +15,8 @@ whoever cuts the release — which is why it sits in the repository rather than 
 
 ## Unreleased
 
+## [v0.1.0-alpha3] - 2026-11-07
+
 ### Fixed
 
 - **The handoff's state section is held to the release lane rather than to the branch this clone has
