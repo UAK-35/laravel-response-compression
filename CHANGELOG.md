@@ -16,6 +16,8 @@ release — which is why it sits in the repository rather than in the package.
 
 ## Unreleased
 
+## [v0.1.0-alpha1] - 2026-11-07
+
 ### Added
 
 - - **The Windows gate investigation records the missing-shell failure and retests deadline cleanup.** `docs/investigations/0004-2026-11-04-inv-windows-gate-shell-and-deadline.md` captures the `verify.py --selftest` and Pest controls, including the missed resolver mutation, the passing overlay control, and the current deadline regression result beside the earlier full-suite failures.

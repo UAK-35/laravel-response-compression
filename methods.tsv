@@ -1,4 +1,4 @@
-# methods.tsv — written by bin/release.php — describes the tree at v0.0.10
+# methods.tsv — written by bin/release.php — describes the tree at v0.1.0-alpha1
 # method	file	class	required
 handle	src/Contracts/Encoder.php	Uak35\ResponseCompression\Contracts\Encoder	1
 level	src/Contracts/Encoder.php	Uak35\ResponseCompression\Contracts\Encoder	0
@@ -14,6 +14,8 @@ handle	src/Middleware/CompressResponse.php	Uak35\ResponseCompression\Middleware\
 boot	src/ResponseCompressionServiceProvider.php	Uak35\ResponseCompression\ResponseCompressionServiceProvider	0
 getConfigPath	src/ResponseCompressionServiceProvider.php	Uak35\ResponseCompression\ResponseCompressionServiceProvider	0
 register	src/ResponseCompressionServiceProvider.php	Uak35\ResponseCompression\ResponseCompressionServiceProvider	0
+preferences	src/Support/AcceptEncoding.php	Uak35\ResponseCompression\Support\AcceptEncoding	1
+prefersIdentity	src/Support/AcceptEncoding.php	Uak35\ResponseCompression\Support\AcceptEncoding	2
 boolOr	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	2
 commaList	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	2
 int	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	1
@@ -23,6 +25,8 @@ string	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	1
 stringListOr	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	2
 stringOr	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	2
 validate	src/Support/Config.php	Uak35\ResponseCompression\Support\Config	0
+line	src/Support/Diagnostic.php	Uak35\ResponseCompression\Support\Diagnostic	0
+template	src/Support/Diagnostic.php	Uak35\ResponseCompression\Support\Diagnostic	0
 isBrotliEncoded	src/Support/Enc.php	Uak35\ResponseCompression\Support\Enc	1
 isDeflateEncoded	src/Support/Enc.php	Uak35\ResponseCompression\Support\Enc	1
 isGzipEncoded	src/Support/Enc.php	Uak35\ResponseCompression\Support\Enc	1
