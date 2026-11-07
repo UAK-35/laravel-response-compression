@@ -129,7 +129,7 @@ PHP;
 
 /**
  * A bound nobody can outlast here: the fixture sleeps for thirty seconds, the deadline is three,
- * and the grandchild would write at six — so a run that returned is a run that was stopped, and a
+ * and the grandchild would write at fifteen — so a run that returned is a run that was stopped, and a
  * grandchild marker that is absent is a tree that was stopped with it.
  *
  * The three seconds are headroom for the fixture's own start rather than part of what is asserted:
@@ -151,10 +151,14 @@ it('stops a script that never ends, and the child it started with it', function 
     file_put_contents($mark.'.started', 'yes');
     
     // A grandchild that outlives the fixture unless the whole tree is stopped: it says it exists at
-    // once, then writes six seconds in — three seconds past the deadline this test hands the run —
-    // and its stdout goes to the null device because nothing here reads it.
+    // once, then writes fifteen seconds in — twelve seconds past the deadline this test hands the
+    // run — and its stdout goes to the null device because nothing here reads it. The delay is not
+    // part of what is asserted; it is the room the cleanup is given. Stopping a tree on a loaded
+    // Windows box was measured taking thirteen seconds from the deadline to the sweep that finishes
+    // it, and a marker that arrived before that measured when the machine was busy rather than
+    // whether the tree was stopped.
     proc_open(
-        [PHP_BINARY, '-r', 'file_put_contents($argv[1].".grandchild-started", "yes"); usleep(6000000); file_put_contents($argv[1].".grandchild", "yes");', $mark],
+        [PHP_BINARY, '-r', 'file_put_contents($argv[1].".grandchild-started", "yes"); usleep(15000000); file_put_contents($argv[1].".grandchild", "yes");', $mark],
         [
             0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'],
             1 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'w'],
@@ -185,14 +189,15 @@ it('stops a script that never ends, and the child it started with it', function 
         ->and(file_exists($mark.'.grandchild-started'))->toBeTrue()
         ->and(file_exists($mark.'.finished'))->toBeFalse();
 
-    // Past the grandchild's own six seconds, counted from when it says it started rather than from
-    // when this run came back: under the gate's workers the child can take seconds to boot, so the
-    // grandchild may be spawned most of the deadline late, and a wait measured from here would
-    // check while it was still asleep — an orphan this case is about would read as absent. A stop
-    // that killed only the direct child leaves the later marker written, and the next test to copy
-    // the tree inherits a process still working in it: the cleanup half of the bound, which is the
-    // half a kill of the child alone misses.
-    $since = (float) filemtime($mark.'.grandchild-started') + 7.0 - microtime(true);
+    // Past the grandchild's own fifteen seconds, counted from when it says it started rather than
+    // from when this run came back: under the gate's workers the child can take seconds to boot, so
+    // the grandchild may be spawned most of the deadline late, and a wait measured from here would
+    // check while it was still asleep — an orphan this case is about would read as absent. The
+    // extra second is margin for `filemtime()`'s own resolution. A stop that killed only the direct
+    // child leaves the later marker written, and the next test to copy the tree inherits a process
+    // still working in it: the cleanup half of the bound, which is the half a kill of the child
+    // alone misses.
+    $since = (float) filemtime($mark.'.grandchild-started') + 16.0 - microtime(true);
 
     if ($since > 0) {
         usleep((int) ($since * 1_000_000));
