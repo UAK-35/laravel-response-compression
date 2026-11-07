@@ -15,6 +15,8 @@ whoever cuts the release — which is why it sits in the repository rather than 
 
 ## Unreleased
 
+## [v0.1.0-alpha2] - 2026-11-07
+
 ### Fixed
 
 - **The changelog preamble stops naming the upstream release whose number this package now uses, and a bullet that carried two markers carries one.** Promoting `## Unreleased` to `## [v0.1.0-alpha1]` made the paragraph false — it said the `0.2.0` and `0.1.0` lines were upstream's and that no tag here carried either number — and `ChangelogPreambleTest` caught it on the release commit, which is the one commit the releaser never runs the suite against because it checks the tree before writing the promotion. The paragraph now names `0.2.0` alone, the release still kept as history, and says the numbering never counted it. The investigation bullet in the alpha's notes was handed to `bin/commit.php` with its own `- ` marker already on the text, so the tool added a second; it is corrected here, in the section that now publishes it. Measured: `ChangelogPreamble::stale()` answers `[]` and the docs test with its harness hold is 5 passed (18 assertions). The tag `v0.1.0-alpha1` is not moved: it is pushed and red, and the lane's rule is to cut the next number.
