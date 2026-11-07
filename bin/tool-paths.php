@@ -69,7 +69,7 @@ return [
     ],
     'yaml-lint' => [
         'path' => 'vendor/symfony/yaml/Resources/bin/yaml-lint',
-        'pin' => '8.1.6',
+        'pin' => '8.1.11',
         'why' => 'the workflow YAML, which nothing else here reads',
     ],
 ];
