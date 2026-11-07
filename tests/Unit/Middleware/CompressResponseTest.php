@@ -497,7 +497,7 @@ it('refuses a fallback behaviour it does not know, rather than guessing one', fu
     config()->set('response-compression.multiple_encodings_order', '');
     config()->set('response-compression.fallback_behavior', 'sometimes');
 
-    expect(fn () => runCompressResponseMiddleware(
+    expect(fn (): Response => runCompressResponseMiddleware(
         Request::create('/', 'GET', [], [], [], ['HTTP_ACCEPT_ENCODING' => 'gzip']),
         new Response(getLongContent(), 200, ['Content-Type' => 'text/plain'])
     ))->toThrow(
