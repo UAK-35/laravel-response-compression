@@ -182,6 +182,27 @@ def target_text(skill: dict) -> str:
     return frontmatter(skill) + "\n\n" + body
 
 
+def existing_meta(target: str) -> dict:
+    """The metadata a generated target already carries, or an empty mapping when there is none.
+
+    `date` and `updated_at` record when the source changed, not when the file was last written. They
+    were derived from the source's mtime, which a fresh checkout stamps with its own clock — so every
+    clone that had not authored the skill disagreed with the committed metadata, and the gate failed
+    on a tree nobody had edited.
+    """
+    path = TARGET / target / "_meta.json"
+
+    if not path.is_file():
+        return {}
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+    return data if isinstance(data, dict) else {}
+
+
 def meta_text(skill: dict) -> str:
     data = skill["data"]
     stamp = datetime.fromtimestamp(skill["modified"], tz=timezone.utc)
@@ -200,6 +221,15 @@ def meta_text(skill: dict) -> str:
         "id": zlib.crc32(skill["target"].encode("utf-8")),
         "source_hash": skill["hash"],
     }
+
+    # A target whose source has not changed keeps the stamp it was authored with: the mtime that
+    # reached here is the working tree's, not the author's, and a clone cannot tell the two apart.
+    carried = existing_meta(skill["target"])
+
+    if carried.get("source_hash") == meta["source_hash"]:
+        meta["date"] = carried.get("date", meta["date"])
+        meta["updated_at"] = carried.get("updated_at", meta["updated_at"])
+
     return json.dumps(meta, indent=2, ensure_ascii=False) + "\n"
 
 
